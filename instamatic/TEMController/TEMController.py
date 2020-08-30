@@ -2,8 +2,8 @@ import time
 from collections import namedtuple
 from concurrent.futures import ThreadPoolExecutor
 from typing import Tuple
-
 import numpy as np
+from skimage.registration import phase_cross_correlation
 
 from .deflectors import *
 from .lenses import *
@@ -14,7 +14,7 @@ from instamatic import config
 from instamatic.camera import Camera
 from instamatic.exceptions import TEMControllerError
 from instamatic.formats import write_tiff
-from instamatic.image_utils import rotate_image
+from instamatic.image_utils import rotate_image, translate_image
 
 
 _ctrl = None  # store reference of ctrl so it can be accessed without re-initializing
@@ -109,10 +109,19 @@ class TEMController:
         self.stageposition = self.stage  # for backwards compatibility
         self.magnification = Magnification(tem)
         self.brightness = Brightness(tem)
-        self.difffocus = DiffFocus(tem)
         self.beam = Beam(tem)
         self.screen = Screen(tem)
         self.mode = Mode(tem)
+
+        if self.tem.name[:3] == 'fei':
+            if self.mode.state in ('D', 'LAD'):
+                self.difffocus = DiffFocus(tem)
+                self.objfocus = None
+            else:
+                self.difffocus = None
+                self.objfocus = ObjFocus(tem)
+        else:
+            self.difffocus = DiffFocus(tem)
 
         self.autoblank = False
         self._saved_alignments = config.get_alignments()
@@ -122,9 +131,14 @@ class TEMController:
         self.store()
 
     def __repr__(self):
-        return (f'Mode: {self.tem.getFunctionMode()}\n'
+        current = f'Current: {self.current:.2f} nA\n' if self.tem.name[:3] == "fei" else f'Current density: {self.current_density:.2f} pA/cm2\n'
+        if self.tem.name[:3] == 'fei':
+            focus = f'{self.difffocus}\n' if self.mode.state in ('diff', 'D', 'LAD') else f'{self.objfocus}\n'
+        else:
+            focus = f'{self.difffocus}\n'
+        return (f'{self.mode}\n'
                 f'High tension: {self.high_tension/1000:.0f} kV\n'
-                f'Current density: {self.current_density:.2f} pA/cm2\n'
+                f'{current}'
                 f'{self.gunshift}\n'
                 f'{self.guntilt}\n'
                 f'{self.beamshift}\n'
@@ -134,7 +148,7 @@ class TEMController:
                 f'{self.diffshift}\n'
                 f'{self.stage}\n'
                 f'{self.magnification}\n'
-                f'{self.difffocus}\n'
+                f'{focus}'
                 f'{self.brightness}\n'
                 f'SpotSize({self.spotsize})\n'
                 f'Saved alignments: {tuple(self._saved_alignments.keys())}')
@@ -148,6 +162,11 @@ class TEMController:
     def current_density(self) -> float:
         """Get current density from fluorescence screen in pA/cm2."""
         return self.tem.getCurrentDensity()
+
+    @property
+    def current(self) -> float:
+        """Get current from fluorescence screen in nA."""
+        return self.tem.getScreenCurrent()
 
     @property
     def spotsize(self) -> int:
@@ -303,8 +322,6 @@ class TEMController:
         stage_shift : np.array[2]
             The stage shift vector determined from cross correlation
         """
-        from skimage.registration import phase_cross_correlation
-
         current_x, current_y = self.stage.xy
 
         if verbose:
@@ -367,8 +384,6 @@ class TEMController:
         z: float
             Optimized Z value for eucentric tilting
         """
-        from skimage.registration import phase_cross_correlation
-
         def one_cycle(tilt: float = 5, sign=1) -> list:
             angle1 = -tilt * sign
             self.stage.a = angle1
@@ -445,8 +460,9 @@ class TEMController:
         """
 
         # Each of these costs about 40-60 ms per call on a JEOL 2100, stage is 265 ms per call
+        mode = self.tem.getFunctionMode()
+
         funcs = {
-            'FunctionMode': self.tem.getFunctionMode,
             'GunShift': self.gunshift.get,
             'GunTilt': self.guntilt.get,
             'BeamShift': self.beamshift.get,
@@ -460,16 +476,23 @@ class TEMController:
             'Brightness': self.brightness.get,
             'SpotSize': self.tem.getSpotSize,
         }
-
+        if self.tem.name[:3] == 'fei':
+            if mode not in ('diff', 'D', 'LAD'):
+                funcs.pop('DiffFocus')
+                funcs['ObjFocus'] = self.objfocus.get
+        else:
+            if mode not in ('diff'):
+                funcs.pop('DiffFocus')
+                
         dct = {}
-
+        dct['FunctionMode'] = mode
         if 'all' in keys or not keys:
             keys = funcs.keys()
 
         for key in keys:
             try:
                 dct[key] = funcs[key]()
-            except ValueError:
+            except TypeError:
                 # print(f"No such key: `{key}`")
                 pass
 
@@ -478,8 +501,10 @@ class TEMController:
     def from_dict(self, dct: dict):
         """Restore microscope parameters from dict."""
 
+        mode = dct['FunctionMode']
+        self.tem.setFunctionMode(mode)
+
         funcs = {
-            # 'FunctionMode': self.tem.setFunctionMode,
             'GunShift': self.gunshift.set,
             'GunTilt': self.guntilt.set,
             'BeamShift': self.beamshift.set,
@@ -494,8 +519,13 @@ class TEMController:
             'SpotSize': self.tem.setSpotSize,
         }
 
-        mode = dct['FunctionMode']
-        self.tem.setFunctionMode(mode)
+        if self.tem.name[:3] == 'fei':
+            if mode not in ('D', 'LAD'):
+                funcs.pop('DiffFocus')
+                funcs[ObjFocus] = self.objfocus.set
+        else:
+            if mode not in ('diff'):
+                funcs.pop('DiffFocus')
 
         for k, v in dct.items():
             if k in funcs:
@@ -507,10 +537,13 @@ class TEMController:
                 func(*v)
             except TypeError:
                 func(v)
+            except AttributeError:
+                pass
 
     def get_raw_image(self, exposure: float = None, binsize: int = None) -> np.ndarray:
         """Simplified function equivalent to `get_image` that only returns the
-        raw data array.
+           raw data array. self.cam here is the video stream, not the Camera object. 
+           Check initialize function for more info
 
         Parameters
         ----------
@@ -587,7 +620,7 @@ class TEMController:
                   out: str = None,
                   plot: bool = False,
                   verbose: bool = False,
-                  header_keys: Tuple[str] = 'all',
+                  header_keys: Tuple[str] = None,
                   ) -> Tuple[np.ndarray, dict]:
         """Retrieve image as numpy array from camera. If the exposure and
         binsize are not given, the default values are read from the config
@@ -671,7 +704,7 @@ class TEMController:
 
         Restore the alignment using:     `ctrl.restore("beam")`
         """
-        if self.mode != 'diff':
+        if self.mode != 'diff' or self.mode not in ('D','LAD'):
             raise TEMControllerError('Microscope is not in `diffraction mode`')
         keys = 'FunctionMode', 'Brightness', 'GunTilt', 'DiffFocus', 'SpotSize'
         self.store(name=name, keys=keys, save_to_file=save_to_file)

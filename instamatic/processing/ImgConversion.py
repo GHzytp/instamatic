@@ -411,7 +411,7 @@ class ImgConversion:
         img = self.data[i]
         h = self.headers[i]
 
-        # PETS reads only 16bit unsignt integer TIFF
+        # PETS reads only 16bit unsigned integer TIFF
         img = np.round(img, 0).astype(np.uint16)
 
         fn = path / f'{i:05d}.tiff'
@@ -459,7 +459,7 @@ class ImgConversion:
         header['TIME'] = str(h['ImageExposureTime'])
         header['DISTANCE'] = f'{self.distance:.4f}'
         header['TWOTHETA'] = 0.00
-        header['PHI'] = '{phi:.4f}'
+        header['PHI'] = f'{phi:.4f}'
         header['OSC_START'] = f'{phi:.4f}'
         header['OSC_RANGE'] = f'{self.osc_angle:.4f}'
         header['WAVELENGTH'] = f'{self.wavelength:.4f}'

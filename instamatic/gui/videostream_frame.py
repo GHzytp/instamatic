@@ -20,19 +20,20 @@ class VideoStreamFrame(LabelFrame):
     """GUI panel to continuously display the last frame streamed from the
     camera."""
 
-    def __init__(self, parent, stream, app=None):
+    def __init__(self, parent, stream, app=None, image_stream=None):
         LabelFrame.__init__(self, parent, text='Stream')
 
         self.parent = parent
 
         self.stream = stream
         self.app = app
+        self.image_stream = image_stream
 
         self.panel = None
 
         self.frame_delay = 50
 
-        self.frametime = 0.05
+        self.frametime = self.stream.frametime
         self.brightness = 1.0
         self.display_range = self.display_range_default = self.stream.cam.dynamic_range
         # Maximum number from image readout
@@ -89,9 +90,22 @@ class VideoStreamFrame(LabelFrame):
         self.var_auto_contrast.trace_add('write', self.update_auto_contrast)
 
     def buttonbox(self, master):
-        btn = Button(master, text='Save image',
+        if self.stream.cam.name[:2]=="DM":
+            frame = Frame(master)
+            frame.pack(side='bottom', fill='both')
+            self.btn_save = Button(frame, text='Save Image',
                      command=self.saveImage)
-        btn.pack(side='bottom', fill='both', padx=10, pady=10)
+            self.btn_save.pack(side='left', expand=True, fill='both', padx=10, pady=10)
+            self.btn_pause = Button(frame, text='Pause Stream',
+                     command=self.image_stream.pause_streaming)
+            self.btn_pause.pack(side='left', expand=True, fill='both', padx=10, pady=10)
+            self.btn_continue = Button(frame, text='Continue Stream',
+                     command=self.image_stream.continue_streaming)
+            self.btn_continue.pack(side='left', expand=True, fill='both', padx=10, pady=10)
+        else:
+            btn = Button(master, text='Save image',
+                     command=self.saveImage)
+            btn.pack(side='bottom', fill='both', padx=10, pady=10)
 
     def header(self, master):
         ewidth = 8
@@ -120,7 +134,7 @@ class VideoStreamFrame(LabelFrame):
 
         frame = Frame(master)
 
-        self.e_frametime = Spinbox(frame, width=ewidth, textvariable=self.var_frametime, from_=0.0, to=1.0, increment=0.01)
+        self.e_frametime = Spinbox(frame, width=ewidth, textvariable=self.var_frametime, from_=0.0, to=10.0, increment=0.01)
 
         Label(frame, width=lwidth, text='exposure (s)').grid(row=1, column=0)
         self.e_frametime.grid(row=1, column=1)
@@ -211,7 +225,8 @@ class VideoStreamFrame(LabelFrame):
 
         # the display range in ImageTk is from 0 to 256
         if self.auto_contrast:
-            frame = frame * (256.0 / (1 + np.percentile(frame[::4, ::4], 99.5)))  # use 128x128 array for faster calculation
+            tmp = frame - np.min(frame[::8, ::8])
+            frame = tmp * (256.0 / (1 + np.percentile(tmp[::8, ::8], 99.5)))  # use 128x128 array for faster calculation
 
             image = Image.fromarray(frame)
         elif self.display_range != self.display_range_default:
@@ -284,7 +299,12 @@ def ipy_embed(*args, **kwargs):
 
 if __name__ == '__main__':
     from instamatic import config
-    from instamatic.camera import VideoStream
+    from instamatic.camera.videostream import VideoStream
+    from instamatic.camera.datastream_dm import CameraDataStream
+
+    p = CameraDataStream(cam=config.camera.name, frametime=0.1)
+    p.start_loop()
+    time.sleep(10)
 
     stream = VideoStream(cam=config.camera.name)
 
@@ -297,3 +317,4 @@ if __name__ == '__main__':
 
         import IPython
         IPython.embed()
+        p.stop()
