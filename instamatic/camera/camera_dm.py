@@ -24,7 +24,7 @@ class CameraDM:
 
     def __init__(self, name, frametime=config.settings.default_frame_time, numImg=1):
 
-        if name not in ('DMK2', 'DMOneView', 'DMsimu_c', 'DMfaux', 'DMorius'):
+        if name not in ('DMK2', 'DMsimu_c', 'DMfaux', 'DMorius200D', 'DMorius1000', 'DMoneview'):
             raise InvalidNameError(f"Please input a valid camera name!")
 
         libdrc = Path(__file__).parent
@@ -34,8 +34,6 @@ class CameraDM:
 
         self.frametime = frametime
         self.numImg = numImg
-
-        self.is_connected = None
 
         atexit.register(self.uninit)
 
@@ -180,14 +178,8 @@ if __name__ == '__main__':
     from IPython import embed
     import threading
     
-
-    if False:
-        run()
-    if False:
-        t = threading.Thread(target=run, args=(), daemon=True)
-        t.start()
     if True:
-        p = multiprocessing.Process(target = run_proc, args = (frame_buffer,'DMorius'), daemon=True)
+        p = multiprocessing.Process(target=run_proc, args=(frame_buffer,config.settings.camera), daemon=True)
         p.start()
         #t = threading.Thread(target=run_thread, args=(frame_buffer,0.1,), daemon=True)
         #t.start()

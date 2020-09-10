@@ -7,6 +7,7 @@ import decimal
 import numpy as np
 from abc import ABC, abstractmethod
 
+from instamatic.tools import printer
 from instamatic import config
 from .camera_dm import CameraDM
 
@@ -20,6 +21,18 @@ writeEvent = multiprocessing.Event()
 writeEvent.clear()
 readEvent = multiprocessing.Event()
 readEvent.set()
+
+def start_streaming():
+    data_stream = CameraDataStream(cam=config.camera.name, frametime=config.settings.default_frame_time)
+    data_stream.start_loop()
+    if config.settings.buffer_stream_use_thread:
+        image_stream = StreamBufferThread(exposure=config.settings.default_frame_time, frametime=config.settings.default_frame_time)
+        image_stream.start_loop()
+    else:
+        image_stream = StreamBufferProc(exposure=config.settings.default_frame_time, frametime=config.settings.default_frame_time)
+        image_stream.start_loop()
+    time.sleep(8)
+    return data_stream, image_stream
 
 class DataStreamError(RuntimeError):
     pass
@@ -76,9 +89,11 @@ class CameraDataStream:
         self.proc.start()
 
     def stop(self):
-        self.stopProcEvent.set()
-        time.sleep(0.5)
-        print('\nStopping the data stream.\n')
+        if not self.stopProcEvent.is_set():
+            self.stopProcEvent.set()
+            time.sleep(0.5)
+            printer('Stopping the data stream.')
+            print()
 
 
 class StreamBuffer(ABC):
@@ -112,11 +127,11 @@ class StreamBuffer(ABC):
         pass
 
     def stop(self):
-        self.stopEvent.set()
-        time.sleep(0.1)
-        print('\nStopping the buffer stream.\n')
-
-    
+        if not self.stopEvent.is_set():
+            self.stopEvent.set()
+            time.sleep(0.1)
+            printer('Stopping the buffer stream.')
+            print()
 
 class StreamBufferProc(StreamBuffer):
     """

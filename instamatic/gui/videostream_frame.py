@@ -14,26 +14,27 @@ from instamatic.formats import read_tiff
 from instamatic.formats import write_tiff
 from instamatic.processing.flatfield import apply_flatfield_correction
 from instamatic.utils.spinbox import Spinbox
+from instamatic.TEMController import get_instance
 
 
 class VideoStreamFrame(LabelFrame):
     """GUI panel to continuously display the last frame streamed from the
     camera."""
 
-    def __init__(self, parent, stream, app=None, image_stream=None):
+    def __init__(self, parent, stream, app=None):
         LabelFrame.__init__(self, parent, text='Stream')
 
         self.parent = parent
 
         self.stream = stream
         self.app = app
-        self.image_stream = image_stream
+        self.image_stream = get_instance().image_stream
 
         self.panel = None
 
         self.frame_delay = 50
 
-        self.frametime = self.stream.frametime
+        self.frametime = self.stream.frametime / 2
         self.brightness = 1.0
         self.display_range = self.display_range_default = self.stream.cam.dynamic_range
         # Maximum number from image readout
@@ -300,21 +301,11 @@ def ipy_embed(*args, **kwargs):
 if __name__ == '__main__':
     from instamatic import config
     from instamatic.camera.videostream import VideoStream
-    from instamatic.camera.datastream_dm import CameraDataStream
-
-    p = CameraDataStream(cam=config.camera.name, frametime=0.1)
-    p.start_loop()
-    time.sleep(10)
 
     stream = VideoStream(cam=config.camera.name)
 
-    if False:
-        threading.Thread(target=ipy_embed).start()
-        start_gui()
-    else:
-        t = threading.Thread(target=start_gui, args=(stream,))
-        t.start()
+    t = threading.Thread(target=start_gui, args=(stream,))
+    t.start()
 
-        import IPython
-        IPython.embed()
-        p.stop()
+    import IPython
+    IPython.embed()

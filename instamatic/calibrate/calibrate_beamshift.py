@@ -172,9 +172,9 @@ def calibrate_beamshift_live(ctrl, gridsize=None, stepsize=None, save_images=Fal
     for dx, dy in np.stack([x_grid, y_grid]).reshape(2, -1).T:
         ctrl.beamshift.set(x=x_cent + dx, y=y_cent + dy)
 
-        printer('Position: {}/{}: {}'.format(i + 1, tot, ctrl.beamshift))
+        print(f'Position: {i+1}/{tot}: {ctrl.beamshift}')
 
-        outfile = os.path.join(outdir, 'calib_beamshift_{i:04d}') if save_images else None
+        outfile = os.path.join(outdir, f'calib_beamshift_{i:04d}') if save_images else None
 
         comment = f'Calib image {i}: dx={dx} - dy={dy}'
         img, h = ctrl.get_image(exposure=exposure, binsize=binsize, out=outfile, comment=comment, header_keys='BeamShift')

@@ -1,3 +1,4 @@
+import atexit
 import time
 from collections import namedtuple
 from concurrent.futures import ThreadPoolExecutor
@@ -18,6 +19,8 @@ from instamatic.image_utils import rotate_image, translate_image
 
 
 _ctrl = None  # store reference of ctrl so it can be accessed without re-initializing
+_data_stream = None
+_image_stream = None
 
 default_cam = config.camera.name
 default_tem = config.microscope.name
@@ -62,8 +65,14 @@ def initialize(tem_name: str = default_tem, cam_name: str = default_cam, stream:
     else:
         cam = None
 
+    global _data_stream, _image_stream
+    if not config.settings.simulate and config.settings.camera[:2]=="DM":
+        from instamatic.camera.datastream_dm import start_streaming
+        if _data_stream is None and _image_stream is None:
+            _data_stream, _image_stream = start_streaming()
+
     global _ctrl
-    ctrl = _ctrl = TEMController(tem=tem, cam=cam)
+    ctrl = _ctrl = TEMController(tem=tem, cam=cam, data_stream=_data_stream, image_stream=_image_stream)
 
     return ctrl
 
@@ -90,13 +99,15 @@ class TEMController:
     cam: Camera control object (see instamatic.camera) [optional]
     """
 
-    def __init__(self, tem, cam=None):
+    def __init__(self, tem, cam=None, data_stream=None, image_stream=None):
         super().__init__()
 
         self._executor = ThreadPoolExecutor(max_workers=1)
 
         self.tem = tem
         self.cam = cam
+        self.data_stream = data_stream
+        self.image_stream = image_stream
 
         self.gunshift = GunShift(tem)
         self.guntilt = GunTilt(tem)
@@ -115,16 +126,16 @@ class TEMController:
 
         if self.tem.name[:3] == 'fei':
             if self.mode.state in ('D', 'LAD'):
-                self.difffocus = DiffFocus(tem)
-                self.objfocus = None
+                self.in_diff_state()
             else:
-                self.difffocus = None
-                self.objfocus = ObjFocus(tem)
+                self.in_img_state()
         else:
             self.difffocus = DiffFocus(tem)
 
         self.autoblank = False
         self._saved_alignments = config.get_alignments()
+
+        atexit.register(self.close)
 
         print()
         print(self)
@@ -175,6 +186,14 @@ class TEMController:
     @spotsize.setter
     def spotsize(self, value: int):
         self.tem.setSpotSize(value)
+
+    def in_diff_state(self):
+        self.difffocus = DiffFocus(self.tem)
+        self.objfocus = None
+
+    def in_img_state(self):
+        self.difffocus = None
+        self.objfocus = ObjFocus(self.tem)
 
     def acquire_at_items(self, *args, **kwargs) -> None:
         """Class to automated acquisition at many stage locations. The
@@ -472,17 +491,17 @@ class TEMController:
             'DiffShift': self.diffshift.get,
             'StagePosition': self.stage.get,
             'Magnification': self.magnification.get,
-            'DiffFocus': self.difffocus.get,
             'Brightness': self.brightness.get,
             'SpotSize': self.tem.getSpotSize,
         }
         if self.tem.name[:3] == 'fei':
-            if mode not in ('diff', 'D', 'LAD'):
-                funcs.pop('DiffFocus')
+            if mode in ('D', 'LAD'):
+                funcs['DiffFocus'] = self.difffocus.get
+            else:
                 funcs['ObjFocus'] = self.objfocus.get
         else:
-            if mode not in ('diff'):
-                funcs.pop('DiffFocus')
+            if mode in ('diff'):
+                funcs['DiffFocus'] = self.difffocus.get
                 
         dct = {}
         dct['FunctionMode'] = mode
@@ -520,12 +539,13 @@ class TEMController:
         }
 
         if self.tem.name[:3] == 'fei':
-            if mode not in ('D', 'LAD'):
-                funcs.pop('DiffFocus')
-                funcs[ObjFocus] = self.objfocus.set
+            if mode in ('D', 'LAD'):
+                funcs['DiffFocus'] = self.difffocus.set
+            else:
+                funcs['ObjFocus'] = self.objfocus.set
         else:
-            if mode not in ('diff'):
-                funcs.pop('DiffFocus')
+            if mode in ('diff'):
+                funcs['DiffFocus'] = self.difffocus.set
 
         for k, v in dct.items():
             if k in funcs:
@@ -734,6 +754,9 @@ class TEMController:
         print(f"Microscope alignment restored from '{name}'")
 
     def close(self):
+        if self.data_stream is not None and self.image_stream is not None:
+            self.data_stream.stop()
+            self.image_stream.stop()
         try:
             self.cam.close()
         except AttributeError:
@@ -789,7 +812,9 @@ def main_entry():
 if __name__ == '__main__':
     from IPython import embed
     ctrl = initialize()
+    
 
     embed(banner1='\nAssuming direct control.\n')
 
     ctrl.close()
+

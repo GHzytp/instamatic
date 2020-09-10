@@ -8,7 +8,6 @@ from instamatic import config
 
 # can add a configuration to hide when buffers are not needed
 if config.settings.camera[:2]=="DM":
-    from .datastream_dm import frame_buffer
     if config.settings.buffer_stream_use_thread:
         from .datastream_dm import stream_buffer_thread as stream_buffer
     else:
@@ -64,14 +63,14 @@ class ImageGrabber:
                     if self.name[:2]=="DM":
                         frame = self.cam.get_from_buffer(queue, exposure=self.exposure, multiple=True, align=False)
                     else:
-                        frame = self.cam.getImage(exposure=self.exposure, binsize=self.binsize)
+                        frame = self.cam.getImage(exposure=self.exposure)
                     self.callback(frame, acquire=True)
                 elif not self.continuousCollectionEvent.is_set():
                     if self.name[:2]=="DM":
                         #print(f"frametime: {self.frametime}")
                         frame = self.cam.get_from_buffer(queue, exposure=self.frametime)
                     else:
-                        frame = self.cam.getImage(exposure=self.frametime, binsize=self.binsize)
+                        frame = self.cam.getImage(exposure=self.frametime)
                     self.callback(frame)
                 #if i%10 == 0:
                 #    print(f"Number of images consumed: {i}")
@@ -89,7 +88,10 @@ class ImageGrabber:
 
     def stop(self):
         self.stopEvent.set()
-        #self.thread.join() Cannot use this join in here. Otherwise the closing of the program may not responsive
+        if config.settings.camera[:2]!="DM":
+            # For DM cameras, cannot use this join in here. Otherwise the closing of the program may not responsive
+            # For Timepix cameras, must use this join in here. Otherwise errors will orrur when closing the program
+            self.thread.join() 
 
 
 class VideoStream(threading.Thread):
@@ -107,7 +109,10 @@ class VideoStream(threading.Thread):
 
         self.name = self.cam.name
         
-        self.frametime = 0.1
+        if config.settings.camera[:2] == 'DM':
+            self.frametime = config.settings.default_frame_time
+        else:
+            self.frametime = 0.1
         self.grabber = self.setup_grabber()
 
 
@@ -217,20 +222,18 @@ class VideoStream(threading.Thread):
 
     def show_stream(self):
         from instamatic.gui import videostream_frame
-        t = threading.Thread(target=videostream_frame.start_gui, args=(self, ), daemon=True)
+        t = threading.Thread(target=videostream_frame.start_gui, args=(self,), daemon=True)
         t.start()
 
 
 if __name__ == '__main__':
     from multiprocessing import Event
-    from .datastream_dm import CameraDataStream
 
-    camera = 'simulate'
+    camera = config.settings.camera
     stream = VideoStream(cam=camera)
     #data_stream = CameraDataStream(cam=camera, frametime=0.1)
     #data_stream.start_loop()
     from IPython import embed
-    print('test')
     embed()
     #data_stream.stop()
     stream.close()
