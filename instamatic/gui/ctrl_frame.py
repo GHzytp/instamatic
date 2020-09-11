@@ -280,7 +280,7 @@ class ExperimentalCtrl(LabelFrame):
 
     def set_alpha_angle(self):
         self.q.put(('ctrl', {'task': 'stage.set',
-                             'a': self.var_alpla_angle.get(),
+                             'a': self.var_alpha_angle.get(),
                              'wait': self.var_stage_wait.get()}))
         self.triggerEvent.set()
 
