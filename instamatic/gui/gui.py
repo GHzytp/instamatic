@@ -34,7 +34,7 @@ class DataCollectionController(threading.Thread):
 
         self.log = log
 
-        self.q = queue.LifoQueue(maxsize=1)
+        self.q = queue.Queue(maxsize=1)
         self.triggerEvent = threading.Event()
 
         self.module_io = self.app.get_module('io')
@@ -89,7 +89,6 @@ class AppLoader:
     """
 
     def __init__(self):
-        super().__init__()
         self.modules = {}
         self.locations = ['left', 'top', 'bottom', 'right']
 
@@ -133,7 +132,6 @@ class MainFrame:
     """
 
     def __init__(self, root, cam, modules: list = []):
-        super().__init__()
         # the stream window is a special case, because it needs access
         # to the cam module
         if cam and cam.streamable:
@@ -180,5 +178,5 @@ if __name__ == '__main__':
     from instamatic.camera.datastream_dm import CameraDataStream, StreamBuffer
     import time
 
-    ctrl = TEMController.initialize()
+    ctrl = TEMController.get_instance()
     start_gui(ctrl)

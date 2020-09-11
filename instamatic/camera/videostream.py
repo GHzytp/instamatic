@@ -12,6 +12,9 @@ if config.settings.camera[:2]=="DM":
         from .datastream_dm import stream_buffer_thread as stream_buffer
     else:
         from .datastream_dm import stream_buffer_proc as stream_buffer
+
+import instamatic.TEMController as TEMController
+import ipdb
     
 
 class GrabbingError(RuntimeError):
@@ -27,7 +30,6 @@ class ImageGrabber:
 
     def __init__(self, cam, callback, frametime: float = 0.05):
         super().__init__()
-
         self.callback = callback
         self.cam = cam
 
@@ -221,6 +223,7 @@ class VideoStream(threading.Thread):
             return buffer
 
     def show_stream(self):
+        ipdb.set_trace()
         from instamatic.gui import videostream_frame
         t = threading.Thread(target=videostream_frame.start_gui, args=(self,), daemon=True)
         t.start()
@@ -228,12 +231,14 @@ class VideoStream(threading.Thread):
 
 if __name__ == '__main__':
     from multiprocessing import Event
+    from instamatic import TEMController
 
     camera = config.settings.camera
-    stream = VideoStream(cam=camera)
-    #data_stream = CameraDataStream(cam=camera, frametime=0.1)
-    #data_stream.start_loop()
+    # Be careful, do not started ImageGrabber loop 2 times
+    TEMController.TEMController._cam = VideoStream(cam=camera)
+    ctrl = TEMController.get_instance()
+
     from IPython import embed
     embed()
     #data_stream.stop()
-    stream.close()
+    TEMController.TEMController._cam.close()
