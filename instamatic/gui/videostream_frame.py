@@ -16,7 +16,6 @@ from instamatic.processing.flatfield import apply_flatfield_correction
 from instamatic.utils.spinbox import Spinbox
 from instamatic.TEMController import get_instance
 
-
 class VideoStreamFrame(LabelFrame):
     """GUI panel to continuously display the last frame streamed from the
     camera."""
@@ -28,6 +27,7 @@ class VideoStreamFrame(LabelFrame):
 
         self.stream = stream
         self.app = app
+
         self.image_stream = get_instance().image_stream
 
         self.panel = None
@@ -301,10 +301,12 @@ def ipy_embed(*args, **kwargs):
 if __name__ == '__main__':
     from instamatic import config
     from instamatic.camera.videostream import VideoStream
+    from instamatic import TEMController
 
-    stream = VideoStream(cam=config.camera.name)
+    TEMController.TEMController._cam = VideoStream(cam=config.camera.name)
+    ctrl = TEMController.get_instance()
 
-    t = threading.Thread(target=start_gui, args=(stream,))
+    t = threading.Thread(target=start_gui, args=(TEMController.TEMController._cam,))
     t.start()
 
     import IPython

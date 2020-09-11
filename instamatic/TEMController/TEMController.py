@@ -13,23 +13,25 @@ from .stage import *
 from .states import *
 from instamatic import config
 from instamatic.camera import Camera
+from instamatic.holder import Holder
 from instamatic.exceptions import TEMControllerError
 from instamatic.formats import write_tiff
 from instamatic.image_utils import rotate_image, translate_image
 
-
 _ctrl = None  # store reference of ctrl so it can be accessed without re-initializing
+_cam = None
 _data_stream = None
 _image_stream = None
 
 default_cam = config.camera.name
 default_tem = config.microscope.name
+default_holder = config.holder.name
 
 use_tem_server = config.settings.use_tem_server
 use_cam_server = config.settings.use_cam_server
 
 
-def initialize(tem_name: str = default_tem, cam_name: str = default_cam, stream: bool = True) -> 'TEMController':
+def initialize(tem_name: str = default_tem, cam_name: str = default_cam, holder_name: str = default_holder, stream: bool = True) -> 'TEMController':
     """Initialize TEMController object giving access to the TEM and Camera
     interfaces.
 
@@ -51,6 +53,7 @@ def initialize(tem_name: str = default_tem, cam_name: str = default_cam, stream:
     print(f"Microscope: {tem_name}{' (server)' if use_tem_server else ''}")
     tem = Microscope(tem_name, use_server=use_tem_server)
 
+    global _cam
     if cam_name:
         if use_cam_server:
             cam_tag = ' (server)'
@@ -60,10 +63,13 @@ def initialize(tem_name: str = default_tem, cam_name: str = default_cam, stream:
             cam_tag = ''
 
         print(f'Camera    : {cam_name}{cam_tag}')
+        if _cam is None:
+            _cam = Camera(cam_name, as_stream=stream, use_server=use_cam_server)
 
-        cam = Camera(cam_name, as_stream=stream, use_server=use_cam_server)
+    if holder_name:
+        holder = Holder(holder_name)
     else:
-        cam = None
+        holder = None
 
     global _data_stream, _image_stream
     if not config.settings.simulate and config.settings.camera[:2]=="DM":
@@ -72,7 +78,7 @@ def initialize(tem_name: str = default_tem, cam_name: str = default_cam, stream:
             _data_stream, _image_stream = start_streaming()
 
     global _ctrl
-    ctrl = _ctrl = TEMController(tem=tem, cam=cam, data_stream=_data_stream, image_stream=_image_stream)
+    ctrl = _ctrl = TEMController(tem=tem, cam=_cam, holder=holder, data_stream=_data_stream, image_stream=_image_stream)
 
     return ctrl
 
@@ -80,9 +86,8 @@ def initialize(tem_name: str = default_tem, cam_name: str = default_cam, stream:
 def get_instance() -> 'TEMController':
     """Gets the current `ctrl` instance if it has been initialized, otherwise
     initialize it using default parameters."""
-
     global _ctrl
-
+    
     if _ctrl:
         ctrl = _ctrl
     else:
@@ -99,13 +104,14 @@ class TEMController:
     cam: Camera control object (see instamatic.camera) [optional]
     """
 
-    def __init__(self, tem, cam=None, data_stream=None, image_stream=None):
+    def __init__(self, tem, cam=None, holder=None, data_stream=None, image_stream=None):
         super().__init__()
 
         self._executor = ThreadPoolExecutor(max_workers=1)
 
         self.tem = tem
         self.cam = cam
+        self.holder = holder
         self.data_stream = data_stream
         self.image_stream = image_stream
 
@@ -764,7 +770,9 @@ class TEMController:
 
     def show_stream(self):
         """If the camera has been opened as a stream, start a live view in a
-        tkinter window."""
+        tkinter window. Cannot be started in the command line in this file. It has different behavior 
+        from other files due to unknown reason. All the initialized global variables were not initialized. So the
+        show_stream function will open up two datastream if you do this, which is not allowed."""
         try:
             self.cam.show_stream()
         except AttributeError:
@@ -787,6 +795,10 @@ def main_entry():
                         action='store', type=str, dest='tem_name',
                         help='Camera configuration to load.')
 
+    parser.add_argument('-h', '--holder',
+                        action='store', type=str, dest='holder_name',
+                        help='Holder configuration to load.')
+
     parser.add_argument('-t', '--tem',
                         action='store', type=str, dest='cam_name',
                         help='TEM configuration to load.')
@@ -795,6 +807,7 @@ def main_entry():
         simulate=False,
         tem_name=default_tem,
         cam_name=default_cam,
+        holder_name=default_holder
     )
 
     options = parser.parse_args()
@@ -802,7 +815,7 @@ def main_entry():
     if options.simulate:
         config.settings.simulate = True
 
-    ctrl = initialize(tem_name=options.tem_name, cam_name=options.cam_name)
+    ctrl = initialize(tem_name=options.tem_name, cam_name=options.cam_name, holder_name=options.holder_name)
 
     from IPython import embed
     embed(banner1='\nAssuming direct control.\n')
@@ -811,9 +824,8 @@ def main_entry():
 
 if __name__ == '__main__':
     from IPython import embed
-    ctrl = initialize()
+    ctrl = get_instance()
     
-
     embed(banner1='\nAssuming direct control.\n')
 
     ctrl.close()
