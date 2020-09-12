@@ -130,3 +130,11 @@ class ImageShift2(Deflector):
         self._setter = self._tem.setImageShift2
         self._getter = self._tem.getImageShift2
         self.key = 'IS2'
+
+class ImageBeamTilt(Deflector):
+
+    def __init__(self, tem):
+        super().__init__(tem=tem)
+        self._setter = self._tem.setImageBeamTilt
+        self._getter = self._tem.getImageBeamTilt
+        self.key = 'ImageBeamTilt'

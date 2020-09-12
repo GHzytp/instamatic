@@ -129,6 +129,7 @@ class TEMController:
         self.beam = Beam(tem)
         self.screen = Screen(tem)
         self.mode = Mode(tem)
+        self.imgbeamtilt = ImageBeamTilt(tem)
 
         if self.tem.name[:3] == 'fei':
             if self.mode.state in ('D', 'LAD'):

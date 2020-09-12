@@ -14,7 +14,6 @@ if config.settings.camera[:2]=="DM":
         from .datastream_dm import stream_buffer_proc as stream_buffer
 
 import instamatic.TEMController as TEMController
-import ipdb
     
 
 class GrabbingError(RuntimeError):
@@ -223,7 +222,6 @@ class VideoStream(threading.Thread):
             return buffer
 
     def show_stream(self):
-        ipdb.set_trace()
         from instamatic.gui import videostream_frame
         t = threading.Thread(target=videostream_frame.start_gui, args=(self,), daemon=True)
         t.start()

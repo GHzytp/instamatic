@@ -552,8 +552,9 @@ class FEIMicroscope:
         """User Shift. Beam shift relative to the origin stored at alignment time. Units: nm. 6ms per call"""
         '1.19 ms in communication. Super fast!'
         if USETOM:
-            x = self.illu_tom.BeamShift.X * 1e9
-            y = self.illu_tom.BeamShift.Y * 1e9
+            calib_x, calib_y = self.getBeamShiftCalibration()
+            x = self.illu_tom.BeamShift.X * 1e12 * calib_x
+            y = self.illu_tom.BeamShift.Y * 1e12 * calib_y
         else:
             x = self.illu_tem.Shift.X * 1e9
             y = self.illu_tem.Shift.Y * 1e9
@@ -562,12 +563,13 @@ class FEIMicroscope:
     def setBeamShift(self, x=None, y=None):
         """User Shift. Beam shift relative to the origin stored at alignment time. Units: nm. 10ms per call"""
         if USETOM:
+            calib_x, calib_y = self.getBeamShiftCalibration()
             bs = self.illu_tom.BeamShift
             if x is not None:
-                bs.X = x * 1e-9
+                bs.X = x * 1e-12 / calib_x
             if y is not None:
-                bs.Y = y * 1e-9
-            self.illu_tom.Shift = bs
+                bs.Y = y * 1e-12 / calib_y
+            self.illu_tom.BeamShift = bs
         else:
             bs = self.illu_tem.Shift
             if x is not None:
@@ -623,23 +625,23 @@ class FEIMicroscope:
         self.illu_tom.BeamShiftPhysical = bs
 
     def getBeamTilt(self):
-        """rotation center in FEI. 5ms per call"""
+        """rotation center in FEI. 5ms per call. Units: degree"""
         if USETOM:
-            x = self.illu_tom.BeamAlignmentTilt.X *180 / pi
-            y = self.illu_tom.BeamAlignmentTilt.Y *180 / pi
+            x = self.illu_tom.BeamAlignmentTilt.X * 36 / pi
+            y = self.illu_tom.BeamAlignmentTilt.Y * 36 / pi
         else:
-            x = self.illu_tem.RotationCenter.X *180 / pi
-            y = self.illu_tem.RotationCenter.Y *180 / pi
+            x = self.illu_tem.RotationCenter.X * 180 / pi
+            y = self.illu_tem.RotationCenter.Y * 180 / pi
         return x, y
 
     def setBeamTilt(self, x=None, y=None):
-        """rotation center in FEI. 9.8ms per call"""
+        """rotation center in FEI. 9.8ms per call. Units: degree"""
         if USETOM:
             bt = self.illu_tom.BeamAlignmentTilt
             if x is not None:
-                bt.X = x * pi / 180
+                bt.X = x * pi / 36
             if y is not None:
-                bt.Y = y * pi / 180
+                bt.Y = y * pi / 36
             self.illu_tom.BeamAlignmentTilt = bt
         else:
             bt = self.illu_tem.RotationCenter

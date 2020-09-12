@@ -1,6 +1,9 @@
 calib_beamshift:
   gridsize: 5
   stepsize: 2500
+calib_beamtilt:
+  gridsize: 5
+  stepsize: 2500
 calib_directbeam:
   BeamShift:
     gridsize: 5
