@@ -158,10 +158,10 @@ class ExperimentalCtrl(LabelFrame):
 
         Label(frame, text='Beam Shift', width=15).grid(row=9, column=0, sticky='W')
 
-        self.rb_beamshiftx = Radiobutton(frame, width=5, text='X', variable=self.var_beamshift_choose, 
+        self.rb_beamshiftx = Radiobutton(frame, width=3, text='X', variable=self.var_beamshift_choose, 
                                         value=0, command=self.choose_beamshiftxy)
         self.rb_beamshiftx.grid(row=9, column=1, sticky='W')
-        self.rb_beamshifty = Radiobutton(frame, width=5, text='Y', variable=self.var_beamshift_choose,
+        self.rb_beamshifty = Radiobutton(frame, width=3, text='Y', variable=self.var_beamshift_choose,
                                         value=1, command=self.choose_beamshiftxy)
         self.rb_beamshifty.grid(row=9, column=2, sticky='W')
 
@@ -184,20 +184,20 @@ class ExperimentalCtrl(LabelFrame):
 
         Label(frame, text='Beam Tilt', width=15).grid(row=10, column=0, sticky='W')
 
-        self.rb_beamtiltx = Radiobutton(frame, width=5, text='X', variable=self.var_beamtilt_choose, 
+        self.rb_beamtiltx = Radiobutton(frame, width=3, text='X', variable=self.var_beamtilt_choose, 
                                         value=0, command=self.choose_beamtiltxy)
         self.rb_beamtiltx.grid(row=10, column=1, sticky='W')
-        self.rb_beamtilty = Radiobutton(frame, width=5, text='Y', variable=self.var_beamtilt_choose,
+        self.rb_beamtilty = Radiobutton(frame, width=3, text='Y', variable=self.var_beamtilt_choose,
                                         value=1, command=self.choose_beamtiltxy)
         self.rb_beamtilty.grid(row=10, column=2, sticky='W')
 
         self.e_beamtilt = Entry(frame, width=12, textvariable=self.var_beamtiltx)
         self.e_beamtilt.grid(row=10, column=3, sticky='W')
 
-        self.b_beamtilt = Button(frame, width=10, text='Set', command=self.set_beamtilt)
+        self.b_beamtilt = Button(frame, width=5, text='Set', command=self.set_beamtilt)
         self.b_beamtilt.grid(row=10, column=4, sticky='W')
 
-        self.b_beamtilt_get = Button(frame, width=10, text='Get', command=self.get_beamtiltx)
+        self.b_beamtilt_get = Button(frame, width=5, text='Get', command=self.get_beamtiltx)
         self.b_beamtilt_get.grid(row=10, column=5, sticky='W')
 
         if self.ctrl.tem.name[:3] == 'fei':
@@ -209,70 +209,70 @@ class ExperimentalCtrl(LabelFrame):
         self.beamtilt_slider.grid(row=10, column=6, columnspan=3, sticky='W')
 
         Label(frame, text='Image Shift 1', width=15).grid(row=11, column=0, sticky='W')
-        self.rb_imageshift1x = Radiobutton(frame, width=5, text='X', variable=self.var_imageshift1_choose, 
+        self.rb_imageshift1x = Radiobutton(frame, width=3, text='X', variable=self.var_imageshift1_choose, 
                                         value=0, command=self.choose_imageshift1xy)
         self.rb_imageshift1x.grid(row=11, column=1, sticky='W')
-        self.rb_imageshift1y = Radiobutton(frame, width=5, text='Y', variable=self.var_imageshift1_choose,
+        self.rb_imageshift1y = Radiobutton(frame, width=3, text='Y', variable=self.var_imageshift1_choose,
                                         value=1, command=self.choose_imageshift1xy)
         self.rb_imageshift1y.grid(row=11, column=2, sticky='W')
 
         self.e_imageshift1 = Entry(frame, width=12, textvariable=self.var_imageshift1x)
         self.e_imageshift1.grid(row=11, column=3, sticky='W')
 
-        self.b_imageshift1 = Button(frame, width=10, text='Set', command=self.set_imageshift1)
+        self.b_imageshift1 = Button(frame, width=5, text='Set', command=self.set_imageshift1)
         self.b_imageshift1.grid(row=11, column=4, sticky='W')
 
-        self.b_imageshift1_get = Button(frame, width=10, text='Get', command=self.get_imageshift1x)
+        self.b_imageshift1_get = Button(frame, width=5, text='Get', command=self.get_imageshift1x)
         self.b_imageshift1_get.grid(row=11, column=5, sticky='W')
 
         if self.ctrl.tem.name[:3] == 'fei':
             self.imageshift1_slider = tkinter.Scale(frame, variable=self.var_imageshift1x, from_=-1.5e7, to=1.5e7, length=250, 
-                showvalue=0, orient=HORIZONTAL, command=self.set_beamshift1)
+                showvalue=0, orient=HORIZONTAL, command=self.set_imageshift1)
         else:
             self.imageshift1_slider = tkinter.Scale(frame, variable=self.var_imageshift1x, from_=0, to=65535, length=250, 
-                showvalue=0, orient=HORIZONTAL, command=self.set_beamshift1)
+                showvalue=0, orient=HORIZONTAL, command=self.set_imageshift1)
         self.imageshift1_slider.grid(row=11, column=6, columnspan=3, sticky='W')
 
         Label(frame, text='Image Shift 2', width=15).grid(row=12, column=0, sticky='W')
-        self.rb_imageshift2x = Radiobutton(frame, width=5, text='X', variable=self.var_imageshift2_choose, 
+        self.rb_imageshift2x = Radiobutton(frame, width=3, text='X', variable=self.var_imageshift2_choose, 
                                         value=0, command=self.choose_imageshift2xy)
         self.rb_imageshift2x.grid(row=12, column=1, sticky='W')
-        self.rb_imageshift2y = Radiobutton(frame, width=5, text='Y', variable=self.var_imageshift2_choose,
+        self.rb_imageshift2y = Radiobutton(frame, width=3, text='Y', variable=self.var_imageshift2_choose,
                                         value=1, command=self.choose_imageshift2xy)
         self.rb_imageshift2y.grid(row=12, column=2, sticky='W')
 
         self.e_imageshift2 = Entry(frame, width=12, textvariable=self.var_imageshift2x)
         self.e_imageshift2.grid(row=12, column=3, sticky='W')
 
-        self.b_imageshift2 = Button(frame, width=10, text='Set', command=self.set_imageshift2)
+        self.b_imageshift2 = Button(frame, width=5, text='Set', command=self.set_imageshift2)
         self.b_imageshift2.grid(row=12, column=4, sticky='W')
 
-        self.b_imageshift2_get = Button(frame, width=10, text='Get', command=self.get_imageshift2x)
+        self.b_imageshift2_get = Button(frame, width=5, text='Get', command=self.get_imageshift2x)
         self.b_imageshift2_get.grid(row=12, column=5, sticky='W')
 
         if self.ctrl.tem.name[:3] == 'fei':
             self.imageshift2_slider = tkinter.Scale(frame, variable=self.var_imageshift2x, from_=-1.5e7, to=1.5e7, length=250, 
-                showvalue=0, orient=HORIZONTAL, command=self.set_beamshift2)
+                showvalue=0, orient=HORIZONTAL, command=self.set_imageshift2)
         else:
             self.imageshift2_slider = tkinter.Scale(frame, variable=self.var_imageshift2x, from_=0, to=65535, length=250, 
-                showvalue=0, orient=HORIZONTAL, command=self.set_beamshift2)
+                showvalue=0, orient=HORIZONTAL, command=self.set_imageshift2)
         self.imageshift2_slider.grid(row=12, column=6, columnspan=3, sticky='W')
 
         Label(frame, text='Diffraction Shift', width=15).grid(row=13, column=0, sticky='W')
-        self.rb_diffshiftx = Radiobutton(frame, width=5, text='X', variable=self.var_diffshift_choose, 
+        self.rb_diffshiftx = Radiobutton(frame, width=3, text='X', variable=self.var_diffshift_choose, 
                                         value=0, command=self.choose_diffshiftxy)
         self.rb_diffshiftx.grid(row=13, column=1, sticky='W')
-        self.rb_diffshifty = Radiobutton(frame, width=5, text='Y', variable=self.var_diffshift_choose,
+        self.rb_diffshifty = Radiobutton(frame, width=3, text='Y', variable=self.var_diffshift_choose,
                                         value=1, command=self.choose_diffshiftxy)
         self.rb_diffshifty.grid(row=13, column=2, sticky='W')
 
         self.e_diffshift = Entry(frame, width=12, textvariable=self.var_diffshiftx)
         self.e_diffshift.grid(row=13, column=3, sticky='W')
 
-        self.b_diffshift = Button(frame, width=10, text='Set', command=self.set_diffshift)
+        self.b_diffshift = Button(frame, width=5, text='Set', command=self.set_diffshift)
         self.b_diffshift.grid(row=13, column=4, sticky='W')
 
-        self.b_diffshift_get = Button(frame, width=10, text='Get', command=self.get_diffshiftx)
+        self.b_diffshift_get = Button(frame, width=5, text='Get', command=self.get_diffshiftx)
         self.b_diffshift_get.grid(row=13, column=5, sticky='W')
 
         if self.ctrl.tem.name[:3] == 'fei':
@@ -283,22 +283,22 @@ class ExperimentalCtrl(LabelFrame):
                 showvalue=0, orient=HORIZONTAL, command=self.set_diffshift)
         self.diffshift_slider.grid(row=13, column=6, columnspan=3, sticky='W')
 
-        Label(frame, text='Image Beam Tilt', width=15).grid(row=14, column=0, sticky='W')
+        Label(frame, text='Img Beam Tilt', width=15).grid(row=14, column=0, sticky='W')
 
-        self.rb_imgbeamtiltx = Radiobutton(frame, width=5, text='X', variable=self.var_beamtilt_choose, 
+        self.rb_imgbeamtiltx = Radiobutton(frame, width=3, text='X', variable=self.var_beamtilt_choose, 
                                         value=0, command=self.choose_beamtiltxy)
         self.rb_imgbeamtiltx.grid(row=14, column=1, sticky='W')
-        self.rb_imgbeamtilty = Radiobutton(frame, width=5, text='Y', variable=self.var_beamtilt_choose,
+        self.rb_imgbeamtilty = Radiobutton(frame, width=3, text='Y', variable=self.var_beamtilt_choose,
                                         value=1, command=self.choose_beamtiltxy)
         self.rb_imgbeamtilty.grid(row=14, column=2, sticky='W')
 
         self.e_imgbeamtilt = Entry(frame, width=12, textvariable=self.var_imgbeamtiltx)
         self.e_imgbeamtilt.grid(row=14, column=3, sticky='W')
 
-        self.b_imgbeamtilt = Button(frame, width=10, text='Set', command=self.set_imgbeamtilt)
+        self.b_imgbeamtilt = Button(frame, width=5, text='Set', command=self.set_imgbeamtilt)
         self.b_imgbeamtilt.grid(row=14, column=4, sticky='W')
 
-        self.b_imgbeamtilt_get = Button(frame, width=10, text='Get', command=self.get_imgbeamtiltx)
+        self.b_imgbeamtilt_get = Button(frame, width=5, text='Get', command=self.get_imgbeamtiltx)
         self.b_imgbeamtilt_get.grid(row=14, column=5, sticky='W')
 
         if self.ctrl.tem.name[:3] == 'fei':
