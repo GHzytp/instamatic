@@ -165,7 +165,7 @@ class ExperimentalCtrl(LabelFrame):
                                         value=1, command=self.choose_beamshiftxy)
         self.rb_beamshifty.grid(row=9, column=2, sticky='W')
 
-        self.e_beamshift = Entry(frame, width=12, textvariable=self.var_beamshiftx)
+        self.e_beamshift = Entry(frame, width=8, textvariable=self.var_beamshiftx)
         self.e_beamshift.grid(row=9, column=3, sticky='W')
 
         self.b_beamshift = Button(frame, width=5, text='Set', command=self.set_beamshift)
@@ -191,7 +191,7 @@ class ExperimentalCtrl(LabelFrame):
                                         value=1, command=self.choose_beamtiltxy)
         self.rb_beamtilty.grid(row=10, column=2, sticky='W')
 
-        self.e_beamtilt = Entry(frame, width=12, textvariable=self.var_beamtiltx)
+        self.e_beamtilt = Entry(frame, width=8, textvariable=self.var_beamtiltx)
         self.e_beamtilt.grid(row=10, column=3, sticky='W')
 
         self.b_beamtilt = Button(frame, width=5, text='Set', command=self.set_beamtilt)
@@ -216,7 +216,7 @@ class ExperimentalCtrl(LabelFrame):
                                         value=1, command=self.choose_imageshift1xy)
         self.rb_imageshift1y.grid(row=11, column=2, sticky='W')
 
-        self.e_imageshift1 = Entry(frame, width=12, textvariable=self.var_imageshift1x)
+        self.e_imageshift1 = Entry(frame, width=8, textvariable=self.var_imageshift1x)
         self.e_imageshift1.grid(row=11, column=3, sticky='W')
 
         self.b_imageshift1 = Button(frame, width=5, text='Set', command=self.set_imageshift1)
@@ -241,7 +241,7 @@ class ExperimentalCtrl(LabelFrame):
                                         value=1, command=self.choose_imageshift2xy)
         self.rb_imageshift2y.grid(row=12, column=2, sticky='W')
 
-        self.e_imageshift2 = Entry(frame, width=12, textvariable=self.var_imageshift2x)
+        self.e_imageshift2 = Entry(frame, width=8, textvariable=self.var_imageshift2x)
         self.e_imageshift2.grid(row=12, column=3, sticky='W')
 
         self.b_imageshift2 = Button(frame, width=5, text='Set', command=self.set_imageshift2)
@@ -266,7 +266,7 @@ class ExperimentalCtrl(LabelFrame):
                                         value=1, command=self.choose_diffshiftxy)
         self.rb_diffshifty.grid(row=13, column=2, sticky='W')
 
-        self.e_diffshift = Entry(frame, width=12, textvariable=self.var_diffshiftx)
+        self.e_diffshift = Entry(frame, width=8, textvariable=self.var_diffshiftx)
         self.e_diffshift.grid(row=13, column=3, sticky='W')
 
         self.b_diffshift = Button(frame, width=5, text='Set', command=self.set_diffshift)
@@ -285,14 +285,14 @@ class ExperimentalCtrl(LabelFrame):
 
         Label(frame, text='Img Beam Tilt', width=15).grid(row=14, column=0, sticky='W')
 
-        self.rb_imgbeamtiltx = Radiobutton(frame, width=3, text='X', variable=self.var_beamtilt_choose, 
+        self.rb_imgbeamtiltx = Radiobutton(frame, width=3, text='X', variable=self.var_imgbeamtilt_choose, 
                                         value=0, command=self.choose_beamtiltxy)
         self.rb_imgbeamtiltx.grid(row=14, column=1, sticky='W')
-        self.rb_imgbeamtilty = Radiobutton(frame, width=3, text='Y', variable=self.var_beamtilt_choose,
+        self.rb_imgbeamtilty = Radiobutton(frame, width=3, text='Y', variable=self.var_imgbeamtilt_choose,
                                         value=1, command=self.choose_beamtiltxy)
         self.rb_imgbeamtilty.grid(row=14, column=2, sticky='W')
 
-        self.e_imgbeamtilt = Entry(frame, width=12, textvariable=self.var_imgbeamtiltx)
+        self.e_imgbeamtilt = Entry(frame, width=8, textvariable=self.var_imgbeamtiltx)
         self.e_imgbeamtilt.grid(row=14, column=3, sticky='W')
 
         self.b_imgbeamtilt = Button(frame, width=5, text='Set', command=self.set_imgbeamtilt)
@@ -481,9 +481,9 @@ class ExperimentalCtrl(LabelFrame):
             self.b_imageshift1_get.configure(command=self.get_imageshift1x)
             self.imageshift1_slider.configure(variable=self.var_imageshift1x)
         else:
-            self.e_imageshift2.configure(textvariable=self.var_imageshift1y)
-            self.b_imageshift2_get.configure(command=self.get_imageshift1y)
-            self.imageshift2_slider.configure(variable=self.var_imageshift1y)
+            self.e_imageshift1.configure(textvariable=self.var_imageshift1y)
+            self.b_imageshift1_get.configure(command=self.get_imageshift1y)
+            self.imageshift1_slider.configure(variable=self.var_imageshift1y)
 
     def choose_imageshift2xy(self):
         if self.var_imageshift2_choose.get() == 0:

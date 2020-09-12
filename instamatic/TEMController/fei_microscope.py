@@ -690,8 +690,8 @@ class FEIMicroscope:
            Attention: Avoid intermixing ImageShift and ImageBeamShift, otherwise it would mess up the beam shift 
            (=Illumination.Shift). If you want to use both alternately, then reset the other to zero first."""
         if USETOM:
-            calib_x, calib_y = self.getImageBeamShiftPhysical()
-            return self.proj_tom.ImageBeamShift.X * 1e15 * calib_x, self.proj_tom.ImageBeamShift.Y * 1e15 * calib_y
+            calib_x, calib_y = self.getImageShiftCalibration()
+            return self.proj_tom.ImageBeamShift.X * 1e12 * calib_x, self.proj_tom.ImageBeamShift.Y * 1e12 * calib_y
         else:
             return self.proj_tem.ImageBeamShift.X * 1e9, self.proj_tem.ImageBeamShift.Y * 1e9
 
@@ -702,12 +702,12 @@ class FEIMicroscope:
            Attention: Avoid intermixing ImageShift and ImageBeamShift, otherwise it would mess up the beam shift 
            (=Illumination.Shift). If you want to use both alternately, then reset the other to zero first."""
         if USETOM:
-            calib_x, calib_y = self.getImageBeamShiftPhysical()
+            calib_x, calib_y = self.getImageShiftCalibration()
             is1 = self.proj_tom.ImageBeamShift
             if x is not None:
-                is1.X = x / 1e15 / calib_x
+                is1.X = x / 1e12 / calib_x
             if y is not None:
-                is1.Y = y / 1e15 / calib_y
+                is1.Y = y / 1e12 / calib_y
             self.proj_tom.ImageBeamShift = is1
         else:
             is1 = self.proj_tem.ImageBeamShift
@@ -728,7 +728,7 @@ class FEIMicroscope:
            (for more information, see a0050100.htm on the TEM software installation CD under privada\beamtiltdiffshift). Units: radians.
            Attention: Avoid intermixing Tilt (of the beam in Illumination) and ImageBeamTilt. If you want to 
            use both alternately, then reset the other to zero first."""
-        return self.proj_tem.ImageBeamTilt.X * 1e9, self.proj_tem.ImageBeamTilt.Y * 1e9
+        return self.proj_tem.ImageBeamTilt.X * 180 / pi, self.proj_tem.ImageBeamTilt.Y * 180 / pi
 
     def setImageBeamTilt(self, x=None, y=None):
         """Beam tilt with respect to the origin that is defined by alignment (rotation center). The resulting 
@@ -739,9 +739,9 @@ class FEIMicroscope:
            use both alternately, then reset the other to zero first."""
         is1 = self.proj_tem.ImageBeamTilt
         if x is not None:
-            is1.X = x / 1e9
+            is1.X = x / 180 * pi
         if y is not None:
-            is1.Y = y / 1e9
+            is1.Y = y / 180 * pi
         self.proj_tem.ImageBeamTilt = is1
 
     def isStageMoving(self):
