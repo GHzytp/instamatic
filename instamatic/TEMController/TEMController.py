@@ -137,7 +137,10 @@ class TEMController:
             else:
                 self.in_img_state()
         else:
-            self.difffocus = DiffFocus(tem)
+            if self.mode.state in ('diff'):
+                self.in_diff_state()
+            else:
+                self.in_img_state()
 
         self.autoblank = False
         self._saved_alignments = config.get_alignments()
@@ -151,9 +154,9 @@ class TEMController:
     def __repr__(self):
         current = f'Current: {self.current:.2f} nA\n' if self.tem.name[:3] == "fei" else f'Current density: {self.current_density:.2f} pA/cm2\n'
         if self.tem.name[:3] == 'fei':
-            focus = f'{self.difffocus}\n' if self.mode.state in ('diff', 'D', 'LAD') else f'{self.objfocus}\n'
+            focus = f'{self.difffocus}\n' if self.mode.state in ('D', 'LAD') else f'{self.objfocus}\n'
         else:
-            focus = f'{self.difffocus}\n'
+            focus = f'{self.difffocus}\n' if self.mode.state in ('diff') else f'{self.objfocus}\n'
         return (f'{self.mode}\n'
                 f'High tension: {self.high_tension/1000:.0f} kV\n'
                 f'{current}'

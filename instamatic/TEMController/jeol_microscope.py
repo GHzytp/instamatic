@@ -131,7 +131,7 @@ class JeolMicroscope:
         for arg in args:
             if isinstance(arg, str):
                 arg = self.NTRLMAPPING[arg]
-            self.def3.setNTRL(arg)
+            self.def3.SetNtrl(arg)
 
     def getHTValue(self) -> int:
         """Get the accelaration voltage in V."""
@@ -462,6 +462,12 @@ class JeolMicroscope:
     def setObjectiveLensStigmator(self, x: int, y: int):
         self.def3.SetOLs(x, y)
 
+    def getImageBeamTilt(self) -> Tuple[int, int]:
+        return -1, -1
+
+    def setImageBeamTilt(self, x: int, y: int):
+        pass
+
     def getSpotSize(self) -> int:
         """0-based indexing for GetSpotSize, add 1 to be consistent with JEOL
         software."""
@@ -533,6 +539,35 @@ class JeolMicroscope:
         # no setter
         value, result = self.lens3.GetOM()
         return value
+
+    def setObjectiveLenseCoarse(self, value: int):
+        self.lens3.SetOLc(value)
+
+    def setObjectiveLenseFine(self, value: int):
+        self.lens3.SetOLf(value)
+
+    def getDefocus(self, confirm_mode=True) -> int:
+        # In JEOL, defocus value is determined by OLc and OLf, one tick in OLf represents 1nm
+        current_mode = self.getFunctionMode()
+        current_mag = self.getMagnification()
+        if current_mode == 'mag1':
+            olc_ntrl, olf_ntrl = config.microscope.neutral['objective']['mag1'][current_mag]
+            olc = self.getObjectiveLenseCoarse()
+            olf = self.getObjectiveLenseFine()
+            value = (olc - olc_ntrl) * 32 + (olf - olf_ntrl)
+        return value
+
+    def setDefocus(self, value: int, confirm_mode=True):
+        # The fine adjustment will jump when value is lower than 0x4000 or higher than 0xC000
+        current_mode = self.getFunctionMode()
+        current_mag = self.getMagnification()
+        if current_mode == 'mag1':
+            olc_ntrl, olf_ntrl = config.microscope.neutral['objective']['mag1'][current_mag]
+            olc = value // 65536 + olc_ntrl
+            olf = value % 65536 + olf_ntrl
+            self.setObjectiveLenseCoarse(olc)
+            self.setObjectiveLenseFine(olf)
+
 
     def getAll(self):
         print('## lens3')

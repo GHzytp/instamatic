@@ -36,8 +36,8 @@ class ExperimentalCtrl(LabelFrame):
         b_alpha_angle_get = Button(frame, text='Get', command=self.get_alpha_angle)
         b_alpha_angle_get.grid(row=1, column=3, sticky='W')
 
-        b_find_eucentric_height = Button(frame, text='Eucentric Height', command=self.find_eucentric_height)
-        b_find_eucentric_height.grid(row=1, column=4, sticky='EW', columnspan=2)
+        b_find_eucentric_height = Button(frame, text='Eucentric', command=self.find_eucentric_height)
+        b_find_eucentric_height.grid(row=1, column=4, sticky='EW', columnspan=1)
 
         if config.settings.microscope[:3] != "fei":
             b_stage_stop = Button(frame, text='Stop stage', command=self.stage_stop)
@@ -283,31 +283,33 @@ class ExperimentalCtrl(LabelFrame):
                 showvalue=0, orient=HORIZONTAL, command=self.set_diffshift)
         self.diffshift_slider.grid(row=13, column=6, columnspan=3, sticky='W')
 
-        Label(frame, text='Img Beam Tilt', width=15).grid(row=14, column=0, sticky='W')
-
-        self.rb_imgbeamtiltx = Radiobutton(frame, width=3, text='X', variable=self.var_imgbeamtilt_choose, 
-                                        value=0, command=self.choose_beamtiltxy)
-        self.rb_imgbeamtiltx.grid(row=14, column=1, sticky='W')
-        self.rb_imgbeamtilty = Radiobutton(frame, width=3, text='Y', variable=self.var_imgbeamtilt_choose,
-                                        value=1, command=self.choose_beamtiltxy)
-        self.rb_imgbeamtilty.grid(row=14, column=2, sticky='W')
-
-        self.e_imgbeamtilt = Entry(frame, width=8, textvariable=self.var_imgbeamtiltx)
-        self.e_imgbeamtilt.grid(row=14, column=3, sticky='W')
-
-        self.b_imgbeamtilt = Button(frame, width=5, text='Set', command=self.set_imgbeamtilt)
-        self.b_imgbeamtilt.grid(row=14, column=4, sticky='W')
-
-        self.b_imgbeamtilt_get = Button(frame, width=5, text='Get', command=self.get_imgbeamtiltx)
-        self.b_imgbeamtilt_get.grid(row=14, column=5, sticky='W')
-
         if self.ctrl.tem.name[:3] == 'fei':
-            self.imgbeamtilt_slider = tkinter.Scale(frame, variable=self.var_imgbeamtiltx, from_=-9.0, to=9.0, resolution=0.01, 
-                length=250, showvalue=0, orient=HORIZONTAL, command=self.set_imgbeamtilt)
-        else:
-            self.imgbeamtilt_slider = tkinter.Scale(frame, variable=self.var_imgbeamtiltx, from_=0, to=65535, length=250, 
-                showvalue=0, orient=HORIZONTAL, command=self.set_imgbeamtilt)
-        self.imgbeamtilt_slider.grid(row=14, column=6, columnspan=3, sticky='W')
+
+            Label(frame, text='Img Beam Tilt', width=15).grid(row=14, column=0, sticky='W')
+
+            self.rb_imgbeamtiltx = Radiobutton(frame, width=3, text='X', variable=self.var_imgbeamtilt_choose, 
+                                            value=0, command=self.choose_beamtiltxy)
+            self.rb_imgbeamtiltx.grid(row=14, column=1, sticky='W')
+            self.rb_imgbeamtilty = Radiobutton(frame, width=3, text='Y', variable=self.var_imgbeamtilt_choose,
+                                            value=1, command=self.choose_beamtiltxy)
+            self.rb_imgbeamtilty.grid(row=14, column=2, sticky='W')
+
+            self.e_imgbeamtilt = Entry(frame, width=8, textvariable=self.var_imgbeamtiltx)
+            self.e_imgbeamtilt.grid(row=14, column=3, sticky='W')
+
+            self.b_imgbeamtilt = Button(frame, width=5, text='Set', command=self.set_imgbeamtilt)
+            self.b_imgbeamtilt.grid(row=14, column=4, sticky='W')
+
+            self.b_imgbeamtilt_get = Button(frame, width=5, text='Get', command=self.get_imgbeamtiltx)
+            self.b_imgbeamtilt_get.grid(row=14, column=5, sticky='W')
+
+            if self.ctrl.tem.name[:3] == 'fei':
+                self.imgbeamtilt_slider = tkinter.Scale(frame, variable=self.var_imgbeamtiltx, from_=-9.0, to=9.0, resolution=0.01, 
+                    length=250, showvalue=0, orient=HORIZONTAL, command=self.set_imgbeamtilt)
+            else:
+                self.imgbeamtilt_slider = tkinter.Scale(frame, variable=self.var_imgbeamtiltx, from_=0, to=65535, length=250, 
+                    showvalue=0, orient=HORIZONTAL, command=self.set_imgbeamtilt)
+            self.imgbeamtilt_slider.grid(row=14, column=6, columnspan=3, sticky='W')
 
         frame.pack(side='top', fill='x', padx=10, pady=10)
 
