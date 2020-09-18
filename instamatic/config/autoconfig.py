@@ -88,13 +88,17 @@ It establishes a connection to the microscope and reads out the camera lengths a
 
     # Connect to microscope
 
-    tem_name = choice_prompt(choices='jeol fei_themisZ simulate'.split(),
+    tem_name = input('Input the name of the TEM')
+
+    tem_interface_name = choice_prompt(choices='jeol fei simulate'.split(),
                              default='simulate',
-                             question='Which microscope can I connect to?')
+                             question='Which microscope interface can I connect to?')
 
     # Connect to camera
 
-    cam_name = choice_prompt(choices=[None, 'gatan', 'tvips', 'simulate'],
+    cam_name = input('Input the name of the camera')
+
+    cam_interface_name = choice_prompt(choices=[None, 'gatan', 'tvips', 'simulate'],
                              default='simulate',
                              question='Which camera can I connect to?')
 
@@ -114,8 +118,8 @@ It establishes a connection to the microscope and reads out the camera lengths a
     from instamatic.camera.camera import get_cam
     from instamatic.TEMController.TEMController import TEMController
 
-    cam = get_cam(cam_name)() if cam_name else None
-    tem = get_tem(tem_name)()
+    cam = get_cam(cam_interface_name)() if cam_name else None
+    tem = get_tem(tem_interface_name)()
 
     ctrl = TEMController(tem=tem, cam=cam)
 
@@ -157,7 +161,7 @@ It establishes a connection to the microscope and reads out the camera lengths a
     # Write/copy configs
 
     tem_config_fn = f'{tem_name}_tem.yaml'
-    calib_config_fn = f'{tem_name}_calib.yaml'
+    calib_config_fn = f'{tem_name}_{cam_name}_calib.yaml'
     if cam_config:
         cam_config_fn = f'{cam_name}_cam.yaml'
         shutil.copyfile(cam_config, cam_config_fn)

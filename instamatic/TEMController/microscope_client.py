@@ -48,6 +48,7 @@ class MicroscopeClient:
         super().__init__()
 
         self.name = name
+        self.interface = config.microscope.interface
         self._bufsize = BUFSIZE
 
         try:

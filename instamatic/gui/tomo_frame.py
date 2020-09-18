@@ -7,7 +7,7 @@ from instamatic.utils.spinbox import Spinbox
 from instamatic import config
 
 
-class ExperimentalRED(LabelFrame):
+class ExperimentalTOMO(LabelFrame):
     """GUI panel to perform a simple RED experiment using discrete rotation
     steps."""
 
@@ -109,7 +109,7 @@ class ExperimentalRED(LabelFrame):
         return params
 
 
-def acquire_data_RED(controller, **kwargs):
+def acquire_data_TOMO(controller, **kwargs):
     controller.log.info('Start tomography data collection experiment')
     from instamatic.experiments import TOMO
 
@@ -125,19 +125,19 @@ def acquire_data_RED(controller, **kwargs):
         expdir = controller.module_io.get_new_experiment_directory()
         expdir.mkdir(exist_ok=True, parents=True)
 
-        controller.red_exp = TOMO.Experiment(ctrl=controller.ctrl, path=expdir, log=controller.log,
+        controller.tomo_exp = TOMO.Experiment(ctrl=controller.ctrl, path=expdir, log=controller.log,
                                             flatfield=flatfield)
-        controller.red_exp.start_collection(exposure_time=exposure_time, end_angle=end_angle, stepsize=stepsize)
+        controller.tomo_exp.start_collection(exposure_time=exposure_time, end_angle=end_angle, stepsize=stepsize)
     elif task == 'stop':
-        controller.red_exp.finalize()
-        del controller.red_exp
+        controller.tomo_exp.finalize()
+        del controller.tomo_exp
 
 
-module = BaseModule(name='tomo', display_name='TOMO', tk_frame=ExperimentalRED, location='bottom')
-commands = {'tomo': acquire_data_RED}
+module = BaseModule(name='tomo', display_name='TOMO', tk_frame=ExperimentalTOMO, location='bottom')
+commands = {'tomo': acquire_data_TOMO}
 
 
 if __name__ == '__main__':
     root = Tk()
-    ExperimentalRED(root).pack(side='top', fill='both', expand=True)
+    ExperimentalTOMO(root).pack(side='top', fill='both', expand=True)
     root.mainloop()

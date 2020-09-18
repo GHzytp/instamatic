@@ -168,18 +168,28 @@ def move_stage(x=None, y=None, z=None, a=None, b=None, speed=1):
         pos = stage_tom.Position
         axis = 0
         if x is not None:
+            if x < self.x_limit[0] or x > self.x_limit[1]:
+                raise FEIValueError('x not within the limit range')
             pos.X = x * 1e-9
             axis += 1
         if y is not None:
+            if y < self.y_limit[0] or y > self.y_limit[1]:
+                raise FEIValueError('y not within the limit range')
             pos.Y = y * 1e-9
             axis += 2
         if z is not None:
+            if z < self.z_limit[0] or z > self.z_limit[1]:
+                raise FEIValueError('z not within the limit range')
             pos.Z = z * 1e-9
             axis += 4
         if a is not None:
+            if a < self.a_limit[0] or a > self.a_limit[1]:
+                raise FEIValueError('a not within the limit range')
             pos.A = a / 180 * pi
             axis += 8
         if b is not None:
+            if b < self.b_limit[0] or b > self.b_limit[1]:
+                raise FEIValueError('b not within the limit range')
             pos.B = b / 180 * pi
             axis += 16
         if axis != 0:
@@ -201,18 +211,28 @@ def move_stage(x=None, y=None, z=None, a=None, b=None, speed=1):
         axis = 0
 
         if x is not None:
+            if x < self.x_limit[0] or x > self.x_limit[1]:
+                raise FEIValueError('x not within the limit range')
             pos.X = x * 1e-9
             axis += 1
         if y is not None:
+            if y < self.y_limit[0] or y > self.y_limit[1]:
+                raise FEIValueError('y not within the limit range')
             pos.Y = y * 1e-9
             axis += 2
         if z is not None:
+            if z < self.z_limit[0] or z > self.z_limit[1]:
+                raise FEIValueError('z not within the limit range')
             pos.Z = z * 1e-9
             axis += 4
         if a is not None:
+            if a < self.a_limit[0] or a > self.a_limit[1]:
+                raise FEIValueError('a not within the limit range')
             pos.A = a / 180 * pi
             axis += 8
         if b is not None:
+            if b < self.b_limit[0] or b > self.b_limit[1]:
+                raise FEIValueError('b not within the limit range')
             pos.B = b / 180 * pi
             axis += 16
         if axis != 0:
@@ -284,6 +304,15 @@ class FEIMicroscope:
 
         input('Please select the type of sample stage before moving on.\nPress <ENTER> to continue...')
 
+        self.x_limit = config.microscope.stageLimit['x']
+        self.y_limit = config.microscope.stageLimit['y']
+        self.z_limit = config.microscope.stageLimit['z']
+        self.a_limit = config.microscope.stageLimit['a']
+        self.b_limit = config.microscope.stageLimit['b']
+
+        print(f'x limit: {self.x_limit}, y limit: {self.y_limit}, z limit: {self.z_limit}, a limit: {self.a_limit}, b limit: {self.b_limit}')
+        print('Please make sure the stage position limits are right.')
+
     def getHTValue(self):
         '''The value of the HT setting as displayed in the TEM user interface. Units: Volts.'''
         if USETOM:
@@ -346,62 +375,71 @@ class FEIMicroscope:
         dct = {}
         if USETOM:
             self.setProjectionMode('imaging')
-            i = 0 
+            i = 1 
             prev = 0
             mode = self.getFunctionMode()
             lst = []
             while True:
                 self.proj_tom.MagnificationIndex = i
-                num = self.proj_tom.Magnification
-                if num == prev:
+                idx = self.proj_tom.MagnificationIndex
+                mode_new = self.getFunctionMode()
+                if idx == prev:
                     break
-                lst.append(num)
+                if mode_new != mode:
+                    dct[mode] = lst
+                    mode = mode_new
+                    lst = []
+                lst.append(self.proj_tom.Magnification)
                 i = i + 1
-                prev = num
-            dct[mode] = lst
-
+                prev = idx
+            
             self.setProjectionMode('diffraction') 
-            i = 0
+            i = 1
             prev = 0
             mode = self.getFunctionMode()
             lst = []
             while True:
                 self.proj_tom.CameraLengthIndex = i
-                num = self.proj_tom.CameraLengthIndex
+                idx = self.proj_tom.CameraLengthIndex
                 if num == prev:
                     break
-                lst.append(num)
+                lst.append(self.proj_tom.CameraLength)
                 i = i + 1
-                prev = num
+                prev = idx
             dct[mode] = lst
         else:
             self.setProjectionMode('imaging') 
-            i = 0
+            i = 1
             prev = 0
             mode = self.getFunctionMode()
             lst = []
             while True:
-                self.proj_tem.CameraLengthIndex = i
-                num = self.proj_tem.CameraLengthIndex
-                if num == prev:
+                self.proj_tem.MagnificationIndex = i
+                idx = self.proj_tem.MagnificationIndex
+                if idx == prev:
                     break
-                lst.append(num)
+                if mode_new != mode:
+                    dct[mode] = lst
+                    mode = mode_new
+                    lst = []
+                lst.append(self.proj_tem.Magnification)
                 i = i + 1
-                prev = num
+                prev = idx
 
             self.setProjectionMode('diffraction') 
-            i = 0
+            i = 1
             prev = 0
             mode = self.getFunctionMode()
             lst = []
             while True:
                 self.proj_tem.CameraLengthIndex = i
-                num = self.proj_tem.CameraLengthIndex
-                if num == prev:
+                idx = self.proj_tem.CameraLengthIndex
+                if idx == prev:
                     break
-                lst.append(num)
+                lst.append(self.proj_tem.CameraLength)
                 i = i + 1
-                prev = num
+                prev = idx
+            dct[mode] = lst
         return dct
 
     def setStageSpeed(self, value):
@@ -434,18 +472,28 @@ class FEIMicroscope:
                     axis = 0
 
                     if x is not None:
+                        if x < self.x_limit[0] or x > self.x_limit[1]:
+                            raise FEIValueError('x not within the limit range')
                         pos.X = x * 1e-9
                         axis += 1
                     if y is not None:
+                        if y < self.y_limit[0] or y > self.y_limit[1]:
+                            raise FEIValueError('y not within the limit range')
                         pos.Y = y * 1e-9
                         axis += 2
                     if z is not None:
+                        if z < self.z_limit[0] or z > self.z_limit[1]:
+                            raise FEIValueError('z not within the limit range')
                         pos.Z = z * 1e-9
                         axis += 4
                     if a is not None:
+                        if a < self.a_limit[0] or a > self.a_limit[1]:
+                            raise FEIValueError('a not within the limit range')
                         pos.A = a / 180 * pi
                         axis += 8
                     if b is not None:
+                        if b < self.b_limit[0] or b > self.b_limit[1]:
+                            raise FEIValueError('b not within the limit range')
                         pos.B = b / 180 * pi
                         axis += 16
                     if axis != 0:
@@ -467,18 +515,28 @@ class FEIMicroscope:
                     axis = 0
 
                     if x is not None:
+                        if x < self.x_limit[0] or x > self.x_limit[1]:
+                            raise FEIValueError('x not within the limit range')
                         pos.X = x * 1e-9
                         axis += 1
                     if y is not None:
+                        if y < self.y_limit[0] or y > self.y_limit[1]:
+                            raise FEIValueError('y not within the limit range')
                         pos.Y = y * 1e-9
                         axis += 2
                     if z is not None:
+                        if z < self.z_limit[0] or z > self.z_limit[1]:
+                            raise FEIValueError('z not within the limit range')
                         pos.Z = z * 1e-9
                         axis += 4
                     if a is not None:
+                        if a < self.a_limit[0] or a > self.a_limit[1]:
+                            raise FEIValueError('a not within the limit range')
                         pos.A = a / 180 * pi
                         axis += 8
                     if b is not None:
+                        if b < self.b_limit[0] or b > self.b_limit[1]:
+                            raise FEIValueError('b not within the limit range')
                         pos.B = b / 180 * pi
                         axis += 16
                     if axis != 0:
@@ -761,11 +819,13 @@ class FEIMicroscope:
         stGoing       The stage is performing a ‘GoTo()’
         stMoving      The stage is performing a ‘MoveTo()’
         stWobbling    The stage is wobbling"""
-        dct = {0: 'Ready', 1: 'Disabled', 2: 'NotReady', 
-               3: 'Going', 4: 'Moving', 5: 'Wobbling'}
         if USETOM:
+            dct = {0: 'Ready', 1: 'Disabled', 2: 'Going', 
+               3: 'NotReady', 4: 'Moving', 5: 'Wobbling'}
             return dct[self.stage_tom.Status]
         else:
+            dct = {0: 'Ready', 1: 'Disabled', 2: 'NotReady', 
+               3: 'Going', 4: 'Moving', 5: 'Wobbling'}
             return dct[self.stage_tem.Status]
 
     def stopStage(self):
