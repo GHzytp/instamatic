@@ -416,6 +416,7 @@ class FEIMicroscope:
             while True:
                 self.proj_tem.MagnificationIndex = i
                 idx = self.proj_tem.MagnificationIndex
+                mode_new = self.getFunctionMode()
                 if idx == prev:
                     break
                 if mode_new != mode:
