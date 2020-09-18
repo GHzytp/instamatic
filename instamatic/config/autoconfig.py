@@ -144,10 +144,36 @@ It establishes a connection to the microscope and reads out the camera lengths a
         except BaseException:
             print('Warning: Cannot access objective lense or magnification')
             neutral_obj_ranges = {}
+
+        tem_config['neutral'] = {}
+        tem_config['neutral']['objective'] = {}
         tem_config['neutral']['objective']['mag1'] = neutral_obj_ranges
+    elif tem_interface_name == 'fei':
+        x_limit = input('Stage limit x: ')
+        x = [int(x_limit.split(' ')[0]), int(x_limit.split(' ')[-1])]
+        y_limit = input('Stage limit y: ')
+        y = [int(y_limit.split(' ')[0]), int(y_limit.split(' ')[-1])]
+        z_limit = input('Stage limit z: ')
+        z = [int(z_limit.split(' ')[0]), int(z_limit.split(' ')[-1])]
+        a_limit = input('Stage limit a: ')
+        a = [int(a_limit.split(' ')[0]), int(a_limit.split(' ')[-1])]
+        b_limit = input('Stage limit b: ')
+        if len(b_limit) != 0:
+            b = [int(b_limit.split(' ')[0]), int(b_limit.split(' ')[-1])]
+        else:
+            b = None
+        tem_config.setdefault('stageLimit', {})['x'] = x
+        tem_config.setdefault('stageLimit', {})['y'] = y
+        tem_config.setdefault('stageLimit', {})['z'] = z
+        tem_config.setdefault('stageLimit', {})['a'] = a
+        tem_config.setdefault('stageLimit', {})['b'] = b
 
     for mode, rng in ranges.items():
-        tem_config['ranges'][mode] = rng
+        try:
+            tem_config[mode]['ranges'] = tmp
+        except KeyError:
+            tem_config[mode] = {}
+            tem_config[mode]['ranges'] = tmp
 
     calib_config = {}
     calib_config['name'] = f'{tem_name}_{cam_name}'
