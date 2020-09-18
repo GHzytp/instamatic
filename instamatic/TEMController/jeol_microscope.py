@@ -113,6 +113,7 @@ class JeolMicroscope:
         self._y_direction = 0
 
         self.name = name
+        self.interface = config.microscope.interface
 
         self.FUNCTION_MODES = FUNCTION_MODES
         self.NTRLMAPPING = NTRLMAPPING

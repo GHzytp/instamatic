@@ -39,7 +39,7 @@ class ExperimentalCtrl(LabelFrame):
         b_find_eucentric_height = Button(frame, text='Eucentric', command=self.find_eucentric_height)
         b_find_eucentric_height.grid(row=1, column=4, sticky='EW', columnspan=1)
 
-        if config.settings.microscope[:3] != "fei":
+        if self.ctrl.tem.interface != "fei":
             b_stage_stop = Button(frame, text='Stop stage', command=self.stage_stop)
             b_stage_stop.grid(row=1, column=5, sticky='W')
 
@@ -55,7 +55,7 @@ class ExperimentalCtrl(LabelFrame):
 
         Label(frame, text='Select TEM Mode:').grid(row=2, column=4, columnspan=2, sticky='E')
         
-        if config.settings.microscope[:3] == "fei":
+        if self.ctrl.tem.interface == "fei":
             self.o_mode = OptionMenu(frame, self.var_mode, self.mode, 'LM', 'Mi', 'SA', 'Mh', 'LAD', 'D', command=self.set_mode)
         else:
             self.o_mode = OptionMenu(frame, self.var_mode, self.mode, 'diff', 'mag1', 'mag2', 'lowmag', 'samag', command=self.set_mode)
@@ -106,7 +106,7 @@ class ExperimentalCtrl(LabelFrame):
         self.b_difffocus_get = Button(frame, width=10, text='Get', command=self.get_difffocus)
         self.b_difffocus_get.grid(row=6, column=3, sticky='W')
 
-        if self.ctrl.tem.name[:3] == 'fei':
+        if self.ctrl.tem.interface == 'fei':
             self.difffocus_slider = tkinter.Scale(frame, variable=self.var_difffocus, from_=-600000, to=600000, length=250, 
                 showvalue=0, orient=HORIZONTAL, command=self.set_difffocus)
         else:
@@ -124,7 +124,7 @@ class ExperimentalCtrl(LabelFrame):
         self.b_objfocus_get = Button(frame, width=10, text='Get', command=self.get_objfocus)
         self.b_objfocus_get.grid(row=7, column=3, sticky='W')
 
-        if self.ctrl.tem.name[:3] == 'fei':
+        if self.ctrl.tem.interface == 'fei':
             self.objfocus_slider = tkinter.Scale(frame, variable=self.var_objfocus, from_=-600000, to=600000, length=250, 
                 showvalue=0, orient=HORIZONTAL, command=self.set_objfocus)
         else:
@@ -144,7 +144,7 @@ class ExperimentalCtrl(LabelFrame):
         b_brightness_get = Button(frame, width=10, text='Get', command=self.get_brightness)
         b_brightness_get.grid(row=8, column=3, sticky='W')
 
-        if self.ctrl.tem.name[:3] == 'fei':
+        if self.ctrl.tem.interface == 'fei':
             slider = tkinter.Scale(frame, variable=self.var_brightness, from_=-1.0, to=1.0, resolution=0.001, length=250, 
                 showvalue=0, orient=HORIZONTAL, command=self.set_brightness)
         else:
@@ -174,7 +174,7 @@ class ExperimentalCtrl(LabelFrame):
         self.b_beamshift_get = Button(frame, width=5, text='Get', command=self.get_beamshiftx)
         self.b_beamshift_get.grid(row=9, column=5, sticky='W')
 
-        if self.ctrl.tem.name[:3] == 'fei':
+        if self.ctrl.tem.interface == 'fei':
             self.beamshift_slider = tkinter.Scale(frame, variable=self.var_beamshiftx, from_=-1e8, to=1e8, length=250, 
                 showvalue=0, orient=HORIZONTAL, command=self.set_beamshift)
         else:
@@ -200,7 +200,7 @@ class ExperimentalCtrl(LabelFrame):
         self.b_beamtilt_get = Button(frame, width=5, text='Get', command=self.get_beamtiltx)
         self.b_beamtilt_get.grid(row=10, column=5, sticky='W')
 
-        if self.ctrl.tem.name[:3] == 'fei':
+        if self.ctrl.tem.interface == 'fei':
             self.beamtilt_slider = tkinter.Scale(frame, variable=self.var_beamtiltx, from_=-9.0, to=9.0, resolution=0.01,
                 length=250, showvalue=0, orient=HORIZONTAL, command=self.set_beamtilt)
         else:
@@ -225,7 +225,7 @@ class ExperimentalCtrl(LabelFrame):
         self.b_imageshift1_get = Button(frame, width=5, text='Get', command=self.get_imageshift1x)
         self.b_imageshift1_get.grid(row=11, column=5, sticky='W')
 
-        if self.ctrl.tem.name[:3] == 'fei':
+        if self.ctrl.tem.interface == 'fei':
             self.imageshift1_slider = tkinter.Scale(frame, variable=self.var_imageshift1x, from_=-1.5e7, to=1.5e7, length=250, 
                 showvalue=0, orient=HORIZONTAL, command=self.set_imageshift1)
         else:
@@ -250,7 +250,7 @@ class ExperimentalCtrl(LabelFrame):
         self.b_imageshift2_get = Button(frame, width=5, text='Get', command=self.get_imageshift2x)
         self.b_imageshift2_get.grid(row=12, column=5, sticky='W')
 
-        if self.ctrl.tem.name[:3] == 'fei':
+        if self.ctrl.tem.interface == 'fei':
             self.imageshift2_slider = tkinter.Scale(frame, variable=self.var_imageshift2x, from_=-1.5e7, to=1.5e7, length=250, 
                 showvalue=0, orient=HORIZONTAL, command=self.set_imageshift2)
         else:
@@ -275,7 +275,7 @@ class ExperimentalCtrl(LabelFrame):
         self.b_diffshift_get = Button(frame, width=5, text='Get', command=self.get_diffshiftx)
         self.b_diffshift_get.grid(row=13, column=5, sticky='W')
 
-        if self.ctrl.tem.name[:3] == 'fei':
+        if self.ctrl.tem.interface == 'fei':
             self.diffshift_slider = tkinter.Scale(frame, variable=self.var_diffshiftx, from_=-28.7, to=28.7, resolution=0.01,
                 length=250, showvalue=0, orient=HORIZONTAL, command=self.set_diffshift)
         else:
@@ -283,7 +283,7 @@ class ExperimentalCtrl(LabelFrame):
                 showvalue=0, orient=HORIZONTAL, command=self.set_diffshift)
         self.diffshift_slider.grid(row=13, column=6, columnspan=3, sticky='W')
 
-        if self.ctrl.tem.name[:3] == 'fei':
+        if self.ctrl.tem.interface == 'fei':
 
             Label(frame, text='Img Beam Tilt', width=15).grid(row=14, column=0, sticky='W')
 
@@ -303,12 +303,9 @@ class ExperimentalCtrl(LabelFrame):
             self.b_imgbeamtilt_get = Button(frame, width=5, text='Get', command=self.get_imgbeamtiltx)
             self.b_imgbeamtilt_get.grid(row=14, column=5, sticky='W')
 
-            if self.ctrl.tem.name[:3] == 'fei':
-                self.imgbeamtilt_slider = tkinter.Scale(frame, variable=self.var_imgbeamtiltx, from_=-9.0, to=9.0, resolution=0.01, 
+            self.imgbeamtilt_slider = tkinter.Scale(frame, variable=self.var_imgbeamtiltx, from_=-9.0, to=9.0, resolution=0.01, 
                     length=250, showvalue=0, orient=HORIZONTAL, command=self.set_imgbeamtilt)
-            else:
-                self.imgbeamtilt_slider = tkinter.Scale(frame, variable=self.var_imgbeamtiltx, from_=0, to=65535, length=250, 
-                    showvalue=0, orient=HORIZONTAL, command=self.set_imgbeamtilt)
+
             self.imgbeamtilt_slider.grid(row=14, column=6, columnspan=3, sticky='W')
 
         frame.pack(side='top', fill='x', padx=10, pady=10)
@@ -326,7 +323,7 @@ class ExperimentalCtrl(LabelFrame):
 
         self.var_goniotool_tx = IntVar(value=1)
 
-        if self.ctrl.tem.name[:3] == 'fei':
+        if self.ctrl.tem.interface == 'fei':
             self.var_brightness = DoubleVar(value=self.ctrl.brightness.value)
             if self.mode in ('D', 'LAD'):
                 self.var_difffocus = IntVar(value=self.ctrl.difffocus.value)
@@ -401,7 +398,7 @@ class ExperimentalCtrl(LabelFrame):
         self.objfocus_slider.config(state=NORMAL)
 
     def set_gui_diffobj(self):
-        if self.ctrl.tem.name[:3] == 'fei':
+        if self.ctrl.tem.interface == 'fei':
             if self.ctrl.mode.state in ('D','LAD'):
                 self.GUI_DiffFocus()
             else:
@@ -417,7 +414,7 @@ class ExperimentalCtrl(LabelFrame):
         self.q = q
 
     def set_mode(self, event=None):
-        if self.ctrl.cam.name[:2] == 'DM':
+        if self.ctrl.cam.interface == 'DM':
             if self.var_mode.get() in ('D', 'LAD'):
                 self.ctrl.tem.setProjectionMode('diffraction')
                 self.var_mode.set(self.ctrl.mode.state)

@@ -19,7 +19,9 @@ from instamatic.formats import write_tiff
 from instamatic.image_utils import rotate_image, translate_image
 
 _ctrl = None  # store reference of ctrl so it can be accessed without re-initializing
+_tem = None
 _cam = None
+_holder = None
 _data_stream = None
 _image_stream = None
 
@@ -49,9 +51,9 @@ def initialize(tem_name: str = default_tem, cam_name: str = default_cam, holder_
     ctrl : `TEMController`
         Return TEM control object
     """
-
+    global _tem
     print(f"Microscope: {tem_name}{' (server)' if use_tem_server else ''}")
-    tem = Microscope(tem_name, use_server=use_tem_server)
+    _tem = Microscope(tem_name, use_server=use_tem_server)
 
     global _cam
     if cam_name:
@@ -66,19 +68,18 @@ def initialize(tem_name: str = default_tem, cam_name: str = default_cam, holder_
         if _cam is None:
             _cam = Camera(cam_name, as_stream=stream, use_server=use_cam_server)
 
+    global _holder
     if holder_name:
-        holder = Holder(holder_name)
-    else:
-        holder = None
+        _holder = Holder(holder_name)
 
     global _data_stream, _image_stream
-    if not config.settings.simulate and config.settings.camera[:2]=="DM":
+    if not config.settings.simulate and _cam.interface=="DM":
         from instamatic.camera.datastream_dm import start_streaming
         if _data_stream is None and _image_stream is None:
             _data_stream, _image_stream = start_streaming()
 
     global _ctrl
-    ctrl = _ctrl = TEMController(tem=tem, cam=_cam, holder=holder, data_stream=_data_stream, image_stream=_image_stream)
+    ctrl = _ctrl = TEMController(tem=_tem, cam=_cam, holder=_holder, data_stream=_data_stream, image_stream=_image_stream)
 
     return ctrl
 
@@ -123,7 +124,6 @@ class TEMController:
         self.imageshift2 = ImageShift2(tem)
         self.diffshift = DiffShift(tem)
         self.stage = Stage(tem)
-        self.stageposition = self.stage  # for backwards compatibility
         self.magnification = Magnification(tem)
         self.brightness = Brightness(tem)
         self.beam = Beam(tem)
@@ -131,7 +131,7 @@ class TEMController:
         self.mode = Mode(tem)
         self.imgbeamtilt = ImageBeamTilt(tem)
 
-        if self.tem.name[:3] == 'fei':
+        if self.tem.interface == 'fei':
             if self.mode.state in ('D', 'LAD'):
                 self.in_diff_state()
             else:
@@ -152,8 +152,8 @@ class TEMController:
         self.store()
 
     def __repr__(self):
-        current = f'Current: {self.current:.2f} nA\n' if self.tem.name[:3] == "fei" else f'Current density: {self.current_density:.2f} pA/cm2\n'
-        if self.tem.name[:3] == 'fei':
+        current = f'Current: {self.current:.2f} nA\n' if self.tem.interface == "fei" else f'Current density: {self.current_density:.2f} pA/cm2\n'
+        if self.tem.interface == 'fei':
             focus = f'{self.difffocus}\n' if self.mode.state in ('D', 'LAD') else f'{self.objfocus}\n'
         else:
             focus = f'{self.difffocus}\n' if self.mode.state in ('diff') else f'{self.objfocus}\n'
@@ -504,7 +504,7 @@ class TEMController:
             'Brightness': self.brightness.get,
             'SpotSize': self.tem.getSpotSize,
         }
-        if self.tem.name[:3] == 'fei':
+        if self.tem.interface == 'fei':
             if mode in ('D', 'LAD'):
                 funcs['DiffFocus'] = self.difffocus.get
             else:
@@ -548,7 +548,7 @@ class TEMController:
             'SpotSize': self.tem.setSpotSize,
         }
 
-        if self.tem.name[:3] == 'fei':
+        if self.tem.interface == 'fei':
             if mode in ('D', 'LAD'):
                 funcs['DiffFocus'] = self.difffocus.set
             else:

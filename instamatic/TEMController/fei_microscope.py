@@ -277,6 +277,7 @@ class FEIMicroscope:
         atexit.register(self.releaseConnection)
 
         self.name = name
+        self.interface = config.microscope.interface
         self.FUNCTION_MODES = FUNCTION_MODES
 
         self.FunctionMode_value = 0

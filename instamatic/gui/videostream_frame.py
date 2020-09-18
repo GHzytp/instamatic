@@ -91,7 +91,7 @@ class VideoStreamFrame(LabelFrame):
         self.var_auto_contrast.trace_add('write', self.update_auto_contrast)
 
     def buttonbox(self, master):
-        if self.stream.cam.name[:2]=="DM":
+        if self.stream.cam.interface=="DM":
             frame = Frame(master)
             frame.pack(side='bottom', fill='both')
             self.btn_save = Button(frame, text='Save Image',

@@ -7,7 +7,7 @@ from .camera import Camera
 from instamatic import config
 
 # can add a configuration to hide when buffers are not needed
-if config.settings.camera[:2]=="DM":
+if config.camera.interface=="DM":
     if config.settings.buffer_stream_use_thread:
         from .datastream_dm import stream_buffer_thread as stream_buffer
     else:
@@ -33,6 +33,7 @@ class ImageGrabber:
         self.cam = cam
 
         self.name = self.cam.name
+        self.interface = self.cam.interface
 
         self.frame = None
         self.thread = None
@@ -61,13 +62,13 @@ class ImageGrabber:
             while not self.stopEvent.is_set():
                 if self.acquireInitiateEvent.is_set():
                     self.acquireInitiateEvent.clear()
-                    if self.name[:2]=="DM":
+                    if self.interface=="DM":
                         frame = self.cam.get_from_buffer(queue, exposure=self.exposure, multiple=True, align=False)
                     else:
                         frame = self.cam.getImage(exposure=self.exposure)
                     self.callback(frame, acquire=True)
                 elif not self.continuousCollectionEvent.is_set():
-                    if self.name[:2]=="DM":
+                    if self.interface=="DM":
                         #print(f"frametime: {self.frametime}")
                         frame = self.cam.get_from_buffer(queue, exposure=self.frametime)
                     else:
@@ -81,7 +82,7 @@ class ImageGrabber:
 
     def start_loop(self):
         """Obtaining frames from stream_buffer (after processing)"""
-        if not config.settings.simulate and self.name[:2]=="DM":
+        if not config.settings.simulate and self.interface=="DM":
             self.thread = threading.Thread(target=self.run, args=(stream_buffer,), daemon=True)
         else:
             self.thread = threading.Thread(target=self.run, args=(None,), daemon=True)
@@ -89,7 +90,7 @@ class ImageGrabber:
 
     def stop(self):
         self.stopEvent.set()
-        if config.settings.camera[:2]!="DM":
+        if self.interface != "DM":
             # For DM cameras, cannot use this join in here. Otherwise the closing of the program may not responsive
             # For Timepix cameras, must use this join in here. Otherwise errors will orrur when closing the program
             self.thread.join() 
@@ -109,8 +110,9 @@ class VideoStream(threading.Thread):
         self.lock = threading.Lock()
 
         self.name = self.cam.name
+        self.interface = config.camera.interface
         
-        if config.settings.camera[:2] == 'DM':
+        if self.interface == 'DM':
             self.frametime = config.settings.default_frame_time
         else:
             self.frametime = 0.1

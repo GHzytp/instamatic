@@ -67,7 +67,7 @@ class ExperimentalRED(LabelFrame):
         self.var_save_red = BooleanVar(value=True)
 
     def check_exposure_time(self, *args):
-        if config.settings.camera[:2] == "DM":
+        if config.camera.interface == "DM":
             try:
                 frametime = config.settings.default_frame_time
                 n = decimal.Decimal(str(self.var_exposure_time.get())) / decimal.Decimal(str(frametime))
@@ -81,7 +81,7 @@ class ExperimentalRED(LabelFrame):
         self.q = q
 
     def start_collection(self):
-        if config.settings.camera[:2] == "DM":
+        if config.camera.interface == "DM":
             self.check_exposure_time()
             
         self.StartButton.config(state=DISABLED)

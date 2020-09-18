@@ -74,6 +74,7 @@ class SimuMicroscope:
         self.DiffractionShift_y = random.randint(MIN, MAX)
 
         self.name = name
+        self.interface = config.microscope.interface
 
         self.FUNCTION_MODES = FUNCTION_MODES
         self.NTRLMAPPING = NTRLMAPPING
