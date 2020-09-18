@@ -8,7 +8,7 @@ from instamatic import config
 
 
 class ExperimentalTOMO(LabelFrame):
-    """GUI panel to perform a simple RED experiment using discrete rotation
+    """GUI panel to perform a simple TOMO experiment using discrete rotation
     steps."""
 
     def __init__(self, parent):
@@ -37,7 +37,7 @@ class ExperimentalTOMO(LabelFrame):
         frame = Frame(self)
         Label(frame, text='Output formats:').grid(row=5, columnspan=2, sticky='EW')
         Checkbutton(frame, text='PETS (.tiff)', variable=self.var_save_tiff, state=DISABLED).grid(row=5, column=2, sticky='EW')
-        Checkbutton(frame, text='REDp (.mrc)', variable=self.var_save_red, state=DISABLED).grid(row=5, column=3, sticky='EW')
+        Checkbutton(frame, text='MRC (.mrc)', variable=self.var_save_mrc, state=DISABLED).grid(row=5, column=3, sticky='EW')
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_columnconfigure(1, weight=1)
         frame.grid_columnconfigure(2, weight=1)
@@ -64,7 +64,7 @@ class ExperimentalTOMO(LabelFrame):
         self.var_stepsize = DoubleVar(value=1.0)
 
         self.var_save_tiff = BooleanVar(value=True)
-        self.var_save_red = BooleanVar(value=True)
+        self.var_save_mrc = BooleanVar(value=True)
 
     def check_exposure_time(self, *args):
         if config.camera.interface == "DM":

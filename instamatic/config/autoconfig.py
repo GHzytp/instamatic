@@ -100,6 +100,7 @@ It establishes a connection to the microscope and reads out the camera lengths a
     drc = Path(__file__).parent
     choices = list(drc.glob('camera/*.yaml'))
     choices_name = list(map(lambda x: x.name.split('.')[0], choices))
+    choices_name.append(None)
     choices.append(None)
 
     cam_name = choice_prompt(choices=choices_name,
@@ -137,9 +138,16 @@ It establishes a connection to the microscope and reads out the camera lengths a
     tem_config = {}
     tem_config['interface'] = tem_interface_name
     tem_config['wavelength'] = wavelength
+    if tem_interface_name == 'jeol':
+        try:
+            neutral_obj_ranges = ctrl.tem.getNeutralObjRanges()
+        except BaseException:
+            print('Warning: Cannot access objective lense or magnification')
+            neutral_obj_ranges = {}
+        tem_config['neutral']['objective']['mag1'] = neutral_obj_ranges
 
     for mode, rng in ranges.items():
-        tem_config['ranges'] = {mode: rng}
+        tem_config['ranges'][mode] = rng
 
     calib_config = {}
     calib_config['name'] = f'{tem_name}_{cam_name}'
@@ -163,8 +171,9 @@ It establishes a connection to the microscope and reads out the camera lengths a
 
     tem_config_fn = f'{tem_name}_tem.yaml'
     calib_config_fn = f'{tem_name}_{cam_name}_calib.yaml'
-    cam_config_fn = f'{cam_name}_cam.yaml'
-    shutil.copyfile(cam_config, cam_config_fn)
+    if cam_config:
+        cam_config_fn = f'{cam_name}_cam.yaml'
+        shutil.copyfile(cam_config, cam_config_fn)
 
     yaml.dump(tem_config, open(tem_config_fn, 'w'), sort_keys=False)
     yaml.dump(calib_config, open(calib_config_fn, 'w'), sort_keys=False)
@@ -178,12 +187,14 @@ It establishes a connection to the microscope and reads out the camera lengths a
     print(f'Wrote files config files:')
     print(f'    Copy {tem_config_fn} -> `{microscope_drc / tem_config_fn}`')
     print(f'    Copy {calib_config_fn} -> `{calibration_drc / calib_config_fn}`')
-    print(f'    Copy {cam_config_fn} -> `{camera_drc / cam_config_fn}`')
+    if cam_config:
+        print(f'    Copy {cam_config_fn} -> `{camera_drc / cam_config_fn}`')
     print()
     print(f'In `{settings_yaml}`:')
     print(f'    microscope: {tem_name}_tem')
     print(f'    calibration: {tem_name}_calib')
-    print(f'    camera: {cam_name}_cam')
+    if cam_config:
+        print(f'    camera: {cam_name}_cam')
     print()
     print(f'Todo: Check and update the pixelsizes in `{calib_config_fn}`')
     print('    In real space, pixelsize in nm/pixel')

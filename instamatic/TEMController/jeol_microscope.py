@@ -569,6 +569,16 @@ class JeolMicroscope:
             self.setObjectiveLenseCoarse(olc)
             self.setObjectiveLenseFine(olf)
 
+    def getNeutralObjRanges(self, mode: str = 'mag1'): 
+        dct = {}
+        if mode != self.getFunctionMode():
+            self.setFunctionMode(mode)
+        ret = self.eos3.SetSelector(0)
+        while ret == 0:
+            dct[self.getMagnification()] = [self.getObjectiveLenseCoarse(), self.getObjectiveLenseFine()]
+            ret = self.eos3.UpSelector()
+        return dct
+
 
     def getAll(self):
         print('## lens3')
