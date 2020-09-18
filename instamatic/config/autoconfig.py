@@ -88,37 +88,38 @@ It establishes a connection to the microscope and reads out the camera lengths a
 
     # Connect to microscope
 
-    tem_name = input('Input the name of the TEM')
+    tem_name = input('Input the name of the TEM (manufacturer_model_institution): ')
 
     tem_interface_name = choice_prompt(choices='jeol fei simulate'.split(),
                              default='simulate',
                              question='Which microscope interface can I connect to?')
 
     # Connect to camera
-
-    cam_name = input('Input the name of the camera')
-
-    cam_interface_name = choice_prompt(choices=[None, 'gatan', 'tvips', 'simulate'],
-                             default='simulate',
-                             question='Which camera can I connect to?')
-
     # Fetch camera config
 
     drc = Path(__file__).parent
     choices = list(drc.glob('camera/*.yaml'))
+    choices_name = list(map(lambda x: x.name.split('.')[0], choices))
     choices.append(None)
 
-    cam_config = choice_prompt(choices=choices,
+    cam_name = choice_prompt(choices=choices_name,
                                default=None,
                                question='Which camera type do you want to use (select closest one and modify if needed)?')
 
+    cam_config = choices[choices_name.index(cam_name)]
+
+    cam_interface_name = choice_prompt(choices=[None, 'DM', 'gatan', 'tvips', 'simulate'],
+                             default='simulate',
+                             question='Which camera can I connect to?')
+
+    
     # Instantiate microscope / camera connection
 
     from instamatic.TEMController.microscope import get_tem
     from instamatic.camera.camera import get_cam
     from instamatic.TEMController.TEMController import TEMController
 
-    cam = get_cam(cam_interface_name)() if cam_name else None
+    cam = get_cam(cam_interface_name)(cam_name) if cam_interface_name else None
     tem = get_tem(tem_interface_name)()
 
     ctrl = TEMController(tem=tem, cam=cam)
@@ -134,21 +135,21 @@ It establishes a connection to the microscope and reads out the camera lengths a
     wavelength = relativistic_wavelength(ht)
 
     tem_config = {}
-    tem_config['name'] = tem_name
+    tem_config['interface'] = tem_interface_name
     tem_config['wavelength'] = wavelength
 
     for mode, rng in ranges.items():
         tem_config['ranges'] = {mode: rng}
 
     calib_config = {}
-    calib_config['name'] = tem_name
+    calib_config['name'] = f'{tem_name}_{cam_name}'
 
     # Find magnification ranges
 
     for mode, rng in ranges.items():
         calib_config[mode] = {}
 
-        if cam_name == 'tvips':
+        if cam_interface_name == 'tvips':
             pixelsizes = get_tvips_calibs(ctrl=ctrl, rng=rng, mode=mode, wavelength=wavelength)
         else:
             pixelsizes = {r: 1.0 for r in rng}
@@ -162,9 +163,8 @@ It establishes a connection to the microscope and reads out the camera lengths a
 
     tem_config_fn = f'{tem_name}_tem.yaml'
     calib_config_fn = f'{tem_name}_{cam_name}_calib.yaml'
-    if cam_config:
-        cam_config_fn = f'{cam_name}_cam.yaml'
-        shutil.copyfile(cam_config, cam_config_fn)
+    cam_config_fn = f'{cam_name}_cam.yaml'
+    shutil.copyfile(cam_config, cam_config_fn)
 
     yaml.dump(tem_config, open(tem_config_fn, 'w'), sort_keys=False)
     yaml.dump(calib_config, open(calib_config_fn, 'w'), sort_keys=False)
@@ -178,14 +178,12 @@ It establishes a connection to the microscope and reads out the camera lengths a
     print(f'Wrote files config files:')
     print(f'    Copy {tem_config_fn} -> `{microscope_drc / tem_config_fn}`')
     print(f'    Copy {calib_config_fn} -> `{calibration_drc / calib_config_fn}`')
-    if cam_config:
-        print(f'    Copy {cam_config_fn} -> `{camera_drc / cam_config_fn}`')
+    print(f'    Copy {cam_config_fn} -> `{camera_drc / cam_config_fn}`')
     print()
     print(f'In `{settings_yaml}`:')
     print(f'    microscope: {tem_name}_tem')
     print(f'    calibration: {tem_name}_calib')
-    if cam_config:
-        print(f'    camera: {cam_name}_cam')
+    print(f'    camera: {cam_name}_cam')
     print()
     print(f'Todo: Check and update the pixelsizes in `{calib_config_fn}`')
     print('    In real space, pixelsize in nm/pixel')

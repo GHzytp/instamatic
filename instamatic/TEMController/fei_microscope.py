@@ -384,12 +384,16 @@ class FEIMicroscope:
                 idx = self.proj_tom.MagnificationIndex
                 mode_new = self.getFunctionMode()
                 if idx == prev:
-                    break
+                    if mode == 'Mh':
+                        dct[mode] = lst
+                        break
+                    else:
+                        break
                 if mode_new != mode:
                     dct[mode] = lst
                     mode = mode_new
                     lst = []
-                lst.append(self.proj_tom.Magnification)
+                lst.append(round(self.proj_tom.Magnification))
                 i = i + 1
                 prev = idx
             
@@ -403,7 +407,7 @@ class FEIMicroscope:
                 idx = self.proj_tom.CameraLengthIndex
                 if num == prev:
                     break
-                lst.append(self.proj_tom.CameraLength)
+                lst.append(round(self.proj_tom.CameraLength * 1000))
                 i = i + 1
                 prev = idx
             dct[mode] = lst
@@ -418,12 +422,16 @@ class FEIMicroscope:
                 idx = self.proj_tem.MagnificationIndex
                 mode_new = self.getFunctionMode()
                 if idx == prev:
-                    break
+                    if mode == 'Mh':
+                        dct[mode] = lst
+                        break
+                    else:
+                        break
                 if mode_new != mode:
                     dct[mode] = lst
                     mode = mode_new
                     lst = []
-                lst.append(self.proj_tem.Magnification)
+                lst.append(round(self.proj_tem.Magnification))
                 i = i + 1
                 prev = idx
 
@@ -437,7 +445,7 @@ class FEIMicroscope:
                 idx = self.proj_tem.CameraLengthIndex
                 if idx == prev:
                     break
-                lst.append(self.proj_tem.CameraLength)
+                lst.append(round(self.proj_tem.CameraLength * 1000))
                 i = i + 1
                 prev = idx
             dct[mode] = lst
