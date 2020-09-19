@@ -48,7 +48,10 @@ class ExperimentalcRED(LabelFrame):
         self.e_diff_defocus.grid(row=6, column=1, sticky='W', padx=10)
 
         Label(frame, text='Image exposure (s):').grid(row=7, column=0, sticky='W')
-        self.e_image_exposure = Spinbox(frame, textvariable=self.var_exposure_time_image, width=sbwidth, from_=0.0, to=100.0, increment=0.01, state=DISABLED)
+        if self.image_stream is not None:
+            self.e_image_exposure = Spinbox(frame, textvariable=self.var_exposure_time_image, width=sbwidth, from_=0.0, to=100.0, increment=self.image_stream.frametime, state=DISABLED)
+        else:
+            self.e_image_exposure = Spinbox(frame, textvariable=self.var_exposure_time_image, width=sbwidth, from_=0.0, to=100.0, increment=0.01, state=DISABLED)
         self.e_image_exposure.grid(row=7, column=1, sticky='W', padx=10)
 
         self.RelaxButton = Button(frame, text='Relax beam', command=self.relax_beam, state=DISABLED)
@@ -115,12 +118,16 @@ class ExperimentalcRED(LabelFrame):
         self.var_unblank_beam = BooleanVar(value=False)
         self.var_image_interval = IntVar(value=10)
         if self.ctrl.tem.interface == "fei":
-            self.var_diff_defocus = IntVar(value=1500)
+            self.var_diff_defocus = IntVar(value=42000)
         else:
             self.var_diff_defocus = IntVar(value=1500)
         self.var_enable_image_interval = BooleanVar(value=False)
         self.var_toggle_diff_defocus = BooleanVar(value=False)
-        self.var_exposure_time_image = DoubleVar(value=0.01)
+
+        if self.image_stream is not None:
+            self.var_exposure_time_image = DoubleVar(value=self.image_stream.frametime)
+        else:
+            self.var_exposure_time_image = DoubleVar(value=0.01)
 
         self.var_footfree_rotate_to = DoubleVar(value=65.0)
         self.var_toggle_footfree = BooleanVar(value=False)

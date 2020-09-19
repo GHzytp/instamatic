@@ -85,7 +85,7 @@ class Experiment:
         self.unblank_beam = unblank_beam
         self.logger = log
         self.mode = mode
-        if self.ctrl.cam.name == 'simulate' and self.ctrl.tem.interface!="fei":
+        if self.ctrl.cam.name == 'simulate' and self.ctrl.tem.interface != "fei":
             self.mode = 'simulate'
         self.stopEvent = stop_event
         self.flatfield = flatfield
@@ -95,6 +95,7 @@ class Experiment:
 
         self.diff_defocus = diff_defocus
         self.exposure_image = exposure_time_image
+        self.frametime = self.ctrl.cam.frametime
 
         self.write_tiff = write_tiff
         self.write_xds = write_xds
@@ -260,6 +261,15 @@ class Experiment:
     def start_collection(self) -> bool:
         """Main experimental function, returns True if experiment runs
         normally, False if it is interrupted for whatever reason."""
+        if self.image_interval_enabled:
+            # Add value checking for exposure image to obtain a normal exposure time for defocused image
+            if self.ctrl.cam.interface == 'DM':
+                if self.frametime > self.exposure_image or self.exposure < self.exposure_image + self.frametime:
+                    raise ValueError('Please adjust the exposure time for defocused image.')
+            else:
+                if self.frametime > self.exposure_image or self.exposure < self.exposure_image:
+                    raise ValueError('Please adjust the exposure time for defocused image.')
+
         self.setup_paths()
         self.log_start_status()
 
@@ -296,6 +306,10 @@ class Experiment:
                 acquisition_time = (t_start - t0) / (i - 1)
 
                 self.ctrl.difffocus.set(self.diff_focus_defocused, confirm_mode=False)
+                if self.ctrl.cam.interface == 'DM':
+                    # One frame was removed for a clean defocused image so the exposure time for diffraction pattern
+                    # should be larger than the total of frametime and exposure time for defocused image
+                    time.sleep(self.frametime)
                 img, h = self.ctrl.get_image(exposure_image, header_keys=None)
                 self.ctrl.difffocus.set(self.diff_focus_proper, confirm_mode=False)
 
@@ -309,7 +323,10 @@ class Experiment:
                     i += 1
                     # print(f"{i} "SKIP!  {next_interval-t_start:.3f} {acquisition_time:.3f}")
 
-                diff = next_interval - time.perf_counter()  # seconds
+                if self.ctrl.cam.interface == 'DM':
+                    diff = next_interval - time.perf_counter() - self.frametime
+                else:
+                    diff = next_interval - time.perf_counter()  # seconds
 
                 if self.track_stage_position and diff > 0.1:
                     self.stage_positions.append((i, self.ctrl.stage.get()))

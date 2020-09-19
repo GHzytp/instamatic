@@ -162,18 +162,19 @@ It establishes a connection to the microscope and reads out the camera lengths a
             b = [int(b_limit.split(' ')[0]), int(b_limit.split(' ')[-1])]
         else:
             b = None
-        tem_config.setdefault('stageLimit', {})['x'] = x
-        tem_config.setdefault('stageLimit', {})['y'] = y
-        tem_config.setdefault('stageLimit', {})['z'] = z
-        tem_config.setdefault('stageLimit', {})['a'] = a
-        tem_config.setdefault('stageLimit', {})['b'] = b
+        tem_config['stageLimit'] = {}
+        tem_config['stageLimit']['x'] = x
+        tem_config['stageLimit']['y'] = y
+        tem_config['stageLimit']['z'] = z
+        tem_config['stageLimit']['a'] = a
+        tem_config['stageLimit']['b'] = b
 
     for mode, rng in ranges.items():
         try:
-            tem_config[mode]['ranges'] = tmp
+            tem_config['ranges'][mode] = rng
         except KeyError:
-            tem_config[mode] = {}
-            tem_config[mode]['ranges'] = tmp
+            tem_config['ranges'] = {}
+            tem_config['ranges'][mode] = rng
 
     calib_config = {}
     calib_config['name'] = f'{tem_name}_{cam_name}'
