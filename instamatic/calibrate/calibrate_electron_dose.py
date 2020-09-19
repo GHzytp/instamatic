@@ -39,7 +39,7 @@ def calibrate_dose(ctrl, num_imgs: int = 10, threshold: int = 50, logger=logger)
     num_pixels = (img > threshold).sum()
     avg_reading = img[img > threshold].mean()
 
-    if ctrl.tem.name[:3] == 'fei':
+    if ctrl.tem.interface == 'fei':
         e_per_pixel_per_reading_per_sec = ctrl.current * 1e-9 / num_pixels / avg_reading * 6.242e18
     else:
         e_per_pixel_per_reading_per_sec = ctrl.current_density * 1e-12 / avg_reading * 6.242e18 * (ctrl.cam.cam.binsize*ctrl.cam.cam.physical_pixelsize*0.1)**2

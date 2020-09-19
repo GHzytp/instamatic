@@ -7,8 +7,8 @@ from instamatic.utils.spinbox import Spinbox
 from instamatic import config
 
 
-class ExperimentalRED(LabelFrame):
-    """GUI panel to perform a simple RED experiment using discrete rotation
+class ExperimentalTOMO(LabelFrame):
+    """GUI panel to perform a simple TOMO experiment using discrete rotation
     steps."""
 
     def __init__(self, parent):
@@ -37,7 +37,7 @@ class ExperimentalRED(LabelFrame):
         frame = Frame(self)
         Label(frame, text='Output formats:').grid(row=5, columnspan=2, sticky='EW')
         Checkbutton(frame, text='PETS (.tiff)', variable=self.var_save_tiff, state=DISABLED).grid(row=5, column=2, sticky='EW')
-        Checkbutton(frame, text='REDp (.mrc)', variable=self.var_save_red, state=DISABLED).grid(row=5, column=3, sticky='EW')
+        Checkbutton(frame, text='MRC (.mrc)', variable=self.var_save_mrc, state=DISABLED).grid(row=5, column=3, sticky='EW')
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_columnconfigure(1, weight=1)
         frame.grid_columnconfigure(2, weight=1)
@@ -64,10 +64,10 @@ class ExperimentalRED(LabelFrame):
         self.var_stepsize = DoubleVar(value=1.0)
 
         self.var_save_tiff = BooleanVar(value=True)
-        self.var_save_red = BooleanVar(value=True)
+        self.var_save_mrc = BooleanVar(value=True)
 
     def check_exposure_time(self, *args):
-        if config.settings.camera[:2] == "DM":
+        if config.camera.interface == "DM":
             try:
                 frametime = config.settings.default_frame_time
                 n = decimal.Decimal(str(self.var_exposure_time.get())) / decimal.Decimal(str(frametime))
@@ -81,7 +81,7 @@ class ExperimentalRED(LabelFrame):
         self.q = q
 
     def start_collection(self):
-        if config.settings.camera[:2] == "DM":
+        if config.camera.interface == "DM":
             self.check_exposure_time()
             
         self.StartButton.config(state=DISABLED)
@@ -109,7 +109,7 @@ class ExperimentalRED(LabelFrame):
         return params
 
 
-def acquire_data_RED(controller, **kwargs):
+def acquire_data_TOMO(controller, **kwargs):
     controller.log.info('Start tomography data collection experiment')
     from instamatic.experiments import TOMO
 
@@ -125,19 +125,19 @@ def acquire_data_RED(controller, **kwargs):
         expdir = controller.module_io.get_new_experiment_directory()
         expdir.mkdir(exist_ok=True, parents=True)
 
-        controller.red_exp = TOMO.Experiment(ctrl=controller.ctrl, path=expdir, log=controller.log,
+        controller.tomo_exp = TOMO.Experiment(ctrl=controller.ctrl, path=expdir, log=controller.log,
                                             flatfield=flatfield)
-        controller.red_exp.start_collection(exposure_time=exposure_time, end_angle=end_angle, stepsize=stepsize)
+        controller.tomo_exp.start_collection(exposure_time=exposure_time, end_angle=end_angle, stepsize=stepsize)
     elif task == 'stop':
-        controller.red_exp.finalize()
-        del controller.red_exp
+        controller.tomo_exp.finalize()
+        del controller.tomo_exp
 
 
-module = BaseModule(name='tomo', display_name='TOMO', tk_frame=ExperimentalRED, location='bottom')
-commands = {'tomo': acquire_data_RED}
+module = BaseModule(name='tomo', display_name='TOMO', tk_frame=ExperimentalTOMO, location='bottom')
+commands = {'tomo': acquire_data_TOMO}
 
 
 if __name__ == '__main__':
     root = Tk()
-    ExperimentalRED(root).pack(side='top', fill='both', expand=True)
+    ExperimentalTOMO(root).pack(side='top', fill='both', expand=True)
     root.mainloop()

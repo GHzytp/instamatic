@@ -52,6 +52,7 @@ setup(
             'instamatic.calibrate_stage_lowmag = instamatic.calibrate.calibrate_stage_lowmag:main_entry',
             'instamatic.calibrate_stage_mag1 = instamatic.calibrate.calibrate_stage_mag1:main_entry',
             'instamatic.calibrate_beamshift = instamatic.calibrate.calibrate_beamshift:main_entry',
+            'instamatic.calibrate_beamtilt = instamatic.calibrate.calibrate_beamtilt:main_entry',
             'instamatic.calibrate_electron_dose = instamatic.calibrate.calibrate_electron_dose:main_entry',
             'instamatic.calibrate_directbeam = instamatic.calibrate.calibrate_directbeam:main_entry',
             'instamatic.calibrate_stagematrix = instamatic.calibrate.calibrate_stagematrix:main_entry',

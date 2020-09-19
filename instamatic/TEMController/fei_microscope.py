@@ -168,18 +168,28 @@ def move_stage(x=None, y=None, z=None, a=None, b=None, speed=1):
         pos = stage_tom.Position
         axis = 0
         if x is not None:
+            if x < self.x_limit[0] or x > self.x_limit[1]:
+                raise FEIValueError('x not within the limit range')
             pos.X = x * 1e-9
             axis += 1
         if y is not None:
+            if y < self.y_limit[0] or y > self.y_limit[1]:
+                raise FEIValueError('y not within the limit range')
             pos.Y = y * 1e-9
             axis += 2
         if z is not None:
+            if z < self.z_limit[0] or z > self.z_limit[1]:
+                raise FEIValueError('z not within the limit range')
             pos.Z = z * 1e-9
             axis += 4
         if a is not None:
+            if a < self.a_limit[0] or a > self.a_limit[1]:
+                raise FEIValueError('a not within the limit range')
             pos.A = a / 180 * pi
             axis += 8
         if b is not None:
+            if b < self.b_limit[0] or b > self.b_limit[1]:
+                raise FEIValueError('b not within the limit range')
             pos.B = b / 180 * pi
             axis += 16
         if axis != 0:
@@ -201,18 +211,28 @@ def move_stage(x=None, y=None, z=None, a=None, b=None, speed=1):
         axis = 0
 
         if x is not None:
+            if x < self.x_limit[0] or x > self.x_limit[1]:
+                raise FEIValueError('x not within the limit range')
             pos.X = x * 1e-9
             axis += 1
         if y is not None:
+            if y < self.y_limit[0] or y > self.y_limit[1]:
+                raise FEIValueError('y not within the limit range')
             pos.Y = y * 1e-9
             axis += 2
         if z is not None:
+            if z < self.z_limit[0] or z > self.z_limit[1]:
+                raise FEIValueError('z not within the limit range')
             pos.Z = z * 1e-9
             axis += 4
         if a is not None:
+            if a < self.a_limit[0] or a > self.a_limit[1]:
+                raise FEIValueError('a not within the limit range')
             pos.A = a / 180 * pi
             axis += 8
         if b is not None:
+            if b < self.b_limit[0] or b > self.b_limit[1]:
+                raise FEIValueError('b not within the limit range')
             pos.B = b / 180 * pi
             axis += 16
         if axis != 0:
@@ -277,11 +297,21 @@ class FEIMicroscope:
         atexit.register(self.releaseConnection)
 
         self.name = name
+        self.interface = config.microscope.interface
         self.FUNCTION_MODES = FUNCTION_MODES
 
         self.FunctionMode_value = 0
 
         input('Please select the type of sample stage before moving on.\nPress <ENTER> to continue...')
+
+        self.x_limit = config.microscope.stageLimit['x']
+        self.y_limit = config.microscope.stageLimit['y']
+        self.z_limit = config.microscope.stageLimit['z']
+        self.a_limit = config.microscope.stageLimit['a']
+        self.b_limit = config.microscope.stageLimit['b']
+
+        print(f'x limit: {self.x_limit}, y limit: {self.y_limit}, z limit: {self.z_limit}, a limit: {self.a_limit}, b limit: {self.b_limit}')
+        print('Please make sure the stage position limits are right.')
 
     def getHTValue(self):
         '''The value of the HT setting as displayed in the TEM user interface. Units: Volts.'''
@@ -345,62 +375,80 @@ class FEIMicroscope:
         dct = {}
         if USETOM:
             self.setProjectionMode('imaging')
-            i = 0 
+            i = 1 
             prev = 0
             mode = self.getFunctionMode()
             lst = []
             while True:
                 self.proj_tom.MagnificationIndex = i
-                num = self.proj_tom.Magnification
-                if num == prev:
-                    break
-                lst.append(num)
+                idx = self.proj_tom.MagnificationIndex
+                mode_new = self.getFunctionMode()
+                if idx == prev:
+                    if mode == 'Mh':
+                        dct[mode] = lst
+                        break
+                    else:
+                        break
+                if mode_new != mode:
+                    dct[mode] = lst
+                    mode = mode_new
+                    lst = []
+                lst.append(round(self.proj_tom.Magnification))
                 i = i + 1
-                prev = num
-            dct[mode] = lst
-
+                prev = idx
+            
             self.setProjectionMode('diffraction') 
-            i = 0
+            i = 1
             prev = 0
             mode = self.getFunctionMode()
             lst = []
             while True:
                 self.proj_tom.CameraLengthIndex = i
-                num = self.proj_tom.CameraLengthIndex
+                idx = self.proj_tom.CameraLengthIndex
                 if num == prev:
                     break
-                lst.append(num)
+                lst.append(round(self.proj_tom.CameraLength * 1000))
                 i = i + 1
-                prev = num
+                prev = idx
             dct[mode] = lst
         else:
             self.setProjectionMode('imaging') 
-            i = 0
+            i = 1
             prev = 0
             mode = self.getFunctionMode()
             lst = []
             while True:
-                self.proj_tem.CameraLengthIndex = i
-                num = self.proj_tem.CameraLengthIndex
-                if num == prev:
-                    break
-                lst.append(num)
+                self.proj_tem.MagnificationIndex = i
+                idx = self.proj_tem.MagnificationIndex
+                mode_new = self.getFunctionMode()
+                if idx == prev:
+                    if mode == 'Mh':
+                        dct[mode] = lst
+                        break
+                    else:
+                        break
+                if mode_new != mode:
+                    dct[mode] = lst
+                    mode = mode_new
+                    lst = []
+                lst.append(round(self.proj_tem.Magnification))
                 i = i + 1
-                prev = num
+                prev = idx
 
             self.setProjectionMode('diffraction') 
-            i = 0
+            i = 1
             prev = 0
             mode = self.getFunctionMode()
             lst = []
             while True:
                 self.proj_tem.CameraLengthIndex = i
-                num = self.proj_tem.CameraLengthIndex
-                if num == prev:
+                idx = self.proj_tem.CameraLengthIndex
+                if idx == prev:
                     break
-                lst.append(num)
+                lst.append(round(self.proj_tem.CameraLength * 1000))
                 i = i + 1
-                prev = num
+                prev = idx
+            dct[mode] = lst
         return dct
 
     def setStageSpeed(self, value):
@@ -433,18 +481,28 @@ class FEIMicroscope:
                     axis = 0
 
                     if x is not None:
+                        if x < self.x_limit[0] or x > self.x_limit[1]:
+                            raise FEIValueError('x not within the limit range')
                         pos.X = x * 1e-9
                         axis += 1
                     if y is not None:
+                        if y < self.y_limit[0] or y > self.y_limit[1]:
+                            raise FEIValueError('y not within the limit range')
                         pos.Y = y * 1e-9
                         axis += 2
                     if z is not None:
+                        if z < self.z_limit[0] or z > self.z_limit[1]:
+                            raise FEIValueError('z not within the limit range')
                         pos.Z = z * 1e-9
                         axis += 4
                     if a is not None:
+                        if a < self.a_limit[0] or a > self.a_limit[1]:
+                            raise FEIValueError('a not within the limit range')
                         pos.A = a / 180 * pi
                         axis += 8
                     if b is not None:
+                        if b < self.b_limit[0] or b > self.b_limit[1]:
+                            raise FEIValueError('b not within the limit range')
                         pos.B = b / 180 * pi
                         axis += 16
                     if axis != 0:
@@ -466,18 +524,28 @@ class FEIMicroscope:
                     axis = 0
 
                     if x is not None:
+                        if x < self.x_limit[0] or x > self.x_limit[1]:
+                            raise FEIValueError('x not within the limit range')
                         pos.X = x * 1e-9
                         axis += 1
                     if y is not None:
+                        if y < self.y_limit[0] or y > self.y_limit[1]:
+                            raise FEIValueError('y not within the limit range')
                         pos.Y = y * 1e-9
                         axis += 2
                     if z is not None:
+                        if z < self.z_limit[0] or z > self.z_limit[1]:
+                            raise FEIValueError('z not within the limit range')
                         pos.Z = z * 1e-9
                         axis += 4
                     if a is not None:
+                        if a < self.a_limit[0] or a > self.a_limit[1]:
+                            raise FEIValueError('a not within the limit range')
                         pos.A = a / 180 * pi
                         axis += 8
                     if b is not None:
+                        if b < self.b_limit[0] or b > self.b_limit[1]:
+                            raise FEIValueError('b not within the limit range')
                         pos.B = b / 180 * pi
                         axis += 16
                     if axis != 0:
@@ -552,8 +620,9 @@ class FEIMicroscope:
         """User Shift. Beam shift relative to the origin stored at alignment time. Units: nm. 6ms per call"""
         '1.19 ms in communication. Super fast!'
         if USETOM:
-            x = self.illu_tom.BeamShift.X * 1e9
-            y = self.illu_tom.BeamShift.Y * 1e9
+            calib_x, calib_y = self.getBeamShiftCalibration()
+            x = self.illu_tom.BeamShift.X * 1e12 * calib_x
+            y = self.illu_tom.BeamShift.Y * 1e12 * calib_y
         else:
             x = self.illu_tem.Shift.X * 1e9
             y = self.illu_tem.Shift.Y * 1e9
@@ -562,12 +631,13 @@ class FEIMicroscope:
     def setBeamShift(self, x=None, y=None):
         """User Shift. Beam shift relative to the origin stored at alignment time. Units: nm. 10ms per call"""
         if USETOM:
+            calib_x, calib_y = self.getBeamShiftCalibration()
             bs = self.illu_tom.BeamShift
             if x is not None:
-                bs.X = x * 1e-9
+                bs.X = x * 1e-12 / calib_x
             if y is not None:
-                bs.Y = y * 1e-9
-            self.illu_tom.Shift = bs
+                bs.Y = y * 1e-12 / calib_y
+            self.illu_tom.BeamShift = bs
         else:
             bs = self.illu_tem.Shift
             if x is not None:
@@ -623,23 +693,23 @@ class FEIMicroscope:
         self.illu_tom.BeamShiftPhysical = bs
 
     def getBeamTilt(self):
-        """rotation center in FEI. 5ms per call"""
+        """rotation center in FEI. 5ms per call. Units: degree"""
         if USETOM:
-            x = self.illu_tom.BeamAlignmentTilt.X *180 / pi
-            y = self.illu_tom.BeamAlignmentTilt.Y *180 / pi
+            x = self.illu_tom.BeamAlignmentTilt.X * 36 / pi
+            y = self.illu_tom.BeamAlignmentTilt.Y * 36 / pi
         else:
-            x = self.illu_tem.RotationCenter.X *180 / pi
-            y = self.illu_tem.RotationCenter.Y *180 / pi
+            x = self.illu_tem.RotationCenter.X * 180 / pi
+            y = self.illu_tem.RotationCenter.Y * 180 / pi
         return x, y
 
     def setBeamTilt(self, x=None, y=None):
-        """rotation center in FEI. 9.8ms per call"""
+        """rotation center in FEI. 9.8ms per call. Units: degree"""
         if USETOM:
             bt = self.illu_tom.BeamAlignmentTilt
             if x is not None:
-                bt.X = x * pi / 180
+                bt.X = x * pi / 36
             if y is not None:
-                bt.Y = y * pi / 180
+                bt.Y = y * pi / 36
             self.illu_tom.BeamAlignmentTilt = bt
         else:
             bt = self.illu_tem.RotationCenter
@@ -653,7 +723,8 @@ class FEIMicroscope:
         """User image shift. 5ms per call
            The image shift with respect to the origin that is defined by alignment. Units: nm."""
         if USETOM:
-            return self.proj_tom.ImageShift.X * 1e9, self.proj_tom.ImageShift.Y * 1e9
+            calib_x, calib_y = self.getImageShiftCalibration()
+            return self.proj_tom.ImageShift.X * 1e12 * calib_x, self.proj_tom.ImageShift.Y * 1e12 * calib_y
         else:
             return self.proj_tem.ImageShift.X * 1e9, self.proj_tem.ImageShift.Y * 1e9
 
@@ -661,11 +732,12 @@ class FEIMicroscope:
         """9.8ms per call
            The image shift with respect to the origin that is defined by alignment. Units: nm."""
         if USETOM:
+            calib_x, calib_y = self.getImageShiftCalibration()
             is1 = self.proj_tom.ImageShift
             if x is not None:
-                is1.X = x * 1e-9
+                is1.X = x * 1e-12 / calib_x
             if y is not None:
-                is1.Y = y * 1e-9
+                is1.Y = y * 1e-12 / calib_y
             self.proj_tom.ImageShift = is1
         else:
             is1 = self.proj_tem.ImageShift
@@ -675,6 +747,10 @@ class FEIMicroscope:
                 is1.Y = y * 1e-9
             self.proj_tem.ImageShift = is1
 
+    def getImageShiftCalibration(self):
+        tmp = self.proj_tom.ImageShiftCalibration
+        return tmp.X, tmp.Y
+
     def getImageShift2(self):
         """image-beam shift. 5ms per call    def getImageBeamShift(self)?
            Image shift with respect to the origin that is defined by alignment. The apparent beam shift is compensated for, 
@@ -682,7 +758,8 @@ class FEIMicroscope:
            Attention: Avoid intermixing ImageShift and ImageBeamShift, otherwise it would mess up the beam shift 
            (=Illumination.Shift). If you want to use both alternately, then reset the other to zero first."""
         if USETOM:
-            return self.proj_tom.ImageBeamShift.X * 1e9, self.proj_tom.ImageBeamShift.Y * 1e9
+            calib_x, calib_y = self.getImageShiftCalibration()
+            return self.proj_tom.ImageBeamShift.X * 1e12 * calib_x, self.proj_tom.ImageBeamShift.Y * 1e12 * calib_y
         else:
             return self.proj_tem.ImageBeamShift.X * 1e9, self.proj_tem.ImageBeamShift.Y * 1e9
 
@@ -693,11 +770,12 @@ class FEIMicroscope:
            Attention: Avoid intermixing ImageShift and ImageBeamShift, otherwise it would mess up the beam shift 
            (=Illumination.Shift). If you want to use both alternately, then reset the other to zero first."""
         if USETOM:
+            calib_x, calib_y = self.getImageShiftCalibration()
             is1 = self.proj_tom.ImageBeamShift
             if x is not None:
-                is1.X = x / 1e9
+                is1.X = x / 1e12 / calib_x
             if y is not None:
-                is1.Y = y / 1e9
+                is1.Y = y / 1e12 / calib_y
             self.proj_tom.ImageBeamShift = is1
         else:
             is1 = self.proj_tem.ImageBeamShift
@@ -706,6 +784,10 @@ class FEIMicroscope:
             if y is not None:
                 is1.Y = y / 1e9
             self.proj_tem.ImageBeamShift = is1
+
+    def getImageBeamShiftPhysical(self):
+        tmp = self.proj_tom.ImageBeamShiftPhysical
+        return tmp.X, tmp.Y
         
     def getImageBeamTilt(self):
         """Beam tilt with respect to the origin that is defined by alignment (rotation center). The resulting 
@@ -714,10 +796,7 @@ class FEIMicroscope:
            (for more information, see a0050100.htm on the TEM software installation CD under privada\beamtiltdiffshift). Units: radians.
            Attention: Avoid intermixing Tilt (of the beam in Illumination) and ImageBeamTilt. If you want to 
            use both alternately, then reset the other to zero first."""
-        if USETOM:
-            return self.proj_tom.ImageBeamTilt.X * 1e9, self.proj_tom.ImageBeamTilt.Y * 1e9
-        else:
-            return self.proj_tem.ImageBeamTilt.X * 1e9, self.proj_tem.ImageBeamTilt.Y * 1e9
+        return self.proj_tem.ImageBeamTilt.X * 180 / pi, self.proj_tem.ImageBeamTilt.Y * 180 / pi
 
     def setImageBeamTilt(self, x=None, y=None):
         """Beam tilt with respect to the origin that is defined by alignment (rotation center). The resulting 
@@ -726,20 +805,12 @@ class FEIMicroscope:
            (for more information, see a0050100.htm on the TEM software installation CD under privada\beamtiltdiffshift). Units: radians.
            Attention: Avoid intermixing Tilt (of the beam in Illumination) and ImageBeamTilt. If you want to 
            use both alternately, then reset the other to zero first."""
-        if USETOM:
-            is1 = self.proj_tom.ImageBeamTilt
-            if x is not None:
-                is1.X = x / 1e9
-            if y is not None:
-                is1.Y = y / 1e9
-            self.proj_tom.ImageBeamTilt = is1
-        else:
-            is1 = self.proj_tem.ImageBeamTilt
-            if x is not None:
-                is1.X = x / 1e9
-            if y is not None:
-                is1.Y = y / 1e9
-            self.proj_tem.ImageBeamTilt = is1
+        is1 = self.proj_tem.ImageBeamTilt
+        if x is not None:
+            is1.X = x / 180 * pi
+        if y is not None:
+            is1.Y = y / 180 * pi
+        self.proj_tem.ImageBeamTilt = is1
 
     def isStageMoving(self):
         """Check if sample stage is moving"""
@@ -757,11 +828,13 @@ class FEIMicroscope:
         stGoing       The stage is performing a ‘GoTo()’
         stMoving      The stage is performing a ‘MoveTo()’
         stWobbling    The stage is wobbling"""
-        dct = {0: 'Ready', 1: 'Disabled', 2: 'NotReady', 
-               3: 'Going', 4: 'Moving', 5: 'Wobbling'}
         if USETOM:
+            dct = {0: 'Ready', 1: 'Disabled', 2: 'Going', 
+               3: 'NotReady', 4: 'Moving', 5: 'Wobbling'}
             return dct[self.stage_tom.Status]
         else:
+            dct = {0: 'Ready', 1: 'Disabled', 2: 'NotReady', 
+               3: 'Going', 4: 'Moving', 5: 'Wobbling'}
             return dct[self.stage_tem.Status]
 
     def stopStage(self):

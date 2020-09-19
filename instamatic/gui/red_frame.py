@@ -71,7 +71,7 @@ class ExperimentalRED(LabelFrame):
         self.var_save_red = BooleanVar(value=True)
 
     def check_exposure_time(self, *args):
-        if config.settings.camera[:2] == "DM":
+        if config.camera.interface == "DM":
             try:
                 frametime = config.settings.default_frame_time
                 n = int(decimal.Decimal(str(self.var_exposure_time.get())) / decimal.Decimal(str(frametime)))

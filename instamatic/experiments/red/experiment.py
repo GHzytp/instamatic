@@ -82,7 +82,7 @@ class Experiment:
         # print "Angles:", tilt_positions
 
         image_mode = ctrl.mode.get()
-        if ctrl.tem.name[:3] == "fei":
+        if ctrl.tem.interface == "fei":
             if image_mode not in ('D', 'LAD'):
                 fn = self.tiff_image_path / f'image_{self.offset}.tiff'
                 img, h = self.ctrl.get_image(exposure_time / 5)
@@ -125,7 +125,7 @@ class Experiment:
         self.current_angle = angle
         print(f'Done, current angle = {self.current_angle:.2f} degrees')
 
-        if ctrl.tem.name[:3] == "fei":
+        if ctrl.tem.interface == "fei":
             if image_mode  not in ('D', 'LAD'):
                 ctrl.tem.setProjectionMode('imaging') 
         else:
@@ -140,7 +140,7 @@ class Experiment:
         self.logger.info(f'Data saving path: {self.path}')
         self.rotation_axis = config.camera.camera_rotation_vs_stage_xy
 
-        if self.ctrl.tem.name[:3] == "fei":
+        if self.ctrl.tem.interface == "fei":
             self.ctrl.tem.setProjectionMode('diffraction')
             self.pixelsize = config.calibration[self.ctrl.mode.get()]['pixelsize'][self.camera_length]  # Angstrom^(-1)/pixel
             self.ctrl.tem.setProjectionMode('imaging')

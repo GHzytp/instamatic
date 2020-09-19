@@ -11,7 +11,7 @@ import instamatic
 from instamatic import config
 from instamatic.formats import write_tiff
 
-if config.settings.camera[:2] == "DM":
+if config.camera.interface == "DM":
     from instamatic.processing.ImgConversionDM import ImgConversionDM as ImgConversion
 else:
     from instamatic.processing.ImgConversionTPX import ImgConversionTPX as ImgConversion
@@ -85,7 +85,7 @@ class Experiment:
         self.unblank_beam = unblank_beam
         self.logger = log
         self.mode = mode
-        if self.ctrl.cam.name == 'simulate' and self.ctrl.tem.name[:3]!="fei":
+        if self.ctrl.cam.name == 'simulate' and self.ctrl.tem.interface!="fei":
             self.mode = 'simulate'
         self.stopEvent = stop_event
         self.flatfield = flatfield
@@ -214,7 +214,7 @@ class Experiment:
             self.ctrl.stage.set(a=rotate_to, wait=False)
             print('Footfree Data Recording started.')
 
-        elif self.mode == 'regular' and self.ctrl.tem.name[:3]=="fei":
+        elif self.mode == 'regular' and self.ctrl.tem.interface=="fei":
             rotate_to = self.footfree_rotate_to
 
             self.ctrl.stage.set_with_speed(a=rotate_to, wait=False, speed=self.rotation_speed)
@@ -266,7 +266,7 @@ class Experiment:
         buffer = []
         image_buffer = []
 
-        if self.ctrl.tem.name[:3]=="fei":
+        if self.ctrl.tem.interface=="fei":
             if self.ctrl.mode not in ('D','LAD'):
                 self.ctrl.tem.setProjectionMode('diffraction')
         else:
@@ -324,7 +324,7 @@ class Experiment:
 
             i += 1
 
-            if self.ctrl.tem.name[:3] == 'fei':
+            if self.ctrl.tem.interface == 'fei':
                 if not self.ctrl.tem.isStageMoving():
                     self.stopEvent.set()
 

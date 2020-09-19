@@ -18,7 +18,8 @@ class ExperimentalcRED(LabelFrame):
     def __init__(self, parent):
         LabelFrame.__init__(self, parent, text='Continuous rotation electron diffraction')
         self.parent = parent
-        self.image_stream = TEMController.get_instance().image_stream
+        self.ctrl = TEMController.get_instance()
+        self.image_stream = self.ctrl.image_stream
 
         sbwidth = 10
 
@@ -53,7 +54,7 @@ class ExperimentalcRED(LabelFrame):
         self.RelaxButton = Button(frame, text='Relax beam', command=self.relax_beam, state=DISABLED)
         self.RelaxButton.grid(row=7, column=2, sticky='EW')
 
-        if config.settings.microscope[:3] != "fei" and ENABLE_FOOTFREE_OPTION:
+        if self.ctrl.tem.interface != "fei" and ENABLE_FOOTFREE_OPTION:
             Separator(frame, orient=HORIZONTAL).grid(row=8, columnspan=3, sticky='ew', pady=10)
 
             Label(frame, text='Rotate to:').grid(row=9, column=0, sticky='W')
@@ -62,7 +63,7 @@ class ExperimentalcRED(LabelFrame):
 
             Checkbutton(frame, text='Footfree mode', variable=self.var_toggle_footfree, command=self.toggle_footfree).grid(row=9, column=4, sticky='W')
 
-        elif config.settings.microscope[:3] == "fei":
+        elif self.ctrl.tem.interface == "fei":
             Separator(frame, orient=HORIZONTAL).grid(row=8, columnspan=3, sticky='ew', pady=10)
 
             Label(frame, text='Rotate to:').grid(row=9, column=0, sticky='W')
@@ -99,7 +100,7 @@ class ExperimentalcRED(LabelFrame):
         self.CollectionButton = Button(frame, text='Start Collection', command=self.start_collection)
         self.CollectionButton.grid(row=1, column=0, sticky='EW')
 
-        if config.settings.microscope[:3]!="fei":
+        if self.ctrl.tem.interface != "fei":
             self.CollectionStopButton = Button(frame, text='Stop Collection', command=self.stop_collection, state=DISABLED)
             self.CollectionStopButton.grid(row=1, column=1, sticky='EW')
 
@@ -113,7 +114,7 @@ class ExperimentalcRED(LabelFrame):
         self.var_exposure_time = DoubleVar(value=0.1)
         self.var_unblank_beam = BooleanVar(value=False)
         self.var_image_interval = IntVar(value=10)
-        if config.settings.microscope[:3] == "fei":
+        if self.ctrl.tem.interface == "fei":
             self.var_diff_defocus = IntVar(value=1500)
         else:
             self.var_diff_defocus = IntVar(value=1500)
@@ -154,14 +155,14 @@ class ExperimentalcRED(LabelFrame):
             self.var_toggle_diff_defocus.set(False)
             self.toggle_diff_defocus()
 
-        if config.settings.microscope[:3]!="fei":
+        if self.ctrl.tem.interface != "fei":
             self.CollectionStopButton.config(state=NORMAL)
 
         self.CollectionButton.config(state=DISABLED)
         if self.mode == 'footfree':
             self.lb_coll1.config(text='Data collection has started.')
             self.lb_coll2.config(text='Click STOP COLLECTION to end the experiment.')
-        elif config.settings.microscope[:3]=="fei":
+        elif self.ctrl.tem.interface == "fei":
             self.lb_coll1.config(text='FEI cRED Data collection has started.')
             self.lb_coll2.config(text='Wait until the stage is rotated to the target angle.')
         else:
@@ -175,7 +176,7 @@ class ExperimentalcRED(LabelFrame):
 
         self.triggerEvent.set()
 
-        if config.settings.microscope[:3]=="fei":
+        if self.ctrl.tem.interface == "fei":
             def stop_collection():
                 self.stopEvent.wait()
                 self.CollectionButton.config(state=NORMAL)

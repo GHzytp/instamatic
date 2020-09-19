@@ -36,10 +36,10 @@ class ExperimentalCtrl(LabelFrame):
         b_alpha_angle_get = Button(frame, text='Get', command=self.get_alpha_angle)
         b_alpha_angle_get.grid(row=1, column=3, sticky='W')
 
-        b_find_eucentric_height = Button(frame, text='Eucentric Height', command=self.find_eucentric_height)
-        b_find_eucentric_height.grid(row=1, column=4, sticky='EW', columnspan=2)
+        b_find_eucentric_height = Button(frame, text='Eucentric', command=self.find_eucentric_height)
+        b_find_eucentric_height.grid(row=1, column=4, sticky='EW', columnspan=1)
 
-        if config.settings.microscope[:3] != "fei":
+        if self.ctrl.tem.interface != "fei":
             b_stage_stop = Button(frame, text='Stop stage', command=self.stage_stop)
             b_stage_stop.grid(row=1, column=5, sticky='W')
 
@@ -55,7 +55,7 @@ class ExperimentalCtrl(LabelFrame):
 
         Label(frame, text='Select TEM Mode:').grid(row=2, column=4, columnspan=2, sticky='E')
         
-        if config.settings.microscope[:3] == "fei":
+        if self.ctrl.tem.interface == "fei":
             self.o_mode = OptionMenu(frame, self.var_mode, self.mode, 'LM', 'Mi', 'SA', 'Mh', 'LAD', 'D', command=self.set_mode)
         else:
             self.o_mode = OptionMenu(frame, self.var_mode, self.mode, 'diff', 'mag1', 'mag2', 'lowmag', 'samag', command=self.set_mode)
@@ -106,7 +106,7 @@ class ExperimentalCtrl(LabelFrame):
         self.b_difffocus_get = Button(frame, width=10, text='Get', command=self.get_difffocus)
         self.b_difffocus_get.grid(row=6, column=3, sticky='W')
 
-        if self.ctrl.tem.name[:3] == 'fei':
+        if self.ctrl.tem.interface == 'fei':
             self.difffocus_slider = tkinter.Scale(frame, variable=self.var_difffocus, from_=-600000, to=600000, length=250, 
                 showvalue=0, orient=HORIZONTAL, command=self.set_difffocus)
         else:
@@ -124,7 +124,7 @@ class ExperimentalCtrl(LabelFrame):
         self.b_objfocus_get = Button(frame, width=10, text='Get', command=self.get_objfocus)
         self.b_objfocus_get.grid(row=7, column=3, sticky='W')
 
-        if self.ctrl.tem.name[:3] == 'fei':
+        if self.ctrl.tem.interface == 'fei':
             self.objfocus_slider = tkinter.Scale(frame, variable=self.var_objfocus, from_=-600000, to=600000, length=250, 
                 showvalue=0, orient=HORIZONTAL, command=self.set_objfocus)
         else:
@@ -144,13 +144,169 @@ class ExperimentalCtrl(LabelFrame):
         b_brightness_get = Button(frame, width=10, text='Get', command=self.get_brightness)
         b_brightness_get.grid(row=8, column=3, sticky='W')
 
-        if self.ctrl.tem.name[:3] == 'fei':
-            slider = tkinter.Scale(frame, variable=self.var_brightness, from_=-1.0, to=1.0, resolution=0.01, length=250, 
+        if self.ctrl.tem.interface == 'fei':
+            slider = tkinter.Scale(frame, variable=self.var_brightness, from_=-1.0, to=1.0, resolution=0.001, length=250, 
                 showvalue=0, orient=HORIZONTAL, command=self.set_brightness)
         else:
             slider = tkinter.Scale(frame, variable=self.var_brightness, from_=0, to=65535, length=250, orient=HORIZONTAL, 
                 showvalue=0, command=self.set_brightness)
         slider.grid(row=8, column=4, columnspan=3, sticky='W')
+
+        frame.pack(side='top', fill='x', padx=10, pady=10)
+
+        frame = Frame(self)
+
+        Label(frame, text='Beam Shift', width=15).grid(row=9, column=0, sticky='W')
+
+        self.rb_beamshiftx = Radiobutton(frame, width=3, text='X', variable=self.var_beamshift_choose, 
+                                        value=0, command=self.choose_beamshiftxy)
+        self.rb_beamshiftx.grid(row=9, column=1, sticky='W')
+        self.rb_beamshifty = Radiobutton(frame, width=3, text='Y', variable=self.var_beamshift_choose,
+                                        value=1, command=self.choose_beamshiftxy)
+        self.rb_beamshifty.grid(row=9, column=2, sticky='W')
+
+        self.e_beamshift = Entry(frame, width=8, textvariable=self.var_beamshiftx)
+        self.e_beamshift.grid(row=9, column=3, sticky='W')
+
+        self.b_beamshift = Button(frame, width=5, text='Set', command=self.set_beamshift)
+        self.b_beamshift.grid(row=9, column=4, sticky='W')
+
+        self.b_beamshift_get = Button(frame, width=5, text='Get', command=self.get_beamshiftx)
+        self.b_beamshift_get.grid(row=9, column=5, sticky='W')
+
+        if self.ctrl.tem.interface == 'fei':
+            self.beamshift_slider = tkinter.Scale(frame, variable=self.var_beamshiftx, from_=-1e8, to=1e8, length=250, 
+                showvalue=0, orient=HORIZONTAL, command=self.set_beamshift)
+        else:
+            self.beamshift_slider = tkinter.Scale(frame, variable=self.var_beamshiftx, from_=0, to=65535, length=250, 
+                showvalue=0, orient=HORIZONTAL, command=self.set_beamshift)
+        self.beamshift_slider.grid(row=9, column=6, columnspan=3, sticky='W')
+
+        Label(frame, text='Beam Tilt', width=15).grid(row=10, column=0, sticky='W')
+
+        self.rb_beamtiltx = Radiobutton(frame, width=3, text='X', variable=self.var_beamtilt_choose, 
+                                        value=0, command=self.choose_beamtiltxy)
+        self.rb_beamtiltx.grid(row=10, column=1, sticky='W')
+        self.rb_beamtilty = Radiobutton(frame, width=3, text='Y', variable=self.var_beamtilt_choose,
+                                        value=1, command=self.choose_beamtiltxy)
+        self.rb_beamtilty.grid(row=10, column=2, sticky='W')
+
+        self.e_beamtilt = Entry(frame, width=8, textvariable=self.var_beamtiltx)
+        self.e_beamtilt.grid(row=10, column=3, sticky='W')
+
+        self.b_beamtilt = Button(frame, width=5, text='Set', command=self.set_beamtilt)
+        self.b_beamtilt.grid(row=10, column=4, sticky='W')
+
+        self.b_beamtilt_get = Button(frame, width=5, text='Get', command=self.get_beamtiltx)
+        self.b_beamtilt_get.grid(row=10, column=5, sticky='W')
+
+        if self.ctrl.tem.interface == 'fei':
+            self.beamtilt_slider = tkinter.Scale(frame, variable=self.var_beamtiltx, from_=-9.0, to=9.0, resolution=0.01,
+                length=250, showvalue=0, orient=HORIZONTAL, command=self.set_beamtilt)
+        else:
+            self.beamtilt_slider = tkinter.Scale(frame, variable=self.var_beamtiltx, from_=0, to=65535, length=250, 
+                showvalue=0, orient=HORIZONTAL, command=self.set_beamtilt)
+        self.beamtilt_slider.grid(row=10, column=6, columnspan=3, sticky='W')
+
+        Label(frame, text='Image Shift 1', width=15).grid(row=11, column=0, sticky='W')
+        self.rb_imageshift1x = Radiobutton(frame, width=3, text='X', variable=self.var_imageshift1_choose, 
+                                        value=0, command=self.choose_imageshift1xy)
+        self.rb_imageshift1x.grid(row=11, column=1, sticky='W')
+        self.rb_imageshift1y = Radiobutton(frame, width=3, text='Y', variable=self.var_imageshift1_choose,
+                                        value=1, command=self.choose_imageshift1xy)
+        self.rb_imageshift1y.grid(row=11, column=2, sticky='W')
+
+        self.e_imageshift1 = Entry(frame, width=8, textvariable=self.var_imageshift1x)
+        self.e_imageshift1.grid(row=11, column=3, sticky='W')
+
+        self.b_imageshift1 = Button(frame, width=5, text='Set', command=self.set_imageshift1)
+        self.b_imageshift1.grid(row=11, column=4, sticky='W')
+
+        self.b_imageshift1_get = Button(frame, width=5, text='Get', command=self.get_imageshift1x)
+        self.b_imageshift1_get.grid(row=11, column=5, sticky='W')
+
+        if self.ctrl.tem.interface == 'fei':
+            self.imageshift1_slider = tkinter.Scale(frame, variable=self.var_imageshift1x, from_=-1.5e7, to=1.5e7, length=250, 
+                showvalue=0, orient=HORIZONTAL, command=self.set_imageshift1)
+        else:
+            self.imageshift1_slider = tkinter.Scale(frame, variable=self.var_imageshift1x, from_=0, to=65535, length=250, 
+                showvalue=0, orient=HORIZONTAL, command=self.set_imageshift1)
+        self.imageshift1_slider.grid(row=11, column=6, columnspan=3, sticky='W')
+
+        Label(frame, text='Image Shift 2', width=15).grid(row=12, column=0, sticky='W')
+        self.rb_imageshift2x = Radiobutton(frame, width=3, text='X', variable=self.var_imageshift2_choose, 
+                                        value=0, command=self.choose_imageshift2xy)
+        self.rb_imageshift2x.grid(row=12, column=1, sticky='W')
+        self.rb_imageshift2y = Radiobutton(frame, width=3, text='Y', variable=self.var_imageshift2_choose,
+                                        value=1, command=self.choose_imageshift2xy)
+        self.rb_imageshift2y.grid(row=12, column=2, sticky='W')
+
+        self.e_imageshift2 = Entry(frame, width=8, textvariable=self.var_imageshift2x)
+        self.e_imageshift2.grid(row=12, column=3, sticky='W')
+
+        self.b_imageshift2 = Button(frame, width=5, text='Set', command=self.set_imageshift2)
+        self.b_imageshift2.grid(row=12, column=4, sticky='W')
+
+        self.b_imageshift2_get = Button(frame, width=5, text='Get', command=self.get_imageshift2x)
+        self.b_imageshift2_get.grid(row=12, column=5, sticky='W')
+
+        if self.ctrl.tem.interface == 'fei':
+            self.imageshift2_slider = tkinter.Scale(frame, variable=self.var_imageshift2x, from_=-1.5e7, to=1.5e7, length=250, 
+                showvalue=0, orient=HORIZONTAL, command=self.set_imageshift2)
+        else:
+            self.imageshift2_slider = tkinter.Scale(frame, variable=self.var_imageshift2x, from_=0, to=65535, length=250, 
+                showvalue=0, orient=HORIZONTAL, command=self.set_imageshift2)
+        self.imageshift2_slider.grid(row=12, column=6, columnspan=3, sticky='W')
+
+        Label(frame, text='Diffraction Shift', width=15).grid(row=13, column=0, sticky='W')
+        self.rb_diffshiftx = Radiobutton(frame, width=3, text='X', variable=self.var_diffshift_choose, 
+                                        value=0, command=self.choose_diffshiftxy)
+        self.rb_diffshiftx.grid(row=13, column=1, sticky='W')
+        self.rb_diffshifty = Radiobutton(frame, width=3, text='Y', variable=self.var_diffshift_choose,
+                                        value=1, command=self.choose_diffshiftxy)
+        self.rb_diffshifty.grid(row=13, column=2, sticky='W')
+
+        self.e_diffshift = Entry(frame, width=8, textvariable=self.var_diffshiftx)
+        self.e_diffshift.grid(row=13, column=3, sticky='W')
+
+        self.b_diffshift = Button(frame, width=5, text='Set', command=self.set_diffshift)
+        self.b_diffshift.grid(row=13, column=4, sticky='W')
+
+        self.b_diffshift_get = Button(frame, width=5, text='Get', command=self.get_diffshiftx)
+        self.b_diffshift_get.grid(row=13, column=5, sticky='W')
+
+        if self.ctrl.tem.interface == 'fei':
+            self.diffshift_slider = tkinter.Scale(frame, variable=self.var_diffshiftx, from_=-28.7, to=28.7, resolution=0.01,
+                length=250, showvalue=0, orient=HORIZONTAL, command=self.set_diffshift)
+        else:
+            self.diffshift_slider = tkinter.Scale(frame, variable=self.var_diffshiftx, from_=0, to=65535, length=250, 
+                showvalue=0, orient=HORIZONTAL, command=self.set_diffshift)
+        self.diffshift_slider.grid(row=13, column=6, columnspan=3, sticky='W')
+
+        if self.ctrl.tem.interface == 'fei':
+
+            Label(frame, text='Img Beam Tilt', width=15).grid(row=14, column=0, sticky='W')
+
+            self.rb_imgbeamtiltx = Radiobutton(frame, width=3, text='X', variable=self.var_imgbeamtilt_choose, 
+                                            value=0, command=self.choose_beamtiltxy)
+            self.rb_imgbeamtiltx.grid(row=14, column=1, sticky='W')
+            self.rb_imgbeamtilty = Radiobutton(frame, width=3, text='Y', variable=self.var_imgbeamtilt_choose,
+                                            value=1, command=self.choose_beamtiltxy)
+            self.rb_imgbeamtilty.grid(row=14, column=2, sticky='W')
+
+            self.e_imgbeamtilt = Entry(frame, width=8, textvariable=self.var_imgbeamtiltx)
+            self.e_imgbeamtilt.grid(row=14, column=3, sticky='W')
+
+            self.b_imgbeamtilt = Button(frame, width=5, text='Set', command=self.set_imgbeamtilt)
+            self.b_imgbeamtilt.grid(row=14, column=4, sticky='W')
+
+            self.b_imgbeamtilt_get = Button(frame, width=5, text='Get', command=self.get_imgbeamtiltx)
+            self.b_imgbeamtilt_get.grid(row=14, column=5, sticky='W')
+
+            self.imgbeamtilt_slider = tkinter.Scale(frame, variable=self.var_imgbeamtiltx, from_=-9.0, to=9.0, resolution=0.01, 
+                    length=250, showvalue=0, orient=HORIZONTAL, command=self.set_imgbeamtilt)
+
+            self.imgbeamtilt_slider.grid(row=14, column=6, columnspan=3, sticky='W')
 
         frame.pack(side='top', fill='x', padx=10, pady=10)
 
@@ -167,7 +323,7 @@ class ExperimentalCtrl(LabelFrame):
 
         self.var_goniotool_tx = IntVar(value=1)
 
-        if self.ctrl.tem.name[:3] == 'fei':
+        if self.ctrl.tem.interface == 'fei':
             self.var_brightness = DoubleVar(value=self.ctrl.brightness.value)
             if self.mode in ('D', 'LAD'):
                 self.var_difffocus = IntVar(value=self.ctrl.difffocus.value)
@@ -175,6 +331,12 @@ class ExperimentalCtrl(LabelFrame):
             else:
                 self.var_difffocus = IntVar(value=0)
                 self.var_objfocus = IntVar(value=self.ctrl.objfocus.value)
+            self.var_beamtiltx = DoubleVar(value=self.ctrl.beamtilt.x)
+            self.var_beamtilty = DoubleVar(value=self.ctrl.beamtilt.y)
+            self.var_diffshiftx = DoubleVar(value=self.ctrl.diffshift.x)
+            self.var_diffshifty = DoubleVar(value=self.ctrl.diffshift.y)
+            self.var_imgbeamtiltx = DoubleVar(value=self.ctrl.imgbeamtilt.x)
+            self.var_imgbeamtilty = DoubleVar(value=self.ctrl.imgbeamtilt.y)
         else:
             self.var_brightness = IntVar(value=self.ctrl.brightness.value)
             if self.mode in ('diff'):
@@ -183,6 +345,26 @@ class ExperimentalCtrl(LabelFrame):
             else:
                 self.var_difffocus = IntVar(value=0)
                 self.var_objfocus = IntVar(value=self.ctrl.objfocus.value)
+            self.var_beamtiltx = IntVar(value=self.ctrl.beamtilt.x)
+            self.var_beamtilty = IntVar(value=self.ctrl.beamtilt.y)
+            self.var_diffshiftx = IntVar(value=self.ctrl.diffshift.x)
+            self.var_diffshifty = IntVar(value=self.ctrl.diffshift.y)
+            self.var_imgbeamtiltx = IntVar(value=self.ctrl.imgbeamtilt.x)
+            self.var_imgbeamtilty = IntVar(value=self.ctrl.imgbeamtilt.y)
+
+        self.var_beamshiftx = IntVar(value=self.ctrl.beamshift.x)
+        self.var_beamshifty = IntVar(value=self.ctrl.beamshift.y)
+        self.var_imageshift1x = IntVar(value=self.ctrl.imageshift1.x)
+        self.var_imageshift1y = IntVar(value=self.ctrl.imageshift1.y)
+        self.var_imageshift2x = IntVar(value=self.ctrl.imageshift2.x)
+        self.var_imageshift2y = IntVar(value=self.ctrl.imageshift2.y)
+
+        self.var_beamshift_choose = IntVar(value=0)
+        self.var_beamtilt_choose = IntVar(value=0)
+        self.var_imageshift1_choose = IntVar(value=0)
+        self.var_imageshift2_choose = IntVar(value=0)
+        self.var_diffshift_choose = IntVar(value=0)
+        self.var_imgbeamtilt_choose = IntVar(value=0)
 
         self.var_diff_defocus = IntVar(value=1500)
         self.var_toggle_diff_defocus = BooleanVar(value=False)
@@ -216,7 +398,7 @@ class ExperimentalCtrl(LabelFrame):
         self.objfocus_slider.config(state=NORMAL)
 
     def set_gui_diffobj(self):
-        if self.ctrl.tem.name[:3] == 'fei':
+        if self.ctrl.tem.interface == 'fei':
             if self.ctrl.mode.state in ('D','LAD'):
                 self.GUI_DiffFocus()
             else:
@@ -232,7 +414,7 @@ class ExperimentalCtrl(LabelFrame):
         self.q = q
 
     def set_mode(self, event=None):
-        if self.ctrl.cam.name[:2] == 'DM':
+        if self.ctrl.cam.interface == 'DM':
             if self.var_mode.get() in ('D', 'LAD'):
                 self.ctrl.tem.setProjectionMode('diffraction')
                 self.var_mode.set(self.ctrl.mode.state)
@@ -249,7 +431,6 @@ class ExperimentalCtrl(LabelFrame):
             self.set_gui_diffobj()
 
     def set_brightness(self, event=None):
-        self.var_brightness.set(self.var_brightness.get())
         self.q.put(('ctrl', {'task': 'brightness.set',
                              'value': self.var_brightness.get()}))
         self.triggerEvent.set()
@@ -258,7 +439,6 @@ class ExperimentalCtrl(LabelFrame):
         self.var_brightness.set(self.ctrl.brightness.get())
 
     def set_difffocus(self, event=None):
-        self.var_difffocus.set(self.var_difffocus.get())
         self.q.put(('ctrl', {'task': 'difffocus.set',
                              'value': self.var_difffocus.get()}))
         self.triggerEvent.set()
@@ -267,13 +447,144 @@ class ExperimentalCtrl(LabelFrame):
         self.var_difffocus.set(self.ctrl.difffocus.get())
 
     def set_objfocus(self, event=None):
-        self.var_objfocus.set(self.var_objfocus.get())
         self.q.put(('ctrl', {'task': 'objfocus.set',
                              'value': self.var_objfocus.get()}))
         self.triggerEvent.set()
 
     def get_objfocus(self, event=None):
         self.var_objfocus.set(self.ctrl.objfocus.get())
+
+    def choose_beamshiftxy(self):
+        if self.var_beamshift_choose.get() == 0:
+            self.e_beamshift.configure(textvariable=self.var_beamshiftx)
+            self.b_beamshift_get.configure(command=self.get_beamshiftx)
+            self.beamshift_slider.configure(variable=self.var_beamshiftx)
+        else:
+            self.e_beamshift.configure(textvariable=self.var_beamshifty)
+            self.b_beamshift_get.configure(command=self.get_beamshifty)
+            self.beamshift_slider.configure(variable=self.var_beamshifty)
+
+    def choose_beamtiltxy(self):
+        if self.var_beamtilt_choose.get() == 0:
+            self.e_beamtilt.configure(textvariable=self.var_beamtiltx)
+            self.b_beamtilt_get.configure(command=self.get_beamtiltx)
+            self.beamtilt_slider.configure(variable=self.var_beamtiltx)
+        else:
+            self.e_beamtilt.configure(textvariable=self.var_beamtilty)
+            self.b_beamtilt_get.configure(command=self.get_beamtilty)
+            self.beamtilt_slider.configure(variable=self.var_beamtilty)
+
+    def choose_imageshift1xy(self):
+        if self.var_imageshift1_choose.get() == 0:
+            self.e_imageshift1.configure(textvariable=self.var_imageshift1x)
+            self.b_imageshift1_get.configure(command=self.get_imageshift1x)
+            self.imageshift1_slider.configure(variable=self.var_imageshift1x)
+        else:
+            self.e_imageshift1.configure(textvariable=self.var_imageshift1y)
+            self.b_imageshift1_get.configure(command=self.get_imageshift1y)
+            self.imageshift1_slider.configure(variable=self.var_imageshift1y)
+
+    def choose_imageshift2xy(self):
+        if self.var_imageshift2_choose.get() == 0:
+            self.e_imageshift2.configure(textvariable=self.var_imageshift2x)
+            self.b_imageshift2_get.configure(command=self.get_imageshift2x)
+            self.imageshift2_slider.configure(variable=self.var_imageshift2x)
+        else:
+            self.e_imageshift2.configure(textvariable=self.var_imageshift2y)
+            self.b_imageshift2_get.configure(command=self.get_imageshift2y)
+            self.imageshift2_slider.configure(variable=self.var_imageshift2y)
+
+    def choose_diffshiftxy(self):
+        if self.var_diffshift_choose.get() == 0:
+            self.e_diffshift.configure(textvariable=self.var_diffshiftx)
+            self.b_diffshift_get.configure(command=self.get_diffshiftx)
+            self.diffshift_slider.configure(variable=self.var_diffshiftx)
+        else:
+            self.e_diffshift.configure(textvariable=self.var_diffshifty)
+            self.b_diffshift_get.configure(command=self.get_diffshifty)
+            self.diffshift_slider.configure(variable=self.var_diffshifty)
+
+    def choose_imgbeamtiltxy(self):
+        if self.var_imgbeamtilt_choose.get() == 0:
+            self.e_imgbeamtilt.configure(textvariable=self.var_imgbeamtiltx)
+            self.b_imgbeamtilt_get.configure(command=self.get_imgbeamtiltx)
+            self.imgbeamtilt_slider.configure(variable=self.var_imgbeamtiltx)
+        else:
+            self.e_imgbeamtilt.configure(textvariable=self.var_imgbeamtilty)
+            self.b_imgbeamtilt_get.configure(command=self.get_imgbeamtilty)
+            self.imgbeamtilt_slider.configure(variable=self.var_imgbeamtilty)
+
+    def get_beamshiftx(self, event=None):
+        self.var_beamshiftx.set(self.ctrl.beamshift.x)
+
+    def get_beamshifty(self, event=None):
+        self.var_beamshifty.set(self.ctrl.beamshift.y)
+
+    def get_beamtiltx(self, event=None):
+        self.var_beamtiltx.set(self.ctrl.beamtilt.x)
+
+    def get_beamtilty(self, event=None):
+        self.var_beamtilty.set(self.ctrl.beamtilt.y)
+
+    def get_imageshift1x(self, event=None):
+        self.var_imageshift1x.set(self.ctrl.imageshift1.x)
+
+    def get_imageshift1y(self, event=None):
+        self.var_imageshift1y.set(self.ctrl.imageshift1.y)
+
+    def get_imageshift2x(self, event=None):
+        self.var_imageshift2x.set(self.ctrl.imageshift2.x)
+
+    def get_imageshift2y(self, event=None):
+        self.var_imageshift2y.set(self.ctrl.imageshift2.y)
+
+    def get_diffshiftx(self, event=None):
+        self.var_diffshiftx.set(self.ctrl.diffshift.x)
+
+    def get_diffshifty(self, event=None):
+        self.var_diffshifty.set(self.ctrl.diffshift.y)
+
+    def get_imgbeamtiltx(self, event=None):
+        self.var_imgbeamtiltx.set(self.ctrl.imgbeamtilt.x)
+
+    def get_imgbeamtilty(self, event=None):
+        self.var_imgbeamtilty.set(self.ctrl.imgbeamtilt.y)
+
+    def set_beamshift(self, event=None):
+        self.q.put(('ctrl', {'task': 'beamshift.set',
+                             'x': self.var_beamshiftx.get(),
+                             'y': self.var_beamshifty.get()}))
+        self.triggerEvent.set()
+
+    def set_beamtilt(self, event=None):
+        self.q.put(('ctrl', {'task': 'beamtilt.set',
+                             'x': self.var_beamtiltx.get(),
+                             'y': self.var_beamtilty.get()}))
+        self.triggerEvent.set()
+
+    def set_imageshift1(self, event=None):
+        self.q.put(('ctrl', {'task': 'imageshift1.set',
+                             'x': self.var_imageshift1x.get(),
+                             'y': self.var_imageshift1y.get()}))
+        self.triggerEvent.set()
+
+    def set_imageshift2(self, event=None):
+        self.q.put(('ctrl', {'task': 'imageshift2.set',
+                             'x': self.var_imageshift2x.get(),
+                             'y': self.var_imageshift2y.get()}))
+        self.triggerEvent.set()
+
+    def set_diffshift(self, event=None):
+        self.q.put(('ctrl', {'task': 'diffshift.set',
+                             'x': self.var_diffshiftx.get(),
+                             'y': self.var_diffshifty.get()}))
+        self.triggerEvent.set()
+
+    def set_imgbeamtilt(self, event=None):
+        self.q.put(('ctrl', {'task': 'imgbeamtilt.set',
+                             'x': self.var_imgbeamtiltx.get(),
+                             'y': self.var_imgbeamtilty.get()}))
+        self.triggerEvent.set()
 
     def get_alpha_angle(self):
         self.var_alpha_angle.set(self.ctrl.stage.a)

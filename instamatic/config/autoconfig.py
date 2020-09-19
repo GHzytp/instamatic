@@ -88,34 +88,40 @@ It establishes a connection to the microscope and reads out the camera lengths a
 
     # Connect to microscope
 
-    tem_name = choice_prompt(choices='jeol fei_themisZ simulate'.split(),
+    tem_name = input('Input the name of the TEM (manufacturer_model_institution): ')
+
+    tem_interface_name = choice_prompt(choices='jeol fei simulate'.split(),
                              default='simulate',
-                             question='Which microscope can I connect to?')
+                             question='Which microscope interface can I connect to?')
 
     # Connect to camera
-
-    cam_name = choice_prompt(choices=[None, 'gatan', 'tvips', 'simulate'],
-                             default='simulate',
-                             question='Which camera can I connect to?')
-
     # Fetch camera config
 
     drc = Path(__file__).parent
     choices = list(drc.glob('camera/*.yaml'))
+    choices_name = list(map(lambda x: x.name.split('.')[0], choices))
+    choices_name.append(None)
     choices.append(None)
 
-    cam_config = choice_prompt(choices=choices,
+    cam_name = choice_prompt(choices=choices_name,
                                default=None,
                                question='Which camera type do you want to use (select closest one and modify if needed)?')
 
+    cam_config = choices[choices_name.index(cam_name)]
+
+    cam_interface_name = choice_prompt(choices=[None, 'DM', 'gatan', 'tvips', 'simulate'],
+                             default='simulate',
+                             question='Which camera can I connect to?')
+
+    
     # Instantiate microscope / camera connection
 
     from instamatic.TEMController.microscope import get_tem
     from instamatic.camera.camera import get_cam
     from instamatic.TEMController.TEMController import TEMController
 
-    cam = get_cam(cam_name)() if cam_name else None
-    tem = get_tem(tem_name)()
+    cam = get_cam(cam_interface_name)(cam_name) if cam_interface_name else None
+    tem = get_tem(tem_interface_name)()
 
     ctrl = TEMController(tem=tem, cam=cam)
 
@@ -130,21 +136,54 @@ It establishes a connection to the microscope and reads out the camera lengths a
     wavelength = relativistic_wavelength(ht)
 
     tem_config = {}
-    tem_config['name'] = tem_name
+    tem_config['interface'] = tem_interface_name
     tem_config['wavelength'] = wavelength
+    if tem_interface_name == 'jeol':
+        try:
+            neutral_obj_ranges = ctrl.tem.getNeutralObjRanges()
+        except BaseException:
+            print('Warning: Cannot access objective lense or magnification')
+            neutral_obj_ranges = {}
+
+        tem_config['neutral'] = {}
+        tem_config['neutral']['objective'] = {}
+        tem_config['neutral']['objective']['mag1'] = neutral_obj_ranges
+    elif tem_interface_name == 'fei':
+        x_limit = input('Stage limit x: ')
+        x = [int(x_limit.split(' ')[0]), int(x_limit.split(' ')[-1])]
+        y_limit = input('Stage limit y: ')
+        y = [int(y_limit.split(' ')[0]), int(y_limit.split(' ')[-1])]
+        z_limit = input('Stage limit z: ')
+        z = [int(z_limit.split(' ')[0]), int(z_limit.split(' ')[-1])]
+        a_limit = input('Stage limit a: ')
+        a = [int(a_limit.split(' ')[0]), int(a_limit.split(' ')[-1])]
+        b_limit = input('Stage limit b: ')
+        if len(b_limit) != 0:
+            b = [int(b_limit.split(' ')[0]), int(b_limit.split(' ')[-1])]
+        else:
+            b = None
+        tem_config.setdefault('stageLimit', {})['x'] = x
+        tem_config.setdefault('stageLimit', {})['y'] = y
+        tem_config.setdefault('stageLimit', {})['z'] = z
+        tem_config.setdefault('stageLimit', {})['a'] = a
+        tem_config.setdefault('stageLimit', {})['b'] = b
 
     for mode, rng in ranges.items():
-        tem_config['ranges'] = {mode: rng}
+        try:
+            tem_config[mode]['ranges'] = tmp
+        except KeyError:
+            tem_config[mode] = {}
+            tem_config[mode]['ranges'] = tmp
 
     calib_config = {}
-    calib_config['name'] = tem_name
+    calib_config['name'] = f'{tem_name}_{cam_name}'
 
     # Find magnification ranges
 
     for mode, rng in ranges.items():
         calib_config[mode] = {}
 
-        if cam_name == 'tvips':
+        if cam_interface_name == 'tvips':
             pixelsizes = get_tvips_calibs(ctrl=ctrl, rng=rng, mode=mode, wavelength=wavelength)
         else:
             pixelsizes = {r: 1.0 for r in rng}
@@ -157,7 +196,7 @@ It establishes a connection to the microscope and reads out the camera lengths a
     # Write/copy configs
 
     tem_config_fn = f'{tem_name}_tem.yaml'
-    calib_config_fn = f'{tem_name}_calib.yaml'
+    calib_config_fn = f'{tem_name}_{cam_name}_calib.yaml'
     if cam_config:
         cam_config_fn = f'{cam_name}_cam.yaml'
         shutil.copyfile(cam_config, cam_config_fn)

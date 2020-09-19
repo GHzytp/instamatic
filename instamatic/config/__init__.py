@@ -212,7 +212,6 @@ def load_holder_config(holder_name: str = None):
         holder_config = ConfigObject.from_file(holder_yaml)
     else:
         holder_config = ConfigObject({}, name='NoHolder')
-        print('No external holder controller config is loaded.')
 
     holder = holder_config
     holder.name = holder_name
