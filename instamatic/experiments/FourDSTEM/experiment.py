@@ -14,7 +14,7 @@ from instamatic.image_utils import translate_image
 
 
 class Experiment:
-    """Initialize stepwise rotation electron diffraction experiment.
+    """Initialize 4DSTEM experiment.
 
     ctrl:
         Instance of instamatic.TEMController.TEMController
@@ -24,10 +24,45 @@ class Experiment:
         Instance of `logging.Logger`
     flatfield:
         Path to flatfield correction image
+    unblank_beam:
+        Whether beam should be automatically unblanked before experiment
+    mode:
+        Which mode the experiment is running in, choices: 'simulate', 'footfree', None (default)
+    footfree_rotate_to:
+        In 'footfree' mode, rotate to this angle
+    enable_image_interval:
+        Gives the interval with which to defocs the pattern slightly for tracking purposes,
+        default is set to 99999 so it never occurs.
+    diff_defocus:
+        Image interval only - Defocus value to apply when defocused images are used for tracking
+    exposure_time_image:
+        Image interval only - Exposure time for defocused images
+    write_tiff, write_xds, write_dials, write_red:
+        Specify which data types/input files should be written
+    stop_event:
+        Instance of `threading.Event()` that signals the experiment to be terminated.
     """
 
-    def __init__(self, ctrl, path: str = None, log=None, flatfield=None):
-        super().__init__()
+    def __init__(self, ctrl,
+                 path: str = None,
+                 log=None,
+                 flatfield: str = None,
+                 dwell_time: float = 0.003,
+                 exposure_time: float = 0.01,
+                 center_x: float = 256.0,
+                 center_y: float = 256.0,
+                 interval_x: float = 100.0,
+                 interval_y: float = 100.0,
+                 nx: int = 32,
+                 ny: int = 32,
+                 haadf: bool = True,
+                 adf: bool = False,
+                 bf: bool = False,
+                 save_mrc_4DSTEM: bool = True,
+                 save_hdf5_4DSTEM: bool = True,
+                 save_mrc_raw_imgs: bool = True,
+                 save_hdf5_raw_imgs: bool = True,
+                 ):
         self.ctrl = ctrl
         self.path = Path(path)
 

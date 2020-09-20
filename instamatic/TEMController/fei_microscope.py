@@ -313,6 +313,9 @@ class FEIMicroscope:
         print(f'x limit: {self.x_limit}, y limit: {self.y_limit}, z limit: {self.z_limit}, a limit: {self.a_limit}, b limit: {self.b_limit}')
         print('Please make sure the stage position limits are right.')
 
+        self.calib_bs_x, self.calib_bs_y = self.getBeamShiftCalibration()
+        self.calib_is_x, self.calib_is_y = self.getImageShiftCalibration()
+
     def getHTValue(self):
         '''The value of the HT setting as displayed in the TEM user interface. Units: Volts.'''
         if USETOM:
@@ -620,9 +623,8 @@ class FEIMicroscope:
         """User Shift. Beam shift relative to the origin stored at alignment time. Units: nm. 6ms per call"""
         '1.19 ms in communication. Super fast!'
         if USETOM:
-            calib_x, calib_y = self.getBeamShiftCalibration()
-            x = self.illu_tom.BeamShift.X * 1e12 * calib_x
-            y = self.illu_tom.BeamShift.Y * 1e12 * calib_y
+            x = self.illu_tom.BeamShift.X * 1e12 * self.calib_bs_x
+            y = self.illu_tom.BeamShift.Y * 1e12 * self.calib_bs_y
         else:
             x = self.illu_tem.Shift.X * 1e9
             y = self.illu_tem.Shift.Y * 1e9
@@ -631,12 +633,11 @@ class FEIMicroscope:
     def setBeamShift(self, x=None, y=None):
         """User Shift. Beam shift relative to the origin stored at alignment time. Units: nm. 10ms per call"""
         if USETOM:
-            calib_x, calib_y = self.getBeamShiftCalibration()
             bs = self.illu_tom.BeamShift
             if x is not None:
-                bs.X = x * 1e-12 / calib_x
+                bs.X = x * 1e-12 / self.calib_bs_x
             if y is not None:
-                bs.Y = y * 1e-12 / calib_y
+                bs.Y = y * 1e-12 / self.calib_bs_y
             self.illu_tom.BeamShift = bs
         else:
             bs = self.illu_tem.Shift
@@ -694,37 +695,17 @@ class FEIMicroscope:
 
     def getBeamTilt(self):
         """rotation center in FEI. 5ms per call. Units: degree"""
-        if USETOM:
-            x = self.illu_tom.BeamAlignmentTilt.X * 36 / pi
-            y = self.illu_tom.BeamAlignmentTilt.Y * 36 / pi
-        else:
-            x = self.illu_tem.RotationCenter.X * 180 / pi
-            y = self.illu_tem.RotationCenter.Y * 180 / pi
-        return x, y
+        return self.getDarkFieldTilt()
 
     def setBeamTilt(self, x=None, y=None):
         """rotation center in FEI. 9.8ms per call. Units: degree"""
-        if USETOM:
-            bt = self.illu_tom.BeamAlignmentTilt
-            if x is not None:
-                bt.X = x * pi / 36
-            if y is not None:
-                bt.Y = y * pi / 36
-            self.illu_tom.BeamAlignmentTilt = bt
-        else:
-            bt = self.illu_tem.RotationCenter
-            if x is not None:
-                bt.X = x * pi / 180
-            if y is not None:
-                bt.Y = y * pi / 180
-            self.illu_tem.RotationCenter = bt
+        self.setDarkFieldTilt(x, y)
         
     def getImageShift1(self):
         """User image shift. 5ms per call
            The image shift with respect to the origin that is defined by alignment. Units: nm."""
         if USETOM:
-            calib_x, calib_y = self.getImageShiftCalibration()
-            return self.proj_tom.ImageShift.X * 1e12 * calib_x, self.proj_tom.ImageShift.Y * 1e12 * calib_y
+            return self.proj_tom.ImageShift.X * 1e12 * self.calib_is_x, self.proj_tom.ImageShift.Y * 1e12 * self.calib_is_y
         else:
             return self.proj_tem.ImageShift.X * 1e9, self.proj_tem.ImageShift.Y * 1e9
 
@@ -732,12 +713,11 @@ class FEIMicroscope:
         """9.8ms per call
            The image shift with respect to the origin that is defined by alignment. Units: nm."""
         if USETOM:
-            calib_x, calib_y = self.getImageShiftCalibration()
             is1 = self.proj_tom.ImageShift
             if x is not None:
-                is1.X = x * 1e-12 / calib_x
+                is1.X = x * 1e-12 / self.calib_is_x
             if y is not None:
-                is1.Y = y * 1e-12 / calib_y
+                is1.Y = y * 1e-12 / self.calib_is_y
             self.proj_tom.ImageShift = is1
         else:
             is1 = self.proj_tem.ImageShift
@@ -758,8 +738,7 @@ class FEIMicroscope:
            Attention: Avoid intermixing ImageShift and ImageBeamShift, otherwise it would mess up the beam shift 
            (=Illumination.Shift). If you want to use both alternately, then reset the other to zero first."""
         if USETOM:
-            calib_x, calib_y = self.getImageShiftCalibration()
-            return self.proj_tom.ImageBeamShift.X * 1e12 * calib_x, self.proj_tom.ImageBeamShift.Y * 1e12 * calib_y
+            return self.proj_tom.ImageBeamShift.X * 1e12 * self.calib_is_x, self.proj_tom.ImageBeamShift.Y * 1e12 * self.calib_is_y
         else:
             return self.proj_tem.ImageBeamShift.X * 1e9, self.proj_tem.ImageBeamShift.Y * 1e9
 
@@ -770,12 +749,11 @@ class FEIMicroscope:
            Attention: Avoid intermixing ImageShift and ImageBeamShift, otherwise it would mess up the beam shift 
            (=Illumination.Shift). If you want to use both alternately, then reset the other to zero first."""
         if USETOM:
-            calib_x, calib_y = self.getImageShiftCalibration()
             is1 = self.proj_tom.ImageBeamShift
             if x is not None:
-                is1.X = x / 1e12 / calib_x
+                is1.X = x / 1e12 / self.calib_is_x
             if y is not None:
-                is1.Y = y / 1e12 / calib_y
+                is1.Y = y / 1e12 / self.calib_is_y
             self.proj_tom.ImageBeamShift = is1
         else:
             is1 = self.proj_tem.ImageBeamShift
@@ -1276,12 +1254,28 @@ class FEIMicroscope:
                 ds1.Y = y
             self.illu_tem.Shift = ds1
 
+    def getDarkField(self):
+        dct = {0: 'off', 1: 'cartesian', 2: 'conical'}
+        if USETOM:
+            return dct[self.illu_tom.DFMode]
+        else:
+            return dct[self.illu_tem.DFMode]
+
+    def setDarkField(self, value):
+        dct = {'off': 0, 'cartesian': 1, 'conical': 2}
+        if value not in dct.keys():
+            raise FEIValueError(f'Input parameter must in {list(dct.keys())}')
+        if USETOM:
+            self.illu_tom.DFMode = dct[value]
+        else:
+            self.illu_tem.DFMode = dct[value]
+
     def getDarkFieldTilt(self):
         """Dark field beam tilt relative to the origin stored at alignment time. Only operational, 
            if dark field mode is active. Units: degree, either in Cartesian (x,y) or polar (conical) tilt angles. 
            The accuracy of the beam tilt physical units depends on a calibration of the tilt angles"""
         if USETOM:
-            return self.illu_tom.Tilt.X / pi * 180, self.illu_tom.Tilt.Y / pi * 180
+            return self.illu_tom.BeamTilt.X / pi * 36, self.illu_tom.BeamTilt.Y / pi * 36
         else:
             return self.illu_tem.Tilt.X / pi * 180, self.illu_tem.Tilt.Y / pi * 180
 
@@ -1290,24 +1284,30 @@ class FEIMicroscope:
            if dark field mode is active. Units: degree, either in Cartesian (x,y) or polar (conical) tilt angles. 
            The accuracy of the beam tilt physical units depends on a calibration of the tilt angles"""
         if USETOM:
-            ds1 = self.illu_tom.Tilt
+            ds1 = self.illu_tom.BeamTilt
             if x is not None:
-                ds1.X = x
+                ds1.X = x * pi /36
             if y is not None:
-                ds1.Y = y
+                ds1.Y = y * pi /36
             self.illu_tom.Tilt = ds1
         else:
             ds1 = self.illu_tem.Tilt
             if x is not None:
-                ds1.X = x
+                ds1.X = x * pi /180
             if y is not None:
-                ds1.Y = y
+                ds1.Y = y * pi /180
             self.illu_tem.Tilt = ds1
 
     def getRotationCenter(self):
         """Corresponds to the alignment beam tilt value. Units are degree, range is ± 0.2-0.3rad. 
            Do not confuse RotationCenter with dark field (Tilt). Be aware that this is an alignment function."""
-        return self.illu_tem.RotationCenter.X / pi * 180, self.illu_tem.RotationCenter.Y / pi * 180
+        if USETOM:
+            x = self.illu_tom.BeamAlignmentTilt.X * 36 / pi
+            y = self.illu_tom.BeamAlignmentTilt.Y * 36 / pi
+        else:
+            x = self.illu_tem.RotationCenter.X * 180 / pi
+            y = self.illu_tem.RotationCenter.Y * 180 / pi
+        return x, y
 
     def setRotationCenter(self, x=None, y=None):
         """Corresponds to the alignment beam tilt value. Units are degree, range is ± 0.2-0.3rad. 
@@ -1318,12 +1318,20 @@ class FEIMicroscope:
         except TypeError:
             pass
 
-        ds1 = self.illu_tem.RotationCenter
-        if x is not None:
-            ds1.X = x
-        if y is not None:
-            ds1.Y = y
-        self.illu_tem.RotationCenter = ds1
+        if USETOM:
+            bt = self.illu_tom.BeamAlignmentTilt
+            if x is not None:
+                bt.X = x * pi / 36
+            if y is not None:
+                bt.Y = y * pi / 36
+            self.illu_tom.BeamAlignmentTilt = bt
+        else:
+            bt = self.illu_tem.RotationCenter
+            if x is not None:
+                bt.X = x * pi / 180
+            if y is not None:
+                bt.Y = y * pi / 180
+            self.illu_tem.RotationCenter = bt
 
     def getStemMagnification(self):
         """The magnification value in STEM mode. You can change the magnification only in discrete steps 

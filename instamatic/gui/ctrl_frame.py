@@ -87,7 +87,10 @@ class ExperimentalCtrl(LabelFrame):
 
         # defocus button
         Label(frame, text='Diff Defocus', width=15).grid(row=5, column=0, sticky='W')
-        self.e_diff_defocus = Spinbox(frame, textvariable=self.var_diff_defocus, width=10, from_=-10000, to=10000, increment=100)
+        if self.ctrl.tem.interface == 'fei':
+            self.e_diff_defocus = Spinbox(frame, textvariable=self.var_diff_defocus, width=10, from_=-600000, to=600000, increment=100)
+        else:
+            self.e_diff_defocus = Spinbox(frame, textvariable=self.var_diff_defocus, width=10, from_=0, to=65535, increment=100)
         self.e_diff_defocus.grid(row=5, column=1, sticky='EW')
 
         self.c_toggle_defocus = Checkbutton(frame, text='Toggle defocus ', variable=self.var_toggle_diff_defocus, command=self.toggle_diff_defocus)
@@ -175,7 +178,7 @@ class ExperimentalCtrl(LabelFrame):
         self.b_beamshift_get.grid(row=9, column=5, sticky='W')
 
         if self.ctrl.tem.interface == 'fei':
-            self.beamshift_slider = tkinter.Scale(frame, variable=self.var_beamshiftx, from_=-1e8, to=1e8, length=250, 
+            self.beamshift_slider = tkinter.Scale(frame, variable=self.var_beamshiftx, from_=-1e5, to=1e5, length=250, 
                 showvalue=0, orient=HORIZONTAL, command=self.set_beamshift)
         else:
             self.beamshift_slider = tkinter.Scale(frame, variable=self.var_beamshiftx, from_=0, to=65535, length=250, 
@@ -226,7 +229,7 @@ class ExperimentalCtrl(LabelFrame):
         self.b_imageshift1_get.grid(row=11, column=5, sticky='W')
 
         if self.ctrl.tem.interface == 'fei':
-            self.imageshift1_slider = tkinter.Scale(frame, variable=self.var_imageshift1x, from_=-1.5e7, to=1.5e7, length=250, 
+            self.imageshift1_slider = tkinter.Scale(frame, variable=self.var_imageshift1x, from_=-1.5e4, to=1.5e4, length=250, 
                 showvalue=0, orient=HORIZONTAL, command=self.set_imageshift1)
         else:
             self.imageshift1_slider = tkinter.Scale(frame, variable=self.var_imageshift1x, from_=0, to=65535, length=250, 
@@ -251,7 +254,7 @@ class ExperimentalCtrl(LabelFrame):
         self.b_imageshift2_get.grid(row=12, column=5, sticky='W')
 
         if self.ctrl.tem.interface == 'fei':
-            self.imageshift2_slider = tkinter.Scale(frame, variable=self.var_imageshift2x, from_=-1.5e7, to=1.5e7, length=250, 
+            self.imageshift2_slider = tkinter.Scale(frame, variable=self.var_imageshift2x, from_=-1.5e4, to=1.5e4, length=250, 
                 showvalue=0, orient=HORIZONTAL, command=self.set_imageshift2)
         else:
             self.imageshift2_slider = tkinter.Scale(frame, variable=self.var_imageshift2x, from_=0, to=65535, length=250, 
