@@ -33,7 +33,7 @@ class TemServer(threading.Thread):
     microscope instance.
     """
 
-    def __init__(self, log=None, q=None, name=None):
+    def __init__(self, log=None, q=None, microscope_name=None, software_name=None):
         super().__init__()
 
         self.log = log
@@ -47,10 +47,11 @@ class TemServer(threading.Thread):
 
     def run(self):
         """Start the server thread."""
-        self.tem = Microscope(name=self._name, use_server=False)
+        self.tem = Microscope(name=self._microscope_name, use_server=False)
         print(f'Initialized connection to microscope: {self.tem.name}')
         self.sw = Software(name=self._software_name, use_server=False)
-        print(f'Initialized connection to software: {self.sw.name}')
+        if self.sw is not None:
+            print(f'Initialized connection to software: {self.sw.name}')
 
         while True:
             now = datetime.datetime.now().strftime('%H:%M:%S.%f')
@@ -164,7 +165,7 @@ The response is returned as a serialized object.
 
     q = queue.Queue(maxsize=100)
 
-    tem_reader = TemServer(name=microscope, log=log, q=q)
+    tem_reader = TemServer(microscope_name=microscope, software_name=software, log=log, q=q)
     tem_reader.start()
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

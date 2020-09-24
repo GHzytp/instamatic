@@ -282,7 +282,6 @@ class FEIMicroscope:
         self.proj_tem = self.tem.Projection
 
         self.acq_tem = self.tem.Acquisition
-        self.stem_tem = self.tem.STEM
         self.acq_tom = self.tom.Acquisition
         self.stem_tom = self.tom.STEM
 

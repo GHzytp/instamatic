@@ -24,7 +24,7 @@ def get_tem(interface: str):
     elif interface == 'fei_simu':
         from .fei_simu_microscope import FEISimuMicroscope as cls
     else:
-        raise ValueError(f'No such microscope interface: `{interface}`')
+        raise ValueError(f'No such microscope interface: {interface}')
 
     return cls
 
@@ -33,8 +33,10 @@ def get_software(interface: str):
 
     if interface == 'TIA':
         from .TIA_software import TIASoftware as cls
+    elif interface is None:
+        cls = None
     else:
-        raise ValueError(f'No such microscope interface: `{interface}`')
+        raise ValueError(f'No such software interface: {interface}')
 
     return cls
 
@@ -82,7 +84,7 @@ def Software(name: str = None, use_server: bool = False):
         sw = SoftwareClient(name=name)
     else:
         cls = get_software(name)
-        sw = cls()
-        sw.connect()
-
-    return sw
+        if cls is not None:
+            sw = cls()
+            sw.connect()
+            return sw
