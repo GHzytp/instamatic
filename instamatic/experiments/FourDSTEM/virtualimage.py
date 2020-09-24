@@ -29,15 +29,45 @@ def get_virtualimage_circ(datacube, x0, y0, R):
     Returns:
         virtual_image   (2D array)
     """
-    xmin,xmax = max(0,int(np.floor(x0-R))),min(datacube.Q_Nx,int(np.ceil(x0+R)))
-    ymin,ymax = max(0,int(np.round(y0-R))),min(datacube.Q_Ny,int(np.ceil(y0+R)))
+    xmin, xmax = max(0, int(np.floor(x0-R))), min(datacube.shape[2], int(np.ceil(x0+R)))
+    ymin, ymax = max(0, int(np.round(y0-R))), min(datacube.shape[3], int(np.ceil(y0+R)))
 
-    xsize,ysize = xmax-xmin,ymax-ymin
-    x0_s,y0_s = x0-xmin,y0-ymin
+    xsize, ysize = xmax - xmin, ymax - ymin
+    x0_s, y0_s = x0 - xmin, y0 - ymin
+    mask = np.fromfunction(lambda x, y: ((x-x0_s + 0.5)**2 + (y-y0_s + 0.5)**2) < R**2, (xsize, ysize)) # Avoids making meshgrids
+
+    virtual_image = np.sum(datacube[:, :, xmin:xmax, ymin:ymax] * mask, axis=(2, 3))
+    return virtual_image
+    
+def get_virtualpixel_circ(img, x0, y0, R):
+    """
+    Get a virtual image using a circular detector centered at (x0,y0) and with radius R in the diffraction plane.
+    Accepts:
+        img             (2D np array)
+        x0,y0           (numbers) center of detector
+        R               (number) radius of detector
+    Returns:
+        virtual_pixel   (1 pixel in a virtual image)
+    """
+    xmin, xmax = max(0,int(np.floor(x0-R))), min(img.shape[0],int(np.ceil(x0+R)))
+    ymin, ymax = max(0,int(np.round(y0-R))), min(img.shape[1],int(np.ceil(y0+R)))
+
+    xsize, ysize = xmax-xmin, ymax-ymin
+    x0_s, y0_s = x0-xmin, y0-ymin
     mask = np.fromfunction(lambda x,y: ((x-x0_s+0.5)**2 + (y-y0_s+0.5)**2) < R**2, (xsize,ysize)) # Avoids making meshgrids
 
-    virtual_image = np.sum(datacube[:,:,xmin:xmax,ymin:ymax]*mask, axis=(2,3))
-    return virtual_image
+    virtual_pixel = np.sum(img[xmin:xmax,ymin:ymax]*mask)
+    return virtual_pixel
+
+def get_mask_circ(img, x0, y0, R):
+    xmin, xmax = max(0,int(np.floor(x0-R))), min(img.shape[0],int(np.ceil(x0+R)))
+    ymin, ymax = max(0,int(np.round(y0-R))), min(img.shape[1],int(np.ceil(y0+R)))
+
+    xsize, ysize = xmax-xmin, ymax-ymin
+    x0_s, y0_s = x0-xmin, y0-ymin
+    mask = np.fromfunction(lambda x,y: ((x-x0_s+0.5)**2 + (y-y0_s+0.5)**2) < R**2, (xsize,ysize)) # Avoids making meshgrids
+
+    return mask
 
 def get_virtualimage_ann(datacube, x0, y0, Ri, Ro):
     """
@@ -62,4 +92,38 @@ def get_virtualimage_ann(datacube, x0, y0, Ri, Ro):
     virtual_image = np.sum(datacube[:,:,xmin:xmax,ymin:ymax]*mask, axis=(2,3))
     return virtual_image
 
+def get_virtualpixel_ann(img, x0, y0, Ri, Ro):
+    """
+    Get a virtual image using a circular detector centered at (x0,y0) and with radius R in the diffraction plane.
+    Accepts:
+        img             (2D np array)
+        x0,y0           (numbers) center of detector
+        Ri,Ro           (numbers) inner/outer detector radii
+    Returns:
+        virtual_pixel   (1 pixel in a virtual image)
+    """
+    assert Ro>Ri, "Inner radius must be smaller than outer radius"
+    xmin, xmax = max(0,int(np.floor(x0-Ro))), min(img.shape[0],int(np.ceil(x0+Ro)))
+    ymin, ymax = max(0,int(np.round(y0-Ro))), min(img.shape[1],int(np.ceil(y0+Ro)))
 
+    xsize, ysize = xmax-xmin, ymax-ymin
+    x0_s, y0_s = x0-xmin, y0-ymin
+    mask_o = np.fromfunction(lambda x,y: ((x-x0_s+0.5)**2 + (y-y0_s+0.5)**2) < Ro**2, (xsize,ysize))
+    mask_i = np.fromfunction(lambda x,y: ((x-x0_s+0.5)**2 + (y-y0_s+0.5)**2) < Ri**2, (xsize,ysize))
+    mask = np.logical_xor(mask_o, mask_i)
+
+    virtual_pixel = np.sum(img[xmin:xmax, ymin:ymax]*mask)
+    return virtual_pixel
+
+def get_mask_ann(img, x0, y0, Ri, Ro):
+    assert Ro>Ri, "Inner radius must be smaller than outer radius"
+    xmin, xmax = max(0,int(np.floor(x0-Ro))), min(img.shape[0],int(np.ceil(x0+Ro)))
+    ymin, ymax = max(0,int(np.round(y0-Ro))), min(img.shape[1],int(np.ceil(y0+Ro)))
+
+    xsize, ysize = xmax-xmin, ymax-ymin
+    x0_s, y0_s = x0-xmin, y0-ymin
+    mask_o = np.fromfunction(lambda x,y: ((x-x0_s+0.5)**2 + (y-y0_s+0.5)**2) < Ro**2, (xsize,ysize))
+    mask_i = np.fromfunction(lambda x,y: ((x-x0_s+0.5)**2 + (y-y0_s+0.5)**2) < Ri**2, (xsize,ysize))
+    mask = np.logical_xor(mask_o, mask_i)
+
+    return mask

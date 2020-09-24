@@ -118,6 +118,7 @@ class VideoStream(threading.Thread):
             self.frametime = 0.1
         self.grabber = self.setup_grabber()
 
+        self.frame_updated = threading.Event() # For 4DSTEM experiment
 
         self.streamable = self.cam.streamable
 
@@ -143,10 +144,14 @@ class VideoStream(threading.Thread):
             self.acquired_frame = self.frame = frame
             self.grabber.lock.release()
             self.grabber.acquireCompleteEvent.set()
+            if not self.frame_updated.is_set():
+                self.frame_updated.set()
         else:
             self.grabber.lock.acquire(True)
             self.frame = frame
             self.grabber.lock.release()
+            if not self.frame_updated.is_set():
+                self.frame_updated.set()
 
     def setup_grabber(self):
         grabber = ImageGrabber(self.cam, callback=self.send_frame, frametime=self.frametime)

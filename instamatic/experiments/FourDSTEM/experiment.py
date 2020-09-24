@@ -1,8 +1,11 @@
 import datetime
 import os
-import time
+import Time
 from pathlib import Path
 
+import h5py
+import threading
+import queue
 import numpy as np
 from skimage.registration import phase_cross_correlation
 from tqdm.auto import tqdm
@@ -12,6 +15,9 @@ from instamatic.formats import write_tiff
 from instamatic.processing.ImgConversionTPX import ImgConversionTPX as ImgConversion
 from instamatic.image_utils import translate_image
 
+from .virtualimage import get_mask_circ, get_mask_ann
+
+VIRTUALIMGBUF = queue.Queue()
 
 class Experiment:
     """Initialize 4DSTEM experiment.
@@ -49,6 +55,8 @@ class Experiment:
                  flatfield: str = None,
                  dwell_time: float = 0.003,
                  exposure_time: float = 0.01,
+                 haadf_min_radius: int = 300,
+                 bf_max_radius: int = 100,
                  center_x: float = 256.0,
                  center_y: float = 256.0,
                  interval_x: float = 100.0,
@@ -59,35 +67,47 @@ class Experiment:
                  adf: bool = False,
                  bf: bool = False,
                  save_mrc_4DSTEM: bool = True,
-                 save_hdf5_4DSTEM: bool = True,
+                 save_hdf5_4DSTEM: bool = False,
                  save_mrc_raw_imgs: bool = True,
-                 save_hdf5_raw_imgs: bool = True,
-                 ):
+                 save_hdf5_raw_imgs: bool = False):
         self.ctrl = ctrl
-        self.path = Path(path)
-
-        self.mrc_path = self.path / 'mrc'
-        self.tiff_path = self.path / 'tiff'
-        self.tiff_image_path = self.path / 'tiff_image'
-
-        self.tiff_path.mkdir(exist_ok=True, parents=True)
-        self.tiff_image_path.mkdir(exist_ok=True, parents=True)
-        self.mrc_path.mkdir(exist_ok=True, parents=True)
-
+        self.path = path
         self.logger = log
-        self.camtype = ctrl.cam.name
-
+        self.cam_interface = ctrl.cam.interface
         self.flatfield = flatfield
+        self.dwell_time = dwell_time
+        self.exposure_time = exposure_time
+        self.haadf_min_radius = haadf_min_radius
+        self.bf_max_radius = bf_max_radius
+        self.center_x = center_x
+        self.center_y = center_y
+        self.interval_x = interval_x
+        self.interval_y = interval_y
+        self.nx = nx
+        self.ny = ny
+        self.haadf = haadf
+        self.adf = adf
+        self.bf = bf
+        self.save_mrc_4DSTEM = save_mrc_4DSTEM
+        self.save_hdf5_4DSTEM = save_hdf5_4DSTEM
+        self.save_mrc_raw_imgs = save_mrc_raw_imgs
+        self.save_hdf5_raw_imgs = save_hdf5_raw_imgs
 
-        self.offset = 1
-        self.current_angle = None
+        if self.path is not None:
+            self.setup_path()
+
         self.buffer = []
 
-        self.img_ref = None
-
-        self.rotation_axis = config.camera.camera_rotation_vs_stage_xy
         self.physical_pixelsize = config.camera.physical_pixelsize  # mm
         self.wavelength = config.microscope.wavelength  # angstrom
+
+        self.stopScanEvent = threading.Event()
+        self.continueScanEvent = threading.Event()
+        self.continueScanEvent.set()
+
+        self.stopPreviewEvent = threading.Event()
+        self.stopAcqEvent = threading.Event()
+        self.stopAcqRawImgEvent = threading.Event()
 
     def start_collection(self, exposure_time: float, end_angle: float, stepsize: float):
         """Start or continue data collection for `tilt_range` degrees with
@@ -103,105 +123,97 @@ class Experiment:
         stepsize:
             Step size for the angle in degrees, controls the direction and can be positive or negative
         """
-        self.spotsize = self.ctrl.spotsize
-        ctrl = self.ctrl
-        frametime = config.settings.default_frame_time
-        self.magnification = int(self.ctrl.magnification.value)
+        pass
 
-        image_mode = ctrl.mode.state
-        if image_mode in ('D', 'LAD', 'diff'):
-            raise RuntimeError("Please set the microscope to IMAGE mode")
+    def setup_path(self):
+        self.path = Path(self.path)
+        self.mrc_path = self.path / 'mrc'
+        self.hdf5_path = self.path / 'hdf5'
 
-        self.pixelsize = config.calibration[image_mode]['pixelsize'][self.magnification]  # nm/pixel
-        if self.current_angle is None:
-            self.start_angle = start_angle = ctrl.stage.a
-        else:
-            start_angle = self.current_angle + stepsize
+        self.mrc_path.mkdir(exist_ok=True, parents=True)
+        self.hdf5_path.mkdir(exist_ok=True, parents=True)
 
-        if start_angle > end_angle:
-            stepsize = -stepsize
-        else:
-            stepsize = stepsize
+    def generate_scan_pattern(self):
+        start_x = -self.interval_x * (self.nx - 1) / 2
+        end_x = self.interval_x * (self.nx + 1) / 2
+        start_y = self.interval_y * (self.ny - 1) / 2
+        end_y =self.interval_y * (self.ny + 1) / 2
+        x = np.arange(start_x, end_x, self.interval_x)
+        y = np.arange(start_y, end_y, self.interval_y)
+        xv, yv = np.meshgrid(x, y)
+        return xv, yv
 
-        self.now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        self.logger.info('Data recording started at: {self.now}')
-        self.logger.info(f'Exposure time: {exposure_time} s, start angle: {start_angle}, end angle: {end_angle}, step size: {stepsize}')
+    def scan_beam(self):
+        pos_x, pox_y = self.generate_scan_pattern()
+        while not self.stopScanEvent.is_set():
+            self.continueScanEvent.wait()
+            for i in pos_x:
+                for j in pos_y:
+                    self.ctrl.beamshift.xy = (i, j)
+                
+    def start_scan_beam(self):
+        t = threading.Thread(target=self.scan_beam, args=(), daemon=True)
+        t.start()
+        
+    def pause_scan_beam(self):
+        self.continueScanEvent.clear()
 
-        tilt_positions = np.arange(start_angle, end_angle, stepsize)
-        print(f'\nStart_angle: {start_angle:.3f}')
-        # print "Angles:", tilt_positions
+    def continue_scan_beam(self):
+        self.continueScanEvent.set()
 
-        stagematrix = self.ctrl.get_stagematrix(binning=self.ctrl.cam.default_binsize, mag=self.magnification, mode=image_mode)
+    def stop_scan_beam(self):
+        self.stopScanEvent.set()
 
-        self.img_ref, h = self.ctrl.get_image(exposure_time)
+    def preview(self, q):
+        buf = np.zeros((self.nx, self.ny))
+        while not self.stopPreviewEvent.is_set():
+            for i, x in enuemrate(pos_x):
+                for j, y in enumerate(pos_y):
+                    self.ctrl.beamshift.xy = (x, y)
+                    self.ctrl.cam.frame_updated.wait()
+                    img, h = self.ctrl.cam.frame
+                    self.ctrl.cam.frame_updated.clear()
+                    buf[i, j] = np.sum(img[xmin:xmax,ymin:ymax] * self, mask)
+            q.put(buf)
 
-        if ctrl.cam.streamable:
-            ctrl.cam.block()
 
-        isFocused = False
-        isAligned = False
+    def start_preview(self):
+        pos_x, pox_y = self.generate_scan_pattern()
+        self.ctrl.cam.frame_updated.wait()
+        img = self.ctrl.cam.frame
+        self.ctrl.cam.frame_updated.clear()
+        if self.haadf == True:
+            xmin, xmax = max(0,int(np.floor(x0-Ro))), min(img.shape[0],int(np.ceil(x0+Ro)))
+            ymin, ymax = max(0,int(np.round(y0-Ro))), min(img.shape[1],int(np.ceil(y0+Ro)))
+            self.mask = get_mask_ann(img, self.center_x, self.center_y, self.haadf_min_radius, min(img.shape))
+        elif self.adf == True:
+            xmin, xmax = max(0,int(np.floor(x0-Ro))), min(img.shape[0],int(np.ceil(x0+Ro)))
+            ymin, ymax = max(0,int(np.round(y0-Ro))), min(img.shape[1],int(np.ceil(y0+Ro)))
+            self.mask = get_mask_ann(img, self.center_x, self.center_y, self.bf_max_radius, self.haadf_min_radius)
+        elif self.bf == True:
+            xmin, xmax = max(0,int(np.floor(x0-R))), min(img.shape[0],int(np.ceil(x0+R)))
+            ymin, ymax = max(0,int(np.round(y0-R))), min(img.shape[1],int(np.ceil(y0+R)))
+            self.mask = get_mask_circ(img, self.center_x, self.center_y, self.bf_max_radius)
 
-        for i, angle in enumerate(tqdm(tilt_positions)):
-            ctrl.stage.a = angle
+        t = threading.Thread(target=self.preview, args=(VIRTUALIMGBUF,))
+        t.start()
 
-            j = i + self.offset
-            while not isFocused:
-                img, h = self.ctrl.get_image(frametime)
-                focus_pos_diff = self.focus_image(img)
-                if focus_pos_diff[0]**2 + focus_pos_diff[1]**2 < 30:
-                    isFocused=True
 
-            while not isAligned:
-                current_x, current_y = ctrl.stage.xy
-                img, h = self.ctrl.get_image(frametime)
-                pixel_shift = self.align_image(img)
-                stage_shift = np.dot(pixel_shift, stagematrix)
-                stage_shift[0] = -stage_shift[0]  # match TEM Coordinate system
-                ctrl.stage.xy = current_x + stage_shift[0], current_y + stage_shift[1]
-                if pixel_shift[0]**2 + pixel_shift[1]**2 < 6:
-                    isAligned=True
+    def stop_preview(self):
+        self.stopPreviewEvent.set()
 
-            img, h = self.ctrl.get_image(exposure_time)
+    def start_acquire(self):
+        pass
 
-            # suppose eccentric height is near 0 degree
-            if abs(angle) >= 50 and i % 2 == 1: 
-                isFocused = False
-            elif abs(angle) >= 25 and i % 5 == 4:
-                isFocused = False
-            elif abs(angle) >= 0 and i % 9 == 8:
-                isFocused = False
-            isAligned = False
+    def stop_acquire(self):
+        pass
 
-            self.buffer.append((j, img, h))
+    def start_acq_raw_img(self):
+        pass
 
-        self.offset += len(tilt_positions)
-        self.nframes = j
+    def stop_acq_raw_img(self):
+        pass
 
-        self.end_angle = end_angle = ctrl.stage.a
-
-        if ctrl.cam.streamable:
-            ctrl.cam.unblock()
-
-        self.stepsize = stepsize
-        self.exposure_time = exposure_time
-
-        with open(self.path / 'summary.txt', 'a') as f:
-            print(f'{self.now}: Data collected from {start_angle:.2f} degree to {end_angle:.2f} degree in {len(tilt_positions)} frames.', file=f)
-            print(f'Data collected from {start_angle:.2f} degree to {end_angle:.2f} degree in {len(tilt_positions)} frames.')
-
-        self.logger.info('Data collected from {start_angle:.2f} degree to {end_angle:.2f} degree (magnification: {self.magnification}).')
-
-        self.current_angle = angle
-        print(f'Done, current angle = {self.current_angle:.2f} degrees')
-
-    def focus_image(self, img):
-        """Return the distance of sample movement between the beam tilt"""
-        return 0, 0
-
-    def align_image(self, img):
-        """Return the distance between the collected image and the reference image. 1024*1024 image will take 124ms. So subsampling to 512*512. Takes around 23ms"""
-        shift, error, phasediff = phase_cross_correlation(self.img_ref[::2,::2], img[::2,::2])
-        return shift * 2
 
     def finalize(self):
         """Finalize data collection after `self.start_collection` has been run.

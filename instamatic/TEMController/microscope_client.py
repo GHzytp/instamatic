@@ -17,7 +17,8 @@ from instamatic.server.serializer import loader
 
 HOST = config.settings.tem_server_host
 PORT = config.settings.tem_server_port
-BUFSIZE = 1024
+MAX_IMAGE_SIZE = 8000
+BUFSIZE = MAX_IMAGE_SIZE*MAX_IMAGE_SIZE*4 #Might be made a input argument of the SoftwareClient
 
 
 class ServerError(Exception):

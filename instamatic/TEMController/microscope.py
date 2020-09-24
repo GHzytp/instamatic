@@ -2,7 +2,7 @@ from instamatic import config
 
 default_tem_interface = config.microscope.interface
 
-__all__ = ['Microscope', 'get_tem']
+__all__ = ['Microscope', 'get_tem', 'Software']
 
 
 def get_tem(interface: str):
@@ -23,6 +23,16 @@ def get_tem(interface: str):
         from .fei_microscope import FEIMicroscope as cls
     elif interface == 'fei_simu':
         from .fei_simu_microscope import FEISimuMicroscope as cls
+    else:
+        raise ValueError(f'No such microscope interface: `{interface}`')
+
+    return cls
+
+def get_software(interface: str):
+    """Grab software class with the specific 'interface'."""
+
+    if interface == 'TIA':
+        from .TIA_software import TIASoftware as cls
     else:
         raise ValueError(f'No such microscope interface: `{interface}`')
 
@@ -57,3 +67,22 @@ def Microscope(name: str = None, use_server: bool = False):
         tem = cls(name=name)
 
     return tem
+
+def Software(name: str = None, use_server: bool = False):
+    """Generic class to load sofware interface/acquisition class.
+
+    use_server: bool
+        Connect to software server running on the host/port defined in the config file
+
+    returns: software interface/acquisition class
+    """
+
+    if use_server:
+        from .microscope_client import MicroscopeClient as SoftwareClient
+        sw = SoftwareClient(name=name)
+    else:
+        cls = get_software(name)
+        sw = cls()
+        sw.connect()
+
+    return sw

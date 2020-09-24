@@ -97,11 +97,9 @@ class VideoStreamFrame(LabelFrame):
             self.btn_save = Button(frame, text='Save Image',
                      command=self.saveImage)
             self.btn_save.pack(side='left', expand=True, fill='both', padx=10, pady=10)
-            self.btn_pause = Button(frame, text='Pause Stream',
-                     command=self.image_stream.pause_streaming)
+            self.btn_pause = Button(frame, text='Pause Stream', command=self.pause_stream, state=NORMAL)
             self.btn_pause.pack(side='left', expand=True, fill='both', padx=10, pady=10)
-            self.btn_continue = Button(frame, text='Continue Stream',
-                     command=self.image_stream.continue_streaming)
+            self.btn_continue = Button(frame, text='Continue Stream', command=self.continue_stream, state=DISABLED)
             self.btn_continue.pack(side='left', expand=True, fill='both', padx=10, pady=10)
         else:
             btn = Button(master, text='Save image',
@@ -160,8 +158,15 @@ class VideoStreamFrame(LabelFrame):
             self.panel.image = image
             self.panel.pack(side='left', padx=10, pady=10)
 
-    def setup_stream(self):
-        pass
+    def pause_stream(self):
+        self.image_stream.pause_streaming
+        self.btn_continue.config(state=NORMAL)
+        self.btn_pause.config(state=DISABLED)
+
+    def continue_stream(self):
+        self.image_stream.continue_streaming
+        self.btn_continue.config(state=DISABLED)
+        self.btn_pause.config(state=NORMAL)
 
     def update_resize_image(self, name, index, mode):
         # print name, index, mode
@@ -220,9 +225,9 @@ class VideoStreamFrame(LabelFrame):
         self.after(500, self.on_frame)
 
     def on_frame(self, event=None):
-        self.stream.lock.acquire(True)
+        #self.stream.lock.acquire(True)
         self.frame = frame = self.stream.frame
-        self.stream.lock.release()
+        #self.stream.lock.release()
 
         # the display range in ImageTk is from 0 to 256
         if self.auto_contrast:

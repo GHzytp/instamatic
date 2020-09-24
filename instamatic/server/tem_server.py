@@ -10,15 +10,18 @@ import traceback
 from .serializer import dumper
 from .serializer import loader
 from instamatic import config
-from instamatic.TEMController import Microscope
+from instamatic.TEMController import Microscope, Software
 
 condition = threading.Condition()
 box = []
 
 HOST = config.settings.tem_server_host
 PORT = config.settings.tem_server_port
-BUFSIZE = 1024
+MAX_IMAGE_SIZE = 6000
+BUFSIZE = MAX_IMAGE_SIZE * MAX_IMAGE_SIZE * 4 #1024
 
+default_microscope = config.microscope.name
+default_software = None
 
 class TemServer(threading.Thread):
     """TEM communcation server.
@@ -37,7 +40,8 @@ class TemServer(threading.Thread):
         self.q = q
 
         # self.name is a reserved parameter for threads
-        self._name = name
+        self._microscope_name = microscope_name
+        self._software_name = software_name
 
         self.verbose = False
 
@@ -45,6 +49,8 @@ class TemServer(threading.Thread):
         """Start the server thread."""
         self.tem = Microscope(name=self._name, use_server=False)
         print(f'Initialized connection to microscope: {self.tem.name}')
+        self.sw = Software(name=self._software_name, use_server=False)
+        print(f'Initialized connection to software: {self.sw.name}')
 
         while True:
             now = datetime.datetime.now().strftime('%H:%M:%S.%f')
@@ -75,7 +81,10 @@ class TemServer(threading.Thread):
         """Evaluate the function `func_name` on `self.tem` and call it with
         `args` and `kwargs`."""
         # print(func_name, args, kwargs)
-        f = getattr(self.tem, func_name)
+        if hasattr(self.tem, func_name):
+            f = getattr(self.tem, func_name)
+        elif hasattr(self.sw, func_name):
+            f = getattr(self.sw, func_name)
         ret = f(*args, **kwargs)
         return ret
 
@@ -135,10 +144,15 @@ The response is returned as a serialized object.
 
     parser.add_argument('-t', '--microscope', action='store', dest='microscope',
                         help="""Override microscope to use.""")
+    parser.set_defaults(microscope=default_microscope)
 
-    parser.set_defaults(microscope=None)
+    parser.add_argument('-s', '--software', action='store', dest='software',
+                        help="""Override software to use.""")
+    parser.set_defaults(software=default_software)
+
     options = parser.parse_args()
     microscope = options.microscope
+    software = options.software
 
     date = datetime.datetime.now().strftime('%Y-%m-%d')
     logfile = config.locations['logs'] / f'instamatic_TEMServer_{date}.log'

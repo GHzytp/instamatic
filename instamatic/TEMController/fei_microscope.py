@@ -281,6 +281,11 @@ class FEIMicroscope:
         self.stage_tem = self.tem.Stage
         self.proj_tem = self.tem.Projection
 
+        self.acq_tem = self.tem.Acquisition
+        self.stem_tem = self.tem.STEM
+        self.acq_tom = self.tom.Acquisition
+        self.stem_tom = self.tom.STEM
+
         t = 0
         while True:
             ht = self.getHTValue()
@@ -1338,7 +1343,7 @@ class FEIMicroscope:
            (the same as on the microscope). If you specify a value that is not one of those steps, the scripting 
            will select the nearest available step."""
         if USETOM:
-            return self.tom.STEM.Magnification
+            return self.stem_tom.Magnification
         else:
             return self.illu_tem.StemMagnification
 
@@ -1347,14 +1352,14 @@ class FEIMicroscope:
            (the same as on the microscope). If you specify a value that is not one of those steps, the scripting 
            will select the nearest available step."""
         if USETOM:
-            self.tom.STEM.Magnification = value
+            self.stem_tom.Magnification = value
         else:
             self.illu_tem.StemMagnification = value
 
     def getStemRotation(self):
         """The STEM rotation angle (in radians)."""
         if USETOM:
-            return self.tom.STEM.Rotation / pi * 180
+            return self.stem_tom.Rotation / pi * 180
         else:
             return self.illu_tem.StemRotation / pi * 180
 
@@ -1362,9 +1367,51 @@ class FEIMicroscope:
         """The STEM rotation angle (in radians)."""
         value = value * pi / 180
         if USETOM:
-            self.tom.STEM.Rotation = value
+            self.stem_tom.Rotation = value
         else:
             self.illu_tem.StemRotation = value
+
+    def setSTEMMode(self, value):
+        if value == 'nano':
+            self.stem_tom.Mode = 1
+            self.setProbeMode('nano')
+        elif value == 'micro':
+            self.stem_tom.Mode = 1
+            self.setProbeMode('micro')
+        elif value == 'LM':
+            self.stem_tom.Mode = 0
+        else:
+            raise ValueError('STEM mode must be nano, micro, or LM')
+
+    def getSTEMFocusStrategy(self):
+        return STEM_FOCUS_STRATEGY[self.stem_tom.FocusStrategy]
+        
+    def setSTEMFocusStrategy(self, value):
+        if isinstance(value, int):
+            self.stem_tom.FocusStrategy = value
+        elif isinstance(value, str):
+            self.stem_tom.FocusStrategy = STEM_FOCUS_STRATEGY.index(value)
+            
+    def insertHAADF(self):
+        # I have found no better way of doing this... make sure that "auto 
+        # insert/retract" is checked
+        self.setScreenPosition('down')
+        
+    def retractHAADF(self):
+        self.setScreenPosition('up')
+
+    def setTIADwellTime(self, dwell_time=2e-6):
+        """
+        This function can be used to set the detector filter to reasonable values by taking a short dummy exposure.
+        Better do NOT use this for the _scan_ filter
+        :param dwell_time: Dwell time per pixel in seconds
+        :return: nothing
+        """
+        self.acq_tem.AddAcqDevice(self.acq_tem.Detectors[0])
+        self.acq_tem.Detectors.AcqParams.DwellTime = dwell_time
+        self.acq_tem.Detectors.AcqParams.ImageSize = 2
+        self.acq_tem.Detectors.AcqParams.Binning = 8
+        ff = self.acq_tem.AcquireImages()
 
     def getProbeDefocus(self):
         """The amount of probe defocus (in nm). Accessible only in Probe mode."""
@@ -1583,6 +1630,8 @@ class FEIMicroscope:
         y = y * pi / 180
         self.proj_tem.DiffractionShift.X = x 
         self.proj_tem.DiffractionShift.Y = y
+
+
 
     def getAll(self):
         """Same lens and deflector parameters as jeol to give an overview of the parameters"""
