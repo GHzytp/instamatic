@@ -96,7 +96,7 @@ class ImageGrabber:
             self.thread.join() 
 
 
-class VideoStream(threading.Thread):
+class VideoStream:
     """Handle the continuous stream of incoming data from the ImageGrabber."""
 
     def __init__(self, cam='simulate'):

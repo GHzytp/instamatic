@@ -136,7 +136,7 @@ class Experiment:
     def generate_scan_pattern(self):
         start_x = -self.interval_x * (self.nx - 1) / 2
         end_x = self.interval_x * (self.nx + 1) / 2
-        start_y = self.interval_y * (self.ny - 1) / 2
+        start_y = -self.interval_y * (self.ny - 1) / 2
         end_y =self.interval_y * (self.ny + 1) / 2
         x = np.arange(start_x, end_x, self.interval_x)
         y = np.arange(start_y, end_y, self.interval_y)
@@ -167,16 +167,17 @@ class Experiment:
 
     def preview(self, q):
         buf = np.zeros((self.nx, self.ny))
+        pos_x, pos_y = self.generate_scan_pattern()
+        shape = pos_x.shape
         while not self.stopPreviewEvent.is_set():
-            for i, x in enuemrate(pos_x):
-                for j, y in enumerate(pos_y):
-                    self.ctrl.beamshift.xy = (x, y)
+            for i in range(shape[0]):
+                for j in range(shape[1]):
+                    self.ctrl.beamshift.xy = (pos_x[i, j], pos_y[i, j])
                     self.ctrl.cam.frame_updated.wait()
-                    img, h = self.ctrl.cam.frame
+                    img = self.ctrl.cam.frame
                     self.ctrl.cam.frame_updated.clear()
-                    buf[i, j] = np.sum(img[xmin:xmax,ymin:ymax] * self, mask)
+                    buf[i, j] = np.sum(img[self.xmin:self.xmax,self.ymin:self.ymax] * self.mask).mean()
             q.put(buf)
-
 
     def start_preview(self):
         pos_x, pox_y = self.generate_scan_pattern()
@@ -184,16 +185,16 @@ class Experiment:
         img = self.ctrl.cam.frame
         self.ctrl.cam.frame_updated.clear()
         if self.haadf == True:
-            xmin, xmax = max(0,int(np.floor(x0-Ro))), min(img.shape[0],int(np.ceil(x0+Ro)))
-            ymin, ymax = max(0,int(np.round(y0-Ro))), min(img.shape[1],int(np.ceil(y0+Ro)))
+            self.xmin, self.xmax = max(0,int(np.floor(self.center_x-min(img.shape)))), min(img.shape[0],int(np.ceil(self.center_x+min(img.shape))))
+            self.ymin, self.ymax = max(0,int(np.round(self.center_y-min(img.shape)))), min(img.shape[1],int(np.ceil(self.center_y+min(img.shape))))
             self.mask = get_mask_ann(img, self.center_x, self.center_y, self.haadf_min_radius, min(img.shape))
         elif self.adf == True:
-            xmin, xmax = max(0,int(np.floor(x0-Ro))), min(img.shape[0],int(np.ceil(x0+Ro)))
-            ymin, ymax = max(0,int(np.round(y0-Ro))), min(img.shape[1],int(np.ceil(y0+Ro)))
+            self.xmin, self.xmax = max(0,int(np.floor(self.center_x-self.haadf_min_radius))), min(img.shape[0],int(np.ceil(self.center_x+self.haadf_min_radius)))
+            self.ymin, self.ymax = max(0,int(np.round(self.center_y-self.haadf_min_radius))), min(img.shape[1],int(np.ceil(self.center_y+self.haadf_min_radius)))
             self.mask = get_mask_ann(img, self.center_x, self.center_y, self.bf_max_radius, self.haadf_min_radius)
         elif self.bf == True:
-            xmin, xmax = max(0,int(np.floor(x0-R))), min(img.shape[0],int(np.ceil(x0+R)))
-            ymin, ymax = max(0,int(np.round(y0-R))), min(img.shape[1],int(np.ceil(y0+R)))
+            self.xmin, self.xmax = max(0,int(np.floor(self.center_x-self.bf_max_radius))), min(img.shape[0],int(np.ceil(self.center_x+self.bf_max_radius)))
+            self.ymin, self.ymax = max(0,int(np.round(self.center_y-self.bf_max_radius))), min(img.shape[1],int(np.ceil(self.center_y+self.bf_max_radius)))
             self.mask = get_mask_circ(img, self.center_x, self.center_y, self.bf_max_radius)
 
         t = threading.Thread(target=self.preview, args=(VIRTUALIMGBUF,))
@@ -203,17 +204,81 @@ class Experiment:
     def stop_preview(self):
         self.stopPreviewEvent.set()
 
+    def acquire(self, q):
+        buf = np.zeros((self.nx, self.ny))
+        pos_x, pos_y = self.generate_scan_pattern()
+        shape = pos_x.shape
+        while not self.stopPreviewEvent.is_set():
+            for i in range(shape[0]):
+                for j in range(shape[1]):
+                    self.ctrl.beamshift.xy = (pos_x[i, j], pos_y[i, j])
+                    self.ctrl.cam.frame_updated.wait()
+                    img = self.ctrl.cam.frame
+                    self.ctrl.cam.frame_updated.clear()
+                    buf[i, j] = np.sum(img[self.xmin:self.xmax,self.ymin:self.ymax] * self.mask).mean()
+            q.put(buf)
+
     def start_acquire(self):
-        pass
+        pos_x, pox_y = self.generate_scan_pattern()
+        self.ctrl.cam.frame_updated.wait()
+        img = self.ctrl.cam.frame
+        self.ctrl.cam.frame_updated.clear()
+        if self.haadf == True:
+            self.xmin, self.xmax = max(0,int(np.floor(self.center_x-min(img.shape)))), min(img.shape[0],int(np.ceil(self.center_x+min(img.shape))))
+            self.ymin, self.ymax = max(0,int(np.round(self.center_y-min(img.shape)))), min(img.shape[1],int(np.ceil(self.center_y+min(img.shape))))
+            self.mask = get_mask_ann(img, self.center_x, self.center_y, self.haadf_min_radius, min(img.shape))
+        elif self.adf == True:
+            self.xmin, self.xmax = max(0,int(np.floor(self.center_x-self.haadf_min_radius))), min(img.shape[0],int(np.ceil(self.center_x+self.haadf_min_radius)))
+            self.ymin, self.ymax = max(0,int(np.round(self.center_y-self.haadf_min_radius))), min(img.shape[1],int(np.ceil(self.center_y+self.haadf_min_radius)))
+            self.mask = get_mask_ann(img, self.center_x, self.center_y, self.bf_max_radius, self.haadf_min_radius)
+        elif self.bf == True:
+            self.xmin, self.xmax = max(0,int(np.floor(self.center_x-self.bf_max_radius))), min(img.shape[0],int(np.ceil(self.center_x+self.bf_max_radius)))
+            self.ymin, self.ymax = max(0,int(np.round(self.center_y-self.bf_max_radius))), min(img.shape[1],int(np.ceil(self.center_y+self.bf_max_radius)))
+            self.mask = get_mask_circ(img, self.center_x, self.center_y, self.bf_max_radius)
+
+        t = threading.Thread(target=self.acquire, args=(VIRTUALIMGBUF,))
+        t.start()
 
     def stop_acquire(self):
-        pass
+        self.stopAcqEvent.set()
+
+    def acq_raw_img(self, q):
+        buf = np.zeros((self.nx, self.ny))
+        pos_x, pos_y = self.generate_scan_pattern()
+        shape = pos_x.shape
+        while not self.stopPreviewEvent.is_set():
+            for i in range(shape[0]):
+                for j in range(shape[1]):
+                    self.ctrl.beamshift.xy = (pos_x[i, j], pos_y[i, j])
+                    self.ctrl.cam.frame_updated.wait()
+                    img = self.ctrl.cam.frame
+                    self.ctrl.cam.frame_updated.clear()
+                    buf[i, j] = np.sum(img[self.xmin:self.xmax,self.ymin:self.ymax] * self.mask).mean()
+            q.put(buf)
 
     def start_acq_raw_img(self):
-        pass
+        pos_x, pox_y = self.generate_scan_pattern()
+        self.ctrl.cam.frame_updated.wait()
+        img = self.ctrl.cam.frame
+        self.ctrl.cam.frame_updated.clear()
+        if self.haadf == True:
+            self.xmin, self.xmax = max(0,int(np.floor(self.center_x-min(img.shape)))), min(img.shape[0],int(np.ceil(self.center_x+min(img.shape))))
+            self.ymin, self.ymax = max(0,int(np.round(self.center_y-min(img.shape)))), min(img.shape[1],int(np.ceil(self.center_y+min(img.shape))))
+            self.mask = get_mask_ann(img, self.center_x, self.center_y, self.haadf_min_radius, min(img.shape))
+        elif self.adf == True:
+            self.xmin, self.xmax = max(0,int(np.floor(self.center_x-self.haadf_min_radius))), min(img.shape[0],int(np.ceil(self.center_x+self.haadf_min_radius)))
+            self.ymin, self.ymax = max(0,int(np.round(self.center_y-self.haadf_min_radius))), min(img.shape[1],int(np.ceil(self.center_y+self.haadf_min_radius)))
+            self.mask = get_mask_ann(img, self.center_x, self.center_y, self.bf_max_radius, self.haadf_min_radius)
+        elif self.bf == True:
+            self.xmin, self.xmax = max(0,int(np.floor(self.center_x-self.bf_max_radius))), min(img.shape[0],int(np.ceil(self.center_x+self.bf_max_radius)))
+            self.ymin, self.ymax = max(0,int(np.round(self.center_y-self.bf_max_radius))), min(img.shape[1],int(np.ceil(self.center_y+self.bf_max_radius)))
+            self.mask = get_mask_circ(img, self.center_x, self.center_y, self.bf_max_radius)
+
+        t = threading.Thread(target=self.acq_raw_img, args=(VIRTUALIMGBUF,))
+        t.start()
 
     def stop_acq_raw_img(self):
-        pass
+        self.stopAcqRawImgEvent.set()
 
 
     def finalize(self):

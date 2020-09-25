@@ -1,4 +1,5 @@
 import numpy as np
+import time
 import threading
 from tkinter import *
 from tkinter.ttk import *
@@ -14,6 +15,7 @@ from instamatic.image_utils import autoscale
 from instamatic.tools import find_beam_center
 
 from instamatic.experiments import FourDSTEM
+from instamatic.experiments.FourDSTEM import virtualimage_stream
 
 # Beam shift overhead for the microscope
 BS_OVERHEAD = 0.003
@@ -37,6 +39,7 @@ class ExperimentalFourDSTEM(LabelFrame):
 
         self.panel = None
         self.frame_delay = 500
+        self.virtualimage_stream = virtualimage_stream.VideoStream()
 
         self.init_vars()
 
@@ -116,7 +119,11 @@ class ExperimentalFourDSTEM(LabelFrame):
 
         frame = Frame(self)
 
-        image = Image.fromarray(np.zeros((self.var_nx.get()*4, self.var_ny.get()*4)))
+        x = self.var_nx.get()
+        y = self.var_ny.get()
+        image = Image.fromarray(np.zeros((x, y)))
+        self.ratio = int(min(200/x, 150/y))
+        image = image.resize((self.ratio*x, self.ratio*y))
         image = ImageTk.PhotoImage(image)
 
         self.panel = Label(frame, image=image)
@@ -148,10 +155,10 @@ class ExperimentalFourDSTEM(LabelFrame):
         self.StopAcquireButton = Button(frame, text='Stop Acquire', command=self.stop_acquire, state=DISABLED)
         self.StopAcquireButton.grid(row=1, column=3, sticky='EW')
 
-        self.StartCollectButton = Button(frame, text='Start Acquire Raw Images', command=self.start_acq_raw_img, state=NORMAL)
-        self.StartCollectButton.grid(row=2, columnspan=2, column=0, sticky='EW')
-        self.StopCollectButton = Button(frame, text='Stop Acquire Raw Images', command=self.stop_acq_raw_img, state=DISABLED)
-        self.StopCollectButton.grid(row=2, columnspan=2, column=2, sticky='EW')
+        self.StartAcqRawImgButton = Button(frame, text='Start Acquire Raw Images', command=self.start_acq_raw_img, state=NORMAL)
+        self.StartAcqRawImgButton.grid(row=2, columnspan=2, column=0, sticky='EW')
+        self.StopAcqRawImgButton = Button(frame, text='Stop Acquire Raw Images', command=self.stop_acq_raw_img, state=DISABLED)
+        self.StopAcqRawImgButton.grid(row=2, columnspan=2, column=2, sticky='EW')
 
         frame.columnconfigure(0, weight=1)
         frame.columnconfigure(1, weight=1)
@@ -159,7 +166,6 @@ class ExperimentalFourDSTEM(LabelFrame):
         frame.columnconfigure(3, weight=1)
         frame.pack(side='bottom', fill='x', padx=10, pady=10)
 
-        self.stopEvent = threading.Event()
         self.stopPreviewEvent = threading.Event()
 
     def init_vars(self):
@@ -171,14 +177,14 @@ class ExperimentalFourDSTEM(LabelFrame):
         self.var_center_y = DoubleVar(value=self.cam_x/2)
         self.var_interval_x = DoubleVar(value=100)
         self.var_interval_y = DoubleVar(value=100)
-        self.var_nx = IntVar(value=32)
-        self.var_ny = IntVar(value=32)
+        self.var_nx = IntVar(value=4)
+        self.var_ny = IntVar(value=4)
         self.var_save_mrc_4DSTEM = BooleanVar(value=True)
         self.var_save_hdf5_4DSTEM = BooleanVar(value=True)
         self.var_save_mrc_raw_imgs = BooleanVar(value=True)
         self.var_save_hdf5_raw_imgs = BooleanVar(value=True)
         self.var_haadf = BooleanVar(value=True)
-        self.var_adf = BooleanVar(value=True)
+        self.var_adf = BooleanVar(value=False)
         self.var_bf = BooleanVar(value=False)
 
     def get_center(self):
@@ -222,15 +228,15 @@ class ExperimentalFourDSTEM(LabelFrame):
         self.StopScanButton.config(state=DISABLED)
 
     def start_virtual_img(self, event=None):
-        self.virtual_img = virtual_img = FourDSTEM.VIRTUALIMGBUF.get() # obtain data from the buffer
-
+        #self.virtual_img = virtual_img = FourDSTEM.VIRTUALIMGBUF.get() # obtain data from the buffer
+        self.virtual_img = virtual_img = self.virtualimage_stream.frame
         # the display range in ImageTk is from 0 to 256
         tmp = virtual_img - np.min(virtual_img)
         virtual_img = tmp * (256.0 / (1 + np.percentile(tmp, 99.5)))  # use 128x128 array for faster calculation
 
         image = Image.fromarray(virtual_img)
 
-        image = image.resize((4*self.var_nx.get(), 4*self.var_ny.get()))
+        image = image.resize((self.ratio*self.var_nx.get(), self.ratio*self.var_ny.get()))
 
         image = ImageTk.PhotoImage(image=image)
 
@@ -247,8 +253,9 @@ class ExperimentalFourDSTEM(LabelFrame):
     def start_preview(self):
         params = self.get_params('start')
         self.q.put(('preview_FourDSTEM', params))
-        self.start_virtual_img()
         self.triggerEvent.set()
+        self.start_virtual_img()
+
         self.StartPreviewButton.config(state=DISABLED)
         self.StopPreviewButton.config(state=NORMAL)
 
@@ -257,35 +264,45 @@ class ExperimentalFourDSTEM(LabelFrame):
         self.q.put(('preview_FourDSTEM', params))
         self.triggerEvent.set()
         self.stopPreviewEvent.set()
-        while True:
-            time.sleep(1)
-            if not self.stopPreviewEvent.is_set():
-                break
+
         self.StartPreviewButton.config(state=NORMAL)
         self.StopPreviewButton.config(state=DISABLED)
 
     def start_acquire(self):
-        pass
+        params = self.get_params('start')
+        self.q.put(('acquire_FourDSTEM', params))
+        self.triggerEvent.set()
+
+        self.StartAcquireButton.config(state=DISABLED)
+        self.StopAcquireButton.config(state=NORMAL)
 
     def stop_acquire(self):
-        pass
+        params = self.get_params('stop')
+        self.q.put(('acquire_FourDSTEM', params))
+        self.triggerEvent.set()
+
+        self.StartAcquireButton.config(state=NORMAL)
+        self.StopAcquireButton.config(state=DISABLED)
 
     def start_acq_raw_img(self):
-        pass
+        params = self.get_params('start')
+        self.q.put(('acquire_raw_img', params))
+        self.triggerEvent.set()
+
+        self.StartAcqRawImgButton.config(state=DISABLED)
+        self.StopAcqRawImgButton.config(state=NORMAL)
 
     def stop_acq_raw_img(self):
-        pass
+        params = self.get_params('stop')
+        self.q.put(('acquire_raw_img', params))
+        self.triggerEvent.set()
+
+        self.StartAcqRawImgButton.config(state=NORMAL)
+        self.StopAcqRawImgButton.config(state=DISABLED)
 
     def set_trigger(self, trigger=None, q=None):
         self.triggerEvent = trigger
         self.q = q
-
-    def start_collection(self):
-        params = self.get_params()
-        self.q.put(('FourDSTEM', params))
-
-    def stop_collection(self, event=None):
-        self.stopEvent.set()
 
     def get_params(self, task=None):
         if task == 'start':
@@ -316,23 +333,18 @@ def acquire_FourDSTEM(controller, **kwargs):
     task = kwargs.pop('task')
     exp_param = kwargs
 
-    expdir = controller.module_io.get_new_experiment_directory()
-    expdir.mkdir(exist_ok=True, parents=True)
-    flatfield = controller.module_io.get_flatfield()
-
-    exp = FourDSTEM.Experiment(ctrl=controller.ctrl, path=expdir, flatfield=flatfield, log=controller.log, **exp_param)
-
-    success = exp.start_collection()
-
     if task == 'start':
-        pass
+        expdir = controller.module_io.get_new_experiment_directory()
+        expdir.mkdir(exist_ok=True, parents=True)
+        flatfield = controller.module_io.get_flatfield()
+        controller.exp = FourDSTEM.Experiment(ctrl=controller.ctrl, path=expdir, flatfield=flatfield, log=controller.log, **exp_param)
+        controller.exp.start_acquire()
     elif task == 'stop':
-        pass
+        controller.exp.stop_acquire()
 
 def preview_FourDSTEM(controller, **kwargs):
     task = kwargs.pop('task')
     exp_param = kwargs
-
     
     if task == 'start':
         flatfield = controller.module_io.get_flatfield()
@@ -346,21 +358,14 @@ def acquire_raw_img(controller, **kwargs):
     task = kwargs.pop('task')
     exp_param = kwargs
 
-    expdir = controller.module_io.get_new_experiment_directory()
-    expdir.mkdir(exist_ok=True, parents=True)
-    flatfield = controller.module_io.get_flatfield()
-
-    exp = FourDSTEM.Experiment(ctrl=controller.ctrl, path=expdir, flatfield=flatfield, log=controller.log, **exp_param)
-
-    success = exp.start_collection()
-
-    if not success:
-        return
-
     if task == 'start':
-        pass
+        expdir = controller.module_io.get_new_experiment_directory()
+        expdir.mkdir(exist_ok=True, parents=True)
+        flatfield = controller.module_io.get_flatfield()
+        controller.exp = FourDSTEM.Experiment(ctrl=controller.ctrl, path=expdir, flatfield=flatfield, log=controller.log, **exp_param)
+        controller.exp.start_acq_raw_img()
     elif task == 'stop':
-        pass
+        controller.exp.stop_acq_raw_img()
 
 def scan_beam(controller, **kwargs):
     task = kwargs.pop('task')
