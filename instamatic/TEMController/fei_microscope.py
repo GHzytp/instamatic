@@ -159,6 +159,12 @@ def move_stage(x=None, y=None, z=None, a=None, b=None, speed=1):
     tem = comtypes.client.CreateObject('TEMScripting.Instrument', comtypes.CLSCTX_ALL)
     tom = comtypes.client.CreateObject('TEM.Instrument', comtypes.CLSCTX_ALL)
 
+    x_limit = config.microscope.stageLimit['x']
+    y_limit = config.microscope.stageLimit['y']
+    z_limit = config.microscope.stageLimit['z']
+    a_limit = config.microscope.stageLimit['a']
+    b_limit = config.microscope.stageLimit['b']
+
     stage_tom = tom.Stage
     stage_tem = tem.Stage
 
@@ -168,27 +174,27 @@ def move_stage(x=None, y=None, z=None, a=None, b=None, speed=1):
         pos = stage_tom.Position
         axis = 0
         if x is not None:
-            if x < self.x_limit[0] or x > self.x_limit[1]:
+            if x < x_limit[0] or x > x_limit[1]:
                 raise FEIValueError('x not within the limit range')
             pos.X = x * 1e-9
             axis += 1
         if y is not None:
-            if y < self.y_limit[0] or y > self.y_limit[1]:
+            if y < y_limit[0] or y > y_limit[1]:
                 raise FEIValueError('y not within the limit range')
             pos.Y = y * 1e-9
             axis += 2
         if z is not None:
-            if z < self.z_limit[0] or z > self.z_limit[1]:
+            if z < z_limit[0] or z > z_limit[1]:
                 raise FEIValueError('z not within the limit range')
             pos.Z = z * 1e-9
             axis += 4
         if a is not None:
-            if a < self.a_limit[0] or a > self.a_limit[1]:
+            if a < a_limit[0] or a > a_limit[1]:
                 raise FEIValueError('a not within the limit range')
             pos.A = a / 180 * pi
             axis += 8
         if b is not None:
-            if b < self.b_limit[0] or b > self.b_limit[1]:
+            if b < b_limit[0] or b > b_limit[1]:
                 raise FEIValueError('b not within the limit range')
             pos.B = b / 180 * pi
             axis += 16
@@ -211,27 +217,27 @@ def move_stage(x=None, y=None, z=None, a=None, b=None, speed=1):
         axis = 0
 
         if x is not None:
-            if x < self.x_limit[0] or x > self.x_limit[1]:
+            if x < x_limit[0] or x > x_limit[1]:
                 raise FEIValueError('x not within the limit range')
             pos.X = x * 1e-9
             axis += 1
         if y is not None:
-            if y < self.y_limit[0] or y > self.y_limit[1]:
+            if y < y_limit[0] or y > y_limit[1]:
                 raise FEIValueError('y not within the limit range')
             pos.Y = y * 1e-9
             axis += 2
         if z is not None:
-            if z < self.z_limit[0] or z > self.z_limit[1]:
+            if z < z_limit[0] or z > z_limit[1]:
                 raise FEIValueError('z not within the limit range')
             pos.Z = z * 1e-9
             axis += 4
         if a is not None:
-            if a < self.a_limit[0] or a > self.a_limit[1]:
+            if a < a_limit[0] or a > a_limit[1]:
                 raise FEIValueError('a not within the limit range')
             pos.A = a / 180 * pi
             axis += 8
         if b is not None:
-            if b < self.b_limit[0] or b > self.b_limit[1]:
+            if b < b_limit[0] or b > b_limit[1]:
                 raise FEIValueError('b not within the limit range')
             pos.B = b / 180 * pi
             axis += 16
@@ -942,7 +948,7 @@ class FEIMicroscope:
             dic = {0: 'down', 1: 'up'}
             return dic[self.tom.Screen.Position]
         else:
-            dic = {0: 'unknown', 1: 'up', 2: 'down'}
+            dic = {2: 'up', 3: 'down'}
             return dic[self.tem.Camera.MainScreen]
 
     def setScreenPosition(self, value):
@@ -951,8 +957,8 @@ class FEIMicroscope:
             dic = {'down': 0, 'up': 1}
             self.tom.Screen.SetScreenPosition(dic[value])
         else:
-            dic = {'unknown': 1, 'up': 2, 'down': 3}
-            self.tem.Camera.MainScreen(dic[value])
+            dic = {'up': 2, 'down': 3}
+            self.tem.Camera.MainScreen = dic[value]
 
     def getDiffShift(self):
         """user diff shift, encoded in a different way than system status on TEM USER INTERFACE: 

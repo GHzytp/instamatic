@@ -11,6 +11,7 @@ all_modules = (
     'autocred',
     'red',
     'tomo',
+    'FourDSTEM',
     'machine_learning',
     'ctrl',
     'console',

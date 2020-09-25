@@ -26,14 +26,18 @@ class ExperimentalcRED(LabelFrame):
         self.init_vars()
 
         frame = Frame(self)
+
         Label(frame, text='Exposure time (s):').grid(row=1, column=0, sticky='W')
         exposure_time = Spinbox(frame, textvariable=self.var_exposure_time, width=sbwidth, from_=0.0, to=100.0, increment=0.01)
         exposure_time.grid(row=1, column=1, sticky='W', padx=10)
         if self.image_stream is not None:
             self.ExposureButton = Button(frame, text='Confirm Exposure', command=self.confirm_exposure_time, state=NORMAL)
             self.ExposureButton.grid(row=1, column=2, sticky='W')
-        Checkbutton(frame, text='Beam unblanker', variable=self.var_unblank_beam).grid(row=1, column=3, sticky='W')
-        Separator(frame, orient=HORIZONTAL).grid(row=4, columnspan=4, sticky='ew', pady=10)
+        Checkbutton(frame, text='Beam unblanker', variable=self.var_unblank_beam, command=self.toggle_unblankbeam).grid(row=1, column=3, sticky='W')
+        Checkbutton(frame, text='Toggle screen', variable=self.var_toggle_screen, command=self.toggle_screen).grid(row=1, column=4, sticky='W')
+        Separator(frame, orient=HORIZONTAL).grid(row=4, columnspan=5, sticky='ew', pady=10)
+
+        #frame = Frame(self)
 
         Checkbutton(frame, text='Enable image interval', variable=self.var_enable_image_interval, command=self.toggle_interval_buttons).grid(row=5, column=2, sticky='W')
         self.c_toggle_defocus = Checkbutton(frame, text='Toggle defocus', variable=self.var_toggle_diff_defocus, command=self.toggle_diff_defocus, state=DISABLED)
@@ -58,7 +62,7 @@ class ExperimentalcRED(LabelFrame):
         self.RelaxButton.grid(row=7, column=2, sticky='EW')
 
         if self.ctrl.tem.interface != "fei" and ENABLE_FOOTFREE_OPTION:
-            Separator(frame, orient=HORIZONTAL).grid(row=8, columnspan=3, sticky='ew', pady=10)
+            Separator(frame, orient=HORIZONTAL).grid(row=8, columnspan=4, sticky='ew', pady=10)
 
             Label(frame, text='Rotate to:').grid(row=9, column=0, sticky='W')
             self.e_endangle = Spinbox(frame, textvariable=self.var_footfree_rotate_to, width=sbwidth, from_=-80.0, to=80.0, increment=1.0, state=DISABLED)
@@ -67,7 +71,7 @@ class ExperimentalcRED(LabelFrame):
             Checkbutton(frame, text='Footfree mode', variable=self.var_toggle_footfree, command=self.toggle_footfree).grid(row=9, column=4, sticky='W')
 
         elif self.ctrl.tem.interface == "fei":
-            Separator(frame, orient=HORIZONTAL).grid(row=8, columnspan=3, sticky='ew', pady=10)
+            Separator(frame, orient=HORIZONTAL).grid(row=8, columnspan=5, sticky='ew', pady=10)
 
             Label(frame, text='Rotate to:').grid(row=9, column=0, sticky='W')
             self.e_endangle = Spinbox(frame, textvariable=self.var_footfree_rotate_to, width=sbwidth, from_=-80.0, to=80.0, increment=1.0, state=NORMAL)
@@ -80,9 +84,9 @@ class ExperimentalcRED(LabelFrame):
         self.lb_coll0 = Label(frame, text='')
         self.lb_coll1 = Label(frame, text='')
         self.lb_coll2 = Label(frame, text='')
-        self.lb_coll0.grid(row=10, column=0, columnspan=3, sticky='EW')
-        self.lb_coll1.grid(row=11, column=0, columnspan=3, sticky='EW')
-        self.lb_coll2.grid(row=12, column=0, columnspan=3, sticky='EW')
+        self.lb_coll0.grid(row=10, column=0, columnspan=2, sticky='EW')
+        self.lb_coll1.grid(row=11, column=0, columnspan=2, sticky='EW')
+        self.lb_coll2.grid(row=12, column=0, columnspan=2, sticky='EW')
         frame.grid_columnconfigure(1, weight=1)
         frame.pack(side='top', fill='x', expand=False, padx=10, pady=10)
 
@@ -116,6 +120,7 @@ class ExperimentalcRED(LabelFrame):
     def init_vars(self):
         self.var_exposure_time = DoubleVar(value=0.1)
         self.var_unblank_beam = BooleanVar(value=False)
+        self.var_toggle_screen = BooleanVar(value=False)
         self.var_image_interval = IntVar(value=10)
         if self.ctrl.tem.interface == "fei":
             self.var_diff_defocus = IntVar(value=42000)
@@ -151,6 +156,22 @@ class ExperimentalcRED(LabelFrame):
             self.var_exposure_time.set(decimal.Decimal(str(self.image_stream.frametime)) * int(n))
             #self.image_stream.exposure = self.var_exposure_time.get()
             self.image_stream.start_loop()
+
+    def toggle_screen(self):
+        toggle = self.var_toggle_screen.get()
+
+        if toggle:
+            self.ctrl.screen.up()
+        else:
+            self.ctrl.screen.down()
+
+    def toggle_unblankbeam(self):
+        toggle = self.var_unblank_beam.get()
+
+        if toggle:
+            self.ctrl.beam.unblank()
+        else:
+            self.ctrl.beam.blank()
 
     def set_trigger(self, trigger=None, q=None):
         self.triggerEvent = trigger

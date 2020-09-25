@@ -124,6 +124,10 @@ class AppLoader:
     def get_module(self, module):
         return self.modules[module]
 
+    def close(self):
+        # close all the running threads in modules, i.e. scanning beam threads
+        pass
+
 
 class MainFrame:
     """This class defines the main GUI panel.
@@ -155,6 +159,7 @@ class MainFrame:
     def close(self):
         try:
             self.stream_frame.close()
+            self.app.close()
         except AttributeError:
             pass
         sys.exit()

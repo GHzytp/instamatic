@@ -1,6 +1,6 @@
 import datetime
 import os
-import Time
+import time
 from pathlib import Path
 
 import h5py
@@ -144,12 +144,13 @@ class Experiment:
         return xv, yv
 
     def scan_beam(self):
-        pos_x, pox_y = self.generate_scan_pattern()
+        pos_x, pos_y = self.generate_scan_pattern()
+        shape = pos_x.shape
         while not self.stopScanEvent.is_set():
             self.continueScanEvent.wait()
-            for i in pos_x:
-                for j in pos_y:
-                    self.ctrl.beamshift.xy = (i, j)
+            for i in range(shape[0]):
+                for j in range(shape[1]):
+                    self.ctrl.beamshift.xy = (pos_x[i, j], pos_y[i, j])
                 
     def start_scan_beam(self):
         t = threading.Thread(target=self.scan_beam, args=(), daemon=True)

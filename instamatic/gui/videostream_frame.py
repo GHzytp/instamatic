@@ -159,12 +159,12 @@ class VideoStreamFrame(LabelFrame):
             self.panel.pack(side='left', padx=10, pady=10)
 
     def pause_stream(self):
-        self.image_stream.pause_streaming
+        self.image_stream.pause_streaming()
         self.btn_continue.config(state=NORMAL)
         self.btn_pause.config(state=DISABLED)
 
     def continue_stream(self):
-        self.image_stream.continue_streaming
+        self.image_stream.continue_streaming()
         self.btn_continue.config(state=DISABLED)
         self.btn_pause.config(state=NORMAL)
 

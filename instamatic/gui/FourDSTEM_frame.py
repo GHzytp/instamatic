@@ -4,6 +4,9 @@ from tkinter import *
 from tkinter.ttk import *
 import tkinter
 
+from PIL import Image
+from PIL import ImageTk
+
 from .base_module import BaseModule
 from instamatic import config
 from instamatic.utils.spinbox import Spinbox
@@ -38,48 +41,54 @@ class ExperimentalFourDSTEM(LabelFrame):
         self.init_vars()
 
         frame = Frame(self)
-        Label(frame, text='Dwell Time(s)', width=10).grid(row=1, column=0, columnspan=2, sticky='W')
+        Label(frame, text='Dwell Time (s)', width=20).grid(row=0, column=0, sticky='W')
         e_dwell_time = Spinbox(frame, width=10, textvariable=self.var_dwell_time, from_=BS_OVERHEAD, to=3.0, increment=0.001)
-        e_dwell_time.grid(row=1, column=2, sticky='EW')
-        Label(frame, text='Exposure Time(s)', width=10).grid(row=1, column=3, columnspan=2, sticky='W')
+        e_dwell_time.grid(row=0, column=1, sticky='EW', padx=5)
+        Label(frame, text='Exposure Time (s)', width=20).grid(row=0, column=2, sticky='W')
         e_dwell_time = Spinbox(frame, width=10, textvariable=self.var_exposure_time, from_=BS_OVERHEAD, to=3.0, increment=0.001)
-        e_dwell_time.grid(row=1, column=4, sticky='EW')
+        e_dwell_time.grid(row=0, column=3, sticky='EW', padx=5)
 
-        Label(frame, text='HAADF min radius(pix)', width=10).grid(row=1, column=0, columnspan=2, sticky='W')
+        Label(frame, text='HAADF min radius/pix', width=20).grid(row=1, column=0, sticky='W')
         e_haadf_min_radius = Spinbox(frame, width=10, textvariable=self.var_haadf_min_radius, from_=self.cam_x*2/3, to=self.cam_x, increment=1)
-        e_haadf_min_radius.grid(row=1, column=2, sticky='EW')
-        Label(frame, text='BF max radius(pix)', width=10).grid(row=1, column=3, columnspan=2, sticky='W')
+        e_haadf_min_radius.grid(row=1, column=1, sticky='EW', padx=5)
+        Label(frame, text='BF max radius/pix', width=20).grid(row=1, column=2, sticky='W')
         e_bf_max_radius = Spinbox(frame, width=10, textvariable=self.var_bf_max_radius, from_=1, to=self.cam_x/3, increment=1)
-        e_bf_max_radius.grid(row=1, column=5, sticky='EW')
+        e_bf_max_radius.grid(row=1, column=3, sticky='EW', padx=5)
 
         Label(frame, text='Center X', width=10).grid(row=2, column=0, sticky='W')
         e_center_x = Spinbox(frame, width=10, textvariable=self.var_center_x, from_=0, to=self.cam_x, increment=1)
-        e_center_x.grid(row=2, column=1, sticky='EW')
+        e_center_x.grid(row=2, column=1, sticky='EW', padx=5)
         Label(frame, text='Center Y', width=10).grid(row=2, column=2, sticky='W')
         e_center_y = Spinbox(frame, width=10, textvariable=self.var_center_y, from_=0, to=self.cam_x, increment=1)
-        e_center_y.grid(row=2, column=3, sticky='EW')
-        self.b_center_get = Button(frame, width=10, text='Get Center', command=self.get_center)
+        e_center_y.grid(row=2, column=3, sticky='EW', padx=5)
+        self.b_center_get = Button(frame, width=15, text='Get Center', command=self.get_center)
         self.b_center_get.grid(row=2, column=4, sticky='W')
 
+        frame.grid_columnconfigure(0, weight=1)
+        frame.grid_columnconfigure(1, weight=1)
+        frame.grid_columnconfigure(2, weight=1)
+        frame.grid_columnconfigure(3, weight=1)
+        frame.grid_columnconfigure(4, weight=1)
+        frame.grid_columnconfigure(5, weight=1)
         frame.pack(side='top', fill='x', expand=False, padx=10, pady=10)
 
         frame = Frame(self)
 
-        Label(frame, text='Interval X(nm)', width=10).grid(row=2, column=0, sticky='W')
+        Label(frame, text='Interval X/nm', width=12).grid(row=2, column=0, sticky='W')
         e_interval_x = Spinbox(frame, width=10, textvariable=self.var_interval_x, from_=0.1, to=1000, increment=0.001)
-        e_interval_x.grid(row=2, column=1, sticky='EW')
+        e_interval_x.grid(row=2, column=1, sticky='EW', padx=5)
 
-        Label(frame, text='Interval Y(nm)', width=10).grid(row=2, column=2, sticky='W')
+        Label(frame, text='Interval Y/nm', width=12).grid(row=2, column=2, sticky='W')
         e_interval_y = Spinbox(frame, width=10, textvariable=self.var_interval_y, from_=0.1, to=1000, increment=0.001)
-        e_interval_y.grid(row=2, column=3, sticky='EW')
+        e_interval_y.grid(row=2, column=3, sticky='EW', padx=5)
 
         Label(frame, text='NX', width=5).grid(row=2, column=4, sticky='W')
         e_nx = Spinbox(frame, width=10, textvariable=self.var_nx, from_=2, to=128, increment=1)
-        e_nx.grid(row=2, column=5, sticky='EW')
+        e_nx.grid(row=2, column=5, sticky='EW', padx=5)
 
         Label(frame, text='NY', width=5).grid(row=2, column=6, sticky='W')
         e_ny = Spinbox(frame, width=10, textvariable=self.var_ny, from_=2, to=128, increment=1)
-        e_ny.grid(row=2, column=7, sticky='EW')
+        e_ny.grid(row=2, column=7, sticky='EW', padx=5)
 
         frame.pack(side='top', fill='x', expand=False, padx=10, pady=10)
 
@@ -88,7 +97,7 @@ class ExperimentalFourDSTEM(LabelFrame):
         Label(frame, text='Select virtual image types:').grid(row=4, columnspan=2, sticky='EW')
         Checkbutton(frame, text='HAADF', variable=self.var_haadf).grid(row=4, column=2, sticky='EW')
         Checkbutton(frame, text='ADF', variable=self.var_adf).grid(row=4, column=3, sticky='EW')
-        Checkbutton(frame, text='BF', variable=self.var_df).grid(row=4, column=4, sticky='EW')
+        Checkbutton(frame, text='BF', variable=self.var_bf).grid(row=4, column=4, sticky='EW')
 
         Label(frame, text='Select output formats for virtual images:').grid(row=5, columnspan=3, sticky='EW')
         Checkbutton(frame, text='.mrc', variable=self.var_save_mrc_4DSTEM).grid(row=5, column=3, sticky='EW')
@@ -107,7 +116,11 @@ class ExperimentalFourDSTEM(LabelFrame):
 
         frame = Frame(self)
 
-        self.makepanel()
+        image = Image.fromarray(np.zeros((self.var_nx.get()*4, self.var_ny.get()*4)))
+        image = ImageTk.PhotoImage(image)
+
+        self.panel = Label(frame, image=image)
+        self.panel.image = image
         self.panel.grid(row=0, column=1, sticky='EW')
 
         frame.columnconfigure(0, weight=1)
@@ -159,14 +172,14 @@ class ExperimentalFourDSTEM(LabelFrame):
         self.var_interval_x = DoubleVar(value=100)
         self.var_interval_y = DoubleVar(value=100)
         self.var_nx = IntVar(value=32)
-        self.var_nx = IntVar(value=32)
+        self.var_ny = IntVar(value=32)
         self.var_save_mrc_4DSTEM = BooleanVar(value=True)
         self.var_save_hdf5_4DSTEM = BooleanVar(value=True)
         self.var_save_mrc_raw_imgs = BooleanVar(value=True)
         self.var_save_hdf5_raw_imgs = BooleanVar(value=True)
         self.var_haadf = BooleanVar(value=True)
         self.var_adf = BooleanVar(value=True)
-        self.var_df = BooleanVar(value=False)
+        self.var_bf = BooleanVar(value=False)
 
     def get_center(self):
         '''find the center of the diffraction pattern'''
@@ -175,14 +188,6 @@ class ExperimentalFourDSTEM(LabelFrame):
         pixel_cent = find_beam_center(img) * self.binsize / scale
         self.var_center_x.set(pixel_cent[0])
         self.var_center_y.set(pixel_cent[1])
-
-    def makepanel(self, resolution=(128, 128)):
-        image = Image.fromarray(np.zeros(resolution))
-        image = ImageTk.PhotoImage(image)
-
-        self.panel = Label(master, image=image)
-        self.panel.image = image
-
 
     def start_scan(self):
         params = self.get_params('start')
@@ -283,7 +288,7 @@ class ExperimentalFourDSTEM(LabelFrame):
         self.stopEvent.set()
 
     def get_params(self, task=None):
-        if taks == 'start':
+        if task == 'start':
             params = {'dwell_time': self.var_dwell_time.get(),
                       'exposure_time': self.var_exposure_time.get(),
                       'haadf_min_radius': self.var_haadf_min_radius.get(),
