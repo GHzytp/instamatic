@@ -22,6 +22,43 @@ ACTIVATION_THRESHOLD = 0.2
 
 use_vm = config.settings.use_VM_server_exe
 
+# degree/s
+speed_table_fei = {
+    1.00: 21.14,
+    0.90: 19.61,
+    0.80: 18.34,
+    0.70: 16.90,
+    0.60: 14.85,
+    0.50: 12.69,
+    0.40: 10.62,
+    0.30: 8.20,
+    0.20: 5.66,
+    0.10: 2.91,
+    0.05: 1.48,
+    0.04: 1.18,
+    0.03: 0.888,
+    0.02: 0.593,
+    0.01: 0.297,
+}
+
+# degree/s
+speed_table_jeol = {
+    1.00: 21.14,
+    0.90: 19.61,
+    0.80: 18.34,
+    0.70: 16.90,
+    0.60: 14.85,
+    0.50: 12.69,
+    0.40: 10.62,
+    0.30: 8.20,
+    0.20: 5.66,
+    0.10: 2.91,
+    0.05: 1.48,
+    0.04: 1.18,
+    0.03: 0.888,
+    0.02: 0.593,
+    0.01: 0.297,
+}
 
 def print_and_log(msg, logger=None):
     print(msg)
@@ -70,6 +107,7 @@ class Experiment:
                  enable_image_interval: bool = False,
                  image_interval: int = 99999,
                  diff_defocus: int = 0,
+                 defocus_start_angle: float = 0.0,
                  exposure_time_image: float = 0.01,
                  rotation_speed: float = 0.1,
                  write_tiff: bool = True,
@@ -94,6 +132,7 @@ class Experiment:
         self.rotation_speed = rotation_speed
 
         self.diff_defocus = diff_defocus
+        self.defocus_start_angle = defocus_start_angle
         self.exposure_image = exposure_time_image
         self.frametime = self.ctrl.cam.frametime
 
@@ -294,6 +333,7 @@ class Experiment:
             self.relax_beam()
 
         self.start_angle = self.start_rotation()
+        self.current_angle = self.start_angle
         self.ctrl.cam.block()
 
         i = 1
@@ -301,7 +341,8 @@ class Experiment:
         t0 = time.perf_counter()
 
         while not self.stopEvent.is_set():
-            if i % self.image_interval == 0:
+            if self.image_interval_enabled and ((i < 5 and i % 2 == 0 ) or 
+            (i % self.image_interval == 0 and np.abs(self.current_angle) > np.abs(self.defocus_start_angle))):
                 t_start = time.perf_counter()
                 acquisition_time = (t_start - t0) / (i - 1)
 
@@ -321,7 +362,7 @@ class Experiment:
                 while time.perf_counter() > next_interval:
                     next_interval += acquisition_time
                     i += 1
-                    # print(f"{i} "SKIP!  {next_interval-t_start:.3f} {acquisition_time:.3f}")
+                    print(f"{i} SKIP!  {next_interval-t_start:.3f} {acquisition_time:.3f}")
 
                 if self.ctrl.cam.interface == 'DM':
                     diff = next_interval - time.perf_counter() - self.frametime
@@ -338,6 +379,17 @@ class Experiment:
                 # print(f"{i} Image!")
                 buffer.append((i, img, h))
                 # print(f"Angle: {self.ctrl.stage.a}")
+
+            if self.ctrl.tem.interface == "fei":
+                if self.start_angle < self.footfree_rotate_to:
+                    self.current_angle = self.current_angle + speed_table_fei[self.rotation_speed] * self.exposure
+                else:
+                    self.current_angle = self.current_angle - speed_table_fei[self.rotation_speed] * self.exposure
+            else:
+                if self.start_angle < self.footfree_rotate_to:
+                    self.current_angle = self.current_angle + speed_table_jeol[self.rotation_speed] * self.exposure
+                else:
+                    self.current_angle = self.current_angle - speed_table_jeol[self.rotation_speed] * self.exposure
 
             i += 1
 

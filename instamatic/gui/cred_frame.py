@@ -40,6 +40,8 @@ class ExperimentalcRED(LabelFrame):
         #frame = Frame(self)
 
         Checkbutton(frame, text='Enable image interval', variable=self.var_enable_image_interval, command=self.toggle_interval_buttons).grid(row=5, column=2, sticky='W')
+        self.RelaxButton = Button(frame, text='Relax beam', command=self.relax_beam, state=DISABLED)
+        self.RelaxButton.grid(row=5, column=3, sticky='EW', padx=10)
         self.c_toggle_defocus = Checkbutton(frame, text='Toggle defocus', variable=self.var_toggle_diff_defocus, command=self.toggle_diff_defocus, state=DISABLED)
         self.c_toggle_defocus.grid(row=6, column=2, sticky='W')
 
@@ -58,8 +60,9 @@ class ExperimentalcRED(LabelFrame):
             self.e_image_exposure = Spinbox(frame, textvariable=self.var_exposure_time_image, width=sbwidth, from_=0.0, to=100.0, increment=0.01, state=DISABLED)
         self.e_image_exposure.grid(row=7, column=1, sticky='W', padx=10)
 
-        self.RelaxButton = Button(frame, text='Relax beam', command=self.relax_beam, state=DISABLED)
-        self.RelaxButton.grid(row=7, column=2, sticky='EW')
+        Label(frame, text='Defocus start angle (±):').grid(row=7, column=2, sticky='W')
+        self.e_defocus_start_angle = Spinbox(frame, textvariable=self.var_defocus_start_angle, width=sbwidth, from_=-80.0, to=80.0, increment=1.0, state=DISABLED)
+        self.e_defocus_start_angle.grid(row=7, column=3, sticky='W', padx=10)
 
         if self.ctrl.tem.interface != "fei" and ENABLE_FOOTFREE_OPTION:
             Separator(frame, orient=HORIZONTAL).grid(row=8, columnspan=4, sticky='ew', pady=10)
@@ -69,6 +72,17 @@ class ExperimentalcRED(LabelFrame):
             self.e_endangle.grid(row=9, column=1, sticky='W', padx=10)
 
             Checkbutton(frame, text='Footfree mode', variable=self.var_toggle_footfree, command=self.toggle_footfree).grid(row=9, column=4, sticky='W')
+
+        if self.ctrl.tem.interface != "fei" and not ENABLE_FOOTFREE_OPTION:
+            Separator(frame, orient=HORIZONTAL).grid(row=8, columnspan=4, sticky='ew', pady=10)
+
+            Label(frame, text='Rotate to:').grid(row=9, column=0, sticky='W')
+            self.e_endangle = Spinbox(frame, textvariable=self.var_footfree_rotate_to, width=sbwidth, from_=-80.0, to=80.0, increment=1.0, state=DISABLED)
+            self.e_endangle.grid(row=9, column=1, sticky='W', padx=10)
+
+            Label(frame, text='Rotation Speed:').grid(row=9, column=2, sticky='W')
+            self.e_rotspeed = OptionMenu(frame, self.var_rotation_speed, 0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1)
+            self.e_rotspeed.grid(row=9, column=3, sticky='W', padx=10)
 
         elif self.ctrl.tem.interface == "fei":
             Separator(frame, orient=HORIZONTAL).grid(row=8, columnspan=5, sticky='ew', pady=10)
@@ -128,6 +142,7 @@ class ExperimentalcRED(LabelFrame):
             self.var_diff_defocus = IntVar(value=1500)
         self.var_enable_image_interval = BooleanVar(value=False)
         self.var_toggle_diff_defocus = BooleanVar(value=False)
+        self.var_defocus_start_angle = DoubleVar(value=0.0)
 
         if self.image_stream is not None:
             self.var_exposure_time_image = DoubleVar(value=self.image_stream.frametime)
@@ -230,6 +245,7 @@ class ExperimentalcRED(LabelFrame):
                   'enable_image_interval': self.var_enable_image_interval.get(),
                   'image_interval': self.var_image_interval.get(),
                   'diff_defocus': self.var_diff_defocus.get(),
+                  'defocus_start_angle': self.var_defocus_start_angle.get(),
                   'mode': self.mode,
                   'footfree_rotate_to': self.var_footfree_rotate_to.get(),
                   'rotation_speed': self.var_rotation_speed.get(),
@@ -248,12 +264,15 @@ class ExperimentalcRED(LabelFrame):
             self.e_diff_defocus.config(state=NORMAL)
             self.c_toggle_defocus.config(state=NORMAL)
             self.RelaxButton.config(state=NORMAL)
+            self.e_defocus_start_angle.config(state=NORMAL)
         else:
             self.e_image_interval.config(state=DISABLED)
             self.e_image_exposure.config(state=DISABLED)
             self.e_diff_defocus.config(state=DISABLED)
             self.c_toggle_defocus.config(state=DISABLED)
             self.RelaxButton.config(state=DISABLED)
+            self.e_defocus_start_angle.config(state=DISABLED)
+            self.e_defocus_start_angle.set(0)
 
     def relax_beam(self):
         difffocus = self.var_diff_defocus.get()

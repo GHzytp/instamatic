@@ -1,7 +1,7 @@
 import atexit
 import time
 import threading
-from queue import Empty as Empty
+import numpy as np
 
 from .camera import Camera
 from instamatic import config
@@ -121,6 +121,8 @@ class VideoStream:
         self.frame_updated = threading.Event() # For 4DSTEM experiment
 
         self.streamable = self.cam.streamable
+        self.dimension = self.cam.getCameraDimensions()
+        self.frame = np.zeros(self.dimension)
 
         self.start()
 

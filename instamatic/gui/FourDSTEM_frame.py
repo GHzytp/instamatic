@@ -189,9 +189,8 @@ class ExperimentalFourDSTEM(LabelFrame):
 
     def get_center(self):
         '''find the center of the diffraction pattern'''
-        img = self.ctrl.get_image(self.var_exposure_time.get())
-        img, scale = autoscale(img)
-        pixel_cent = find_beam_center(img) * self.binsize / scale
+        img, h = self.ctrl.get_image(self.var_exposure_time.get())
+        pixel_cent = find_beam_center(img)
         self.var_center_x.set(pixel_cent[0])
         self.var_center_y.set(pixel_cent[1])
 

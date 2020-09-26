@@ -28,7 +28,8 @@ class VideoStreamFrame(LabelFrame):
         self.stream = stream
         self.app = app
 
-        self.image_stream = get_instance().image_stream
+        if self.stream.cam.interface=="DM":
+            self.image_stream = get_instance().image_stream
 
         self.panel = None
 
@@ -42,6 +43,7 @@ class VideoStreamFrame(LabelFrame):
         self.auto_contrast = True
 
         self.resize_image = False
+        self.frame = np.zeros(self.stream.dimension)
 
         self.last = time.perf_counter()
         self.nframes = 1

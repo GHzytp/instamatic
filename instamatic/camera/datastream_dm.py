@@ -31,7 +31,7 @@ def start_streaming():
     else:
         image_stream = StreamBufferProc(exposure=config.settings.default_frame_time, frametime=config.settings.default_frame_time)
         image_stream.start_loop()
-    time.sleep(8)
+    # time.sleep(8)
     return data_stream, image_stream
 
 class DataStreamError(RuntimeError):
