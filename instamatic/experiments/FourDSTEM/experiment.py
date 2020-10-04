@@ -290,8 +290,13 @@ class Experiment:
         buf = np.zeros((self.nx, self.ny))
         pos_x, pos_y = self.generate_scan_pattern()
         shape = pos_x.shape
-        self.log_start_status()
+        # synchonization of camera and beam scan
+        for _ in range(1):
+            self.ctrl.cam.frame_updated.wait()
+            img = self.ctrl.cam.frame.astype(np.uint16)
+            self.ctrl.cam.frame_updated.clear()
 
+        self.log_start_status()
         t0 = time.perf_counter()
         while not self.stopAcqEvent.is_set():
             for i in range(shape[0]):
@@ -345,6 +350,11 @@ class Experiment:
         self.buffer = []
         pos_x, pos_y = self.generate_scan_pattern()
         shape = pos_x.shape
+        # synchonization of camera and beam scan
+        for _ in range(1):
+            self.ctrl.cam.frame_updated.wait()
+            img = self.ctrl.cam.frame.astype(np.uint16)
+            self.ctrl.cam.frame_updated.clear()
         self.log_start_status()
 
         t0 = time.perf_counter()
@@ -403,6 +413,11 @@ class Experiment:
         buf = np.zeros((self.nx, self.ny)) # virtual image
         pos_x, pos_y = self.generate_scan_pattern()
         shape = pos_x.shape
+        # synchonization of camera and beam scan
+        for _ in range(1):
+            self.ctrl.cam.frame_updated.wait()
+            img = self.ctrl.cam.frame.astype(np.uint16)
+            self.ctrl.cam.frame_updated.clear()
         self.log_start_status()
 
         t0 = time.perf_counter()
