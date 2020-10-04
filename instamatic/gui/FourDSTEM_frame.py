@@ -456,7 +456,43 @@ commands = {'acquire_FourDSTEM': acquire_FourDSTEM,
             'acquire_one_virtual_img': acquire_one_virtual_img,
             'scan_beam': scan_beam}
 
+def run(ctrl, trigger, q):
+    from .modules import JOBS
+
+    while True:
+        trigger.wait()
+        trigger.clear()
+
+        job, kwargs = q.get()
+        try:
+            print(job)
+            func = JOBS[job]
+        except KeyError:
+            print(f'Unknown job: {job}')
+            print(f'Kwargs:\n{kwargs}')
+            continue
+        func(ctrl, **kwargs)
+
+
 if __name__ == '__main__':
+    import threading
+    import queue
+    import logging
+    from .io_frame import module as io_module
+    
+    logger = logging.getLogger(__name__)
+
     root = Tk()
-    ExperimentalFourDSTEM(root).pack(side='top', fill='both', expand=True)
+    trigger = threading.Event()
+    q = queue.Queue(maxsize=1)
+    ctrl = ExperimentalFourDSTEM(root)
+    ctrl.pack(side='top', fill='both', expand=True)
+    ctrl.set_trigger(trigger=trigger, q=q)
+    ctrl.module_io = io_module.initialize(root)
+    ctrl.log = logger
+
+    p = threading.Thread(target=run, args=(ctrl,trigger,q,))
+    p.start()
+
     root.mainloop()
+    ctrl.ctrl.close()

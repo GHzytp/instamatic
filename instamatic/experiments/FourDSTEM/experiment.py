@@ -32,23 +32,26 @@ class Experiment:
         Instance of `logging.Logger`
     flatfield:
         Path to flatfield correction image
-    unblank_beam:
-        Whether beam should be automatically unblanked before experiment
-    mode:
-        Which mode the experiment is running in, choices: 'simulate', 'footfree', None (default)
-    footfree_rotate_to:
-        In 'footfree' mode, rotate to this angle
-    enable_image_interval:
-        Gives the interval with which to defocs the scan_pattern slightly for tracking purposes,
-        default is set to 99999 so it never occurs.
-    diff_defocus:
-        Image interval only - Defocus value to apply when defocused images are used for tracking
-    exposure_time_image:
-        Image interval only - Exposure time for defocused images
-    write_tiff, write_xds, write_dials, write_red:
-        Specify which data types/input files should be written
-    stop_event:
-        Instance of `threading.Event()` that signals the experiment to be terminated.
+    scan_pattern:
+        Scan pattern for the beam scan
+    dwell_time:
+        Dwelling time for each position, unit: s
+    exposure_time:
+        Exposure time for each image. Should consider the dwelling time. Needs calculation. Unit: s
+    haadf_min_radius:
+        The minimum acqusition radius for HAADF images, unit: pix
+    bf_max_radius:
+        The maximum acqusition radius for bright field images, unit: pix
+    center_x, center_y:
+        X and y position of beam center in electron diffraction pattern, unit: pix
+    interval_x, interval_y:
+        The inerval between neighboring beams in x and y direction, unit: nm
+    nx, ny:
+        The number of beam scan spots in x and y direction
+    haadf, adf, bf:
+        Choose different virtual image mode
+    acqusition_finished:
+        A thread event to notify the thread that the acqusition is finished
     """
 
     def __init__(self, ctrl,
@@ -473,38 +476,3 @@ class Experiment:
 
         print('Data Collection and Conversion Done.')
         print()
-
-def main():
-    from instamatic import TEMController
-    ctrl = TEMController.initialize()
-
-    import logging
-    log = logging.getLogger(__name__)
-
-    exposure_time = 0.5
-    end_angle = 10
-    stepsize = 1.0
-
-    i = 1
-    while True:
-        expdir = f'experiment_{i}'
-        if os.path.exists(expdir):
-            i += 1
-        else:
-            break
-
-    print(f'\nData directory: {expdir}')
-
-    red_exp = Experiment(ctrl=ctrl, path=expdir, log=log, flatfield=None)
-    red_exp.start_collection(exposure_time=exposure_time, end_angle=end_angle, stepsize=stepsize)
-
-    input('Press << Enter >> to start the experiment... ')
-
-    while not input(f'\nPress << Enter >> to continue for another {tilt_range} degrees. [any key to finalize] '):
-        red_exp.start_collection(exposure_time=exposure_time, end_angle=end_angle, stepsize=stepsize)
-
-    red_exp.finalize()
-
-
-if __name__ == '__main__':
-    main()
