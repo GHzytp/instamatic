@@ -139,6 +139,9 @@ class Magnification(Lens):
     def index(self, index: int):
         self._indexsetter(index)
 
+    def set_index(self, index: int):
+        self._indexsetter(index)
+
     def increase(self) -> None:
         try:
             self.index += 1

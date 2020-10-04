@@ -62,7 +62,7 @@ class Experiment:
         """
         self.spotsize = self.ctrl.spotsize
         self.now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        self.logger.info('Data recording started at: {self.now}')
+        self.logger.info(f'Data recording started at: {self.now}')
         self.logger.info(f'Exposure time: {exposure_time} s, Tilt range: {tilt_range}, step size: {stepsize}')
 
         ctrl = self.ctrl

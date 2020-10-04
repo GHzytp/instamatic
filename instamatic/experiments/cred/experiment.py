@@ -107,6 +107,8 @@ class Experiment:
                  enable_image_interval: bool = False,
                  image_interval: int = 99999,
                  diff_defocus: int = 0,
+                 start_frames: int = 5,
+                 start_frames_interval: int = 2,
                  defocus_start_angle: float = 0.0,
                  exposure_time_image: float = 0.01,
                  rotation_speed: float = 0.1,
@@ -132,6 +134,8 @@ class Experiment:
         self.rotation_speed = rotation_speed
 
         self.diff_defocus = diff_defocus
+        self.start_frames = start_frames
+        self.start_frames_interval = start_frames_interval
         self.defocus_start_angle = defocus_start_angle
         self.exposure_image = exposure_time_image
         self.frametime = self.ctrl.cam.frametime
@@ -341,7 +345,7 @@ class Experiment:
         t0 = time.perf_counter()
 
         while not self.stopEvent.is_set():
-            if self.image_interval_enabled and ((i < 5 and i % 2 == 0 ) or 
+            if self.image_interval_enabled and ((i < self.start_frames and i % self.start_frames_interval == 0 ) or 
             (i % self.image_interval == 0 and np.abs(self.current_angle) > np.abs(self.defocus_start_angle))):
                 t_start = time.perf_counter()
                 acquisition_time = (t_start - t0) / (i - 1)
@@ -401,8 +405,6 @@ class Experiment:
 
         if self.mode == 'footfree':
             self.ctrl.stage.stop()
-
-        self.stopEvent.clear()
 
         self.ctrl.cam.unblock()
 

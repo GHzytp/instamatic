@@ -30,12 +30,14 @@ class VideoStreamFrame(LabelFrame):
 
         if self.stream.cam.interface=="DM":
             self.image_stream = get_instance().image_stream
+            self.frame_delay = int(self.stream.frametime / 2 *1000)
+            self.frametime = self.stream.frametime / 2
+        else:
+            self.frame_delay = 50
+            self.frametime = 50
 
         self.panel = None
 
-        self.frame_delay = 50
-
-        self.frametime = self.stream.frametime / 2
         self.brightness = 1.0
         self.display_range = self.display_range_default = self.stream.cam.dynamic_range
         # Maximum number from image readout

@@ -82,6 +82,21 @@ class ExperimentalCtrl(LabelFrame):
         b_stage_get = Button(frame, text='Get', command=self.get_stage)
         b_stage_get.grid(row=3, column=5, sticky='W')
 
+        if self.mode in ('LM', 'Mi', 'SA', 'Mh', 'mag1', 'mag2', 'lowmag', 'samag'):
+            self.l_magnification = Label(frame, text='Magnification', width=15)
+            self.l_magnification.grid(row=5, column=0, sticky='W')
+            self.e_magnification = Spinbox(frame, width=10, textvariable=self.var_magnification, from_=1, to=62, increment=1)
+            self.e_magnification.grid(row=5, column=1, sticky='EW')
+        elif self.mode in ('LAD', 'D', 'diff'):
+            self.l_magnification = Label(frame, text='Camera Length', width=15)
+            self.l_magnification.grid(row=5, column=0, sticky='W')
+            self.e_magnification = Spinbox(frame, width=10, textvariable=self.var_magnification, from_=1, to=21, increment=1)
+            self.e_magnification.grid(row=5, column=1, sticky='EW')
+        b_magnification_set = Button(frame, text='Set', command=self.set_magnification)
+        b_magnification_set.grid(row=5, column=2, sticky='W')
+        b_magnification = Button(frame, text='Get', command=self.get_magnification)
+        b_magnification.grid(row=5, column=3, sticky='W')
+
         frame.pack(side='top', fill='x', padx=10, pady=10)
         frame = Frame(self)
 
@@ -326,6 +341,8 @@ class ExperimentalCtrl(LabelFrame):
 
         self.var_goniotool_tx = IntVar(value=1)
 
+        self.var_magnification = IntVar(value=1)
+
         if self.ctrl.tem.interface == 'fei':
             self.var_brightness = DoubleVar(value=self.ctrl.brightness.value)
             if self.mode in ('D', 'LAD'):
@@ -387,6 +404,9 @@ class ExperimentalCtrl(LabelFrame):
         self.b_objfocus_get.config(state=DISABLED)
         self.objfocus_slider.config(state=DISABLED)
 
+        self.l_magnification.config(text='Camera Length')
+        self.e_magnification.config(to=21)
+
     def GUI_ObjFocus(self):
         self.e_diff_defocus.config(state=DISABLED)
         self.c_toggle_defocus.config(state=DISABLED)
@@ -399,6 +419,9 @@ class ExperimentalCtrl(LabelFrame):
         self.b_objfocus.config(state=NORMAL)
         self.b_objfocus_get.config(state=NORMAL)
         self.objfocus_slider.config(state=NORMAL)
+
+        self.l_magnification.config(text='Magnification')
+        self.e_magnification.config(to=62)
 
     def set_gui_diffobj(self):
         if self.ctrl.tem.interface == 'fei':
@@ -417,7 +440,7 @@ class ExperimentalCtrl(LabelFrame):
         self.q = q
 
     def set_mode(self, event=None):
-        if self.ctrl.cam.interface == 'DM':
+        if self.ctrl.tem.interface == 'fei':
             if self.var_mode.get() in ('D', 'LAD'):
                 self.ctrl.tem.setProjectionMode('diffraction')
                 self.var_mode.set(self.ctrl.mode.state)
@@ -606,6 +629,15 @@ class ExperimentalCtrl(LabelFrame):
     def set_goniotool_tx_default(self, event=None):
         value = 12
         self.set_goniotool_tx(value=value)
+
+    def set_magnification(self, event=None):
+        self.q.put(('ctrl', {'task': 'magnification.set_index',
+                             'index': self.var_magnification.get()}))
+        self.triggerEvent.set()
+
+    def get_magnification(self, event=None):
+        self.var_magnification.set(self.ctrl.magnification.index)
+
 
     def set_stage(self):
         self.q.put(('ctrl', {'task': 'stage.set',

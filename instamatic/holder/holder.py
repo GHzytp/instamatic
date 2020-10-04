@@ -3,7 +3,7 @@ from instamatic import config
 
 logger = logging.getLogger(__name__)
 
-default_holder_interface = config.microscope.interface
+default_holder_interface = config.holder.interface
 
 __all__ = ['Holder', 'get_holder']
 

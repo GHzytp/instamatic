@@ -64,43 +64,53 @@ class ExperimentalcRED(LabelFrame):
         self.e_defocus_start_angle = Spinbox(frame, textvariable=self.var_defocus_start_angle, width=sbwidth, from_=-80.0, to=80.0, increment=1.0, state=DISABLED)
         self.e_defocus_start_angle.grid(row=7, column=3, sticky='W', padx=10)
 
+        Label(frame, text='Number of initial frames').grid(row=8, column=0, sticky='W')
+        self.e_start_frames = Spinbox(frame, textvariable=self.var_start_frames, width=sbwidth, from_=0, to=10, increment=1, state=DISABLED)
+        self.e_start_frames.grid(row=8, column=1, sticky='W', padx=10)
+
+        Label(frame, text='Initial frames interval').grid(row=8, column=2, sticky='W')
+        self.e_start_frames_interval = Spinbox(frame, textvariable=self.var_start_frames_interval, width=sbwidth, from_=2, to=10, increment=1, state=DISABLED)
+        self.e_start_frames_interval.grid(row=8, column=3, sticky='W', padx=10)
+
         if self.ctrl.tem.interface != "fei" and ENABLE_FOOTFREE_OPTION:
-            Separator(frame, orient=HORIZONTAL).grid(row=8, columnspan=4, sticky='ew', pady=10)
+            Separator(frame, orient=HORIZONTAL).grid(row=9, columnspan=4, sticky='ew', pady=10)
 
-            Label(frame, text='Rotate to:').grid(row=9, column=0, sticky='W')
+            Label(frame, text='Rotate to:').grid(row=10, column=0, sticky='W')
             self.e_endangle = Spinbox(frame, textvariable=self.var_footfree_rotate_to, width=sbwidth, from_=-80.0, to=80.0, increment=1.0, state=DISABLED)
-            self.e_endangle.grid(row=9, column=1, sticky='W', padx=10)
+            self.e_endangle.grid(row=10, column=1, sticky='W', padx=10)
 
-            Checkbutton(frame, text='Footfree mode', variable=self.var_toggle_footfree, command=self.toggle_footfree).grid(row=9, column=4, sticky='W')
+            Checkbutton(frame, text='Footfree mode', variable=self.var_toggle_footfree, command=self.toggle_footfree).grid(row=10, column=4, sticky='W')
 
         if self.ctrl.tem.interface != "fei" and not ENABLE_FOOTFREE_OPTION:
-            Separator(frame, orient=HORIZONTAL).grid(row=8, columnspan=4, sticky='ew', pady=10)
+            Separator(frame, orient=HORIZONTAL).grid(row=9, columnspan=4, sticky='ew', pady=10)
 
-            Label(frame, text='Rotate to:').grid(row=9, column=0, sticky='W')
+            Label(frame, text='Rotate to:').grid(row=10, column=0, sticky='W')
             self.e_endangle = Spinbox(frame, textvariable=self.var_footfree_rotate_to, width=sbwidth, from_=-80.0, to=80.0, increment=1.0, state=DISABLED)
-            self.e_endangle.grid(row=9, column=1, sticky='W', padx=10)
+            self.e_endangle.grid(row=10, column=1, sticky='W', padx=10)
 
-            Label(frame, text='Rotation Speed:').grid(row=9, column=2, sticky='W')
-            self.e_rotspeed = OptionMenu(frame, self.var_rotation_speed, 0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1)
-            self.e_rotspeed.grid(row=9, column=3, sticky='W', padx=10)
+            Label(frame, text='Rotation Speed:').grid(row=10, column=2, sticky='W')
+            speed_options = [0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+            self.e_rotspeed = OptionMenu(frame, self.var_rotation_speed, 0.01, *speed_options)
+            self.e_rotspeed.grid(row=10, column=3, sticky='W', padx=10)
 
         elif self.ctrl.tem.interface == "fei":
-            Separator(frame, orient=HORIZONTAL).grid(row=8, columnspan=5, sticky='ew', pady=10)
+            Separator(frame, orient=HORIZONTAL).grid(row=9, columnspan=5, sticky='ew', pady=10)
 
-            Label(frame, text='Rotate to:').grid(row=9, column=0, sticky='W')
+            Label(frame, text='Rotate to:').grid(row=10, column=0, sticky='W')
             self.e_endangle = Spinbox(frame, textvariable=self.var_footfree_rotate_to, width=sbwidth, from_=-80.0, to=80.0, increment=1.0, state=NORMAL)
-            self.e_endangle.grid(row=9, column=1, sticky='W', padx=10)
-            Label(frame, text='Rotation Speed:').grid(row=9, column=2, sticky='W')
-            self.e_rotspeed = OptionMenu(frame, self.var_rotation_speed, 0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1)
-            self.e_rotspeed.grid(row=9, column=3, sticky='W', padx=10)
+            self.e_endangle.grid(row=10, column=1, sticky='W', padx=10)
+            Label(frame, text='Rotation Speed:').grid(row=10, column=2, sticky='W')
+            speed_options = [0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+            self.e_rotspeed = OptionMenu(frame, self.var_rotation_speed, 0.01, *speed_options)
+            self.e_rotspeed.grid(row=10, column=3, sticky='W', padx=10)
 
 
         self.lb_coll0 = Label(frame, text='')
         self.lb_coll1 = Label(frame, text='')
         self.lb_coll2 = Label(frame, text='')
-        self.lb_coll0.grid(row=10, column=0, columnspan=2, sticky='EW')
-        self.lb_coll1.grid(row=11, column=0, columnspan=2, sticky='EW')
-        self.lb_coll2.grid(row=12, column=0, columnspan=2, sticky='EW')
+        self.lb_coll0.grid(row=11, column=0, columnspan=2, sticky='EW')
+        self.lb_coll1.grid(row=12, column=0, columnspan=2, sticky='EW')
+        self.lb_coll2.grid(row=13, column=0, columnspan=2, sticky='EW')
         frame.grid_columnconfigure(1, weight=1)
         frame.pack(side='top', fill='x', expand=False, padx=10, pady=10)
 
@@ -142,6 +152,8 @@ class ExperimentalcRED(LabelFrame):
             self.var_diff_defocus = IntVar(value=1500)
         self.var_enable_image_interval = BooleanVar(value=False)
         self.var_toggle_diff_defocus = BooleanVar(value=False)
+        self.var_start_frames = IntVar(value=5)
+        self.var_start_frames_interval = IntVar(value=2)
         self.var_defocus_start_angle = DoubleVar(value=0.0)
 
         if self.image_stream is not None:
@@ -222,9 +234,11 @@ class ExperimentalcRED(LabelFrame):
         if self.ctrl.tem.interface == "fei":
             def stop_collection():
                 self.stopEvent.wait()
+                self.parent.unbind_all('<space>')
                 self.CollectionButton.config(state=NORMAL)
                 self.lb_coll1.config(text='')
                 self.lb_coll2.config(text='')
+                self.stopEvent.clear()
             p = threading.Thread(target=stop_collection, args=())
             p.start()
 
@@ -245,6 +259,8 @@ class ExperimentalcRED(LabelFrame):
                   'enable_image_interval': self.var_enable_image_interval.get(),
                   'image_interval': self.var_image_interval.get(),
                   'diff_defocus': self.var_diff_defocus.get(),
+                  'start_frames': self.var_start_frames.get(),
+                  'start_frames_interval': self.var_start_frames_interval.get(),
                   'defocus_start_angle': self.var_defocus_start_angle.get(),
                   'mode': self.mode,
                   'footfree_rotate_to': self.var_footfree_rotate_to.get(),
@@ -265,6 +281,8 @@ class ExperimentalcRED(LabelFrame):
             self.c_toggle_defocus.config(state=NORMAL)
             self.RelaxButton.config(state=NORMAL)
             self.e_defocus_start_angle.config(state=NORMAL)
+            self.e_start_frames.config(state=NORMAL)
+            self.e_start_frames_interval.config(state=NORMAL)
         else:
             self.e_image_interval.config(state=DISABLED)
             self.e_image_exposure.config(state=DISABLED)
@@ -273,6 +291,8 @@ class ExperimentalcRED(LabelFrame):
             self.RelaxButton.config(state=DISABLED)
             self.e_defocus_start_angle.config(state=DISABLED)
             self.e_defocus_start_angle.set(0)
+            self.e_start_frames.config(state=DISABLED)
+            self.e_start_frames_interval.config(state=DISABLED)
 
     def relax_beam(self):
         difffocus = self.var_diff_defocus.get()
