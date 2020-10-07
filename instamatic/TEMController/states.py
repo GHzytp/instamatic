@@ -41,7 +41,7 @@ class Beam(State):
     @property
     def is_blanked(self) -> bool:
         """Return the status of the beam blanker as a `bool`"""
-        return self._getter()
+        return bool(self._getter())
 
     def blank(self, delay: float = 0.0) -> None:
         """Turn the beamblank on, optionally wait for `delay` in ms to allow

@@ -153,14 +153,16 @@ class ExperimentalZoneAxis(LabelFrame):
         e_laue_circle_r = Spinbox(frame, width=10, textvariable=self.var_laue_circle_r, from_=1, to=1e7, increment=1)
         e_laue_circle_r.grid(row=3, column=5, sticky='EW', padx=5)
         self.b_reset = Button(frame, width=10, text='Reset', command=self.reset_laue_circle)
-        self.b_reset.grid(row=3, column=6, sticky='W', padx=5)
+        self.b_reset.grid(row=3, column=6, sticky='EW', padx=5)
+
+        Checkbutton(frame, text='Beam unblanker', variable=self.var_unblank_beam, command=self.toggle_unblankbeam).grid(row=4, column=0, sticky='EW')
 
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
 
         frame = Frame(self)
 
         self.lb_col = Label(frame, text='')
-        self.lb_col.grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky='EW')
+        self.lb_col.grid(row=0, column=0, columnspan=2, padx=5, sticky='EW')
 
         self.b_start_laue_circle = Button(frame, width=15, text='Find Laue Circle', command=self.start_find_laue_circle, state=NORMAL)
         self.b_start_laue_circle.grid(row=1, column=0, sticky='W', padx=5)
@@ -210,9 +212,18 @@ class ExperimentalZoneAxis(LabelFrame):
         self.var_laue_circle_y = DoubleVar(value=self.cam_y / 2)
         self.var_laue_circle_r = DoubleVar(value=self.cam_x / 2)
         self.var_threshold = IntVar(value=7000)
+        self.var_unblank_beam = BooleanVar(value=True)
 
     def confirm_exposure(self):
         self.image_stream.grabber.exposure = self.var_exposure_time.get()
+
+    def toggle_unblankbeam(self):
+        toggle = self.var_unblank_beam.get()
+
+        if toggle:
+            self.ctrl.beam.unblank()
+        else:
+            self.ctrl.beam.blank()
 
     def get_center(self):
         '''find the center of the diffraction pattern'''
