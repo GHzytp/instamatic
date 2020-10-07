@@ -113,6 +113,7 @@ class ExperimentalZoneAxis(LabelFrame):
         self.update_image = True
         self.wavelength = relativistic_wavelength(self.ctrl.high_tension) # unit: Angstrom
         self.beamtilt_bak = self.ctrl.beamtilt.xy
+        self.stage_bak = self.ctrl.stage.get()
 
         self.init_vars()
 
@@ -199,7 +200,7 @@ class ExperimentalZoneAxis(LabelFrame):
         self.arc = self.canvas.create_arc(x - r, y - r, x + r, y + r, start=0, extent=359.9, style=ARC, width=2, outline='red', state=NORMAL)
         self.canvas.grid(row=1, rowspan=10, column=1, sticky=E+W+S+N)
         
-        frame.pack(side='bottom', fill='x', expand=False, padx=10, pady=10)
+        frame.pack(side='bottom', fill='x', expand=False, padx=5, pady=5)
 
     def init_vars(self):
         self.var_exposure_time = DoubleVar(value=round(int(1.5/self.ctrl.cam.default_exposure)*self.ctrl.cam.default_exposure, 1))
@@ -221,9 +222,9 @@ class ExperimentalZoneAxis(LabelFrame):
         self.var_center_y.set(pixel_cent[1])
 
     def reset_laue_circle(self):
-        self.var_laue_circle_x = DoubleVar(value=self.cam_x / 2)
-        self.var_laue_circle_y = DoubleVar(value=self.cam_y / 2)
-        self.var_laue_circle_r = DoubleVar(value=self.cam_x / 2)
+        self.var_laue_circle_x.set(self.cam_x / 2)
+        self.var_laue_circle_y.set(self.cam_y / 2)
+        self.var_laue_circle_r.set(self.cam_x / 2)
 
     def start_stream(self, event=None):
         if self.update_image:
@@ -289,27 +290,55 @@ class ExperimentalZoneAxis(LabelFrame):
         y_laue = self.var_laue_circle_y.get()
         x_cent = self.var_center_x.get()
         y_cent = self.var_center_y.get()
-        movement = pixelsize * np.array([x_cent - x_laue, y_cent - y_laue]) * 180 / np.pi # unit: degree
+        movement = pixelsize * np.array([x_laue - x_cent, y_laue - y_cent]) * 180 / np.pi # unit: degree
         beamtilt_target = self.beamtilt_bak + movement
 
-        self.ctrl.beamtilt.xy = self.beamtilt_bak + movement
+        self.ctrl.beamtilt.xy = beamtilt_target
 
         self.b_trial_beam_tilt.config(state=DISABLED)
         self.b_stop_trial_beam_tilt.config(state=NORMAL)
-        self.lb_col.config(text=f'The beam is tilted by {movement[0]:.5f}, {movement[1]:.5f}. Now the beam tilt is {beamtilt_target[0]:.5f}, {beamtilt_target[1]:.5f}')
+        self.lb_col.config(text=f'The beam is tilted by {movement[0]*np.pi/180:.5f}, {movement[1]*np.pi/180:.5f}. Now the beam tilt is {beamtilt_target[0]*np.pi/180:.5f}, {beamtilt_target[1]*np.pi/180:.5f}')
 
     def stop_trial_beam_tilt(self):
         self.ctrl.beamtilt.xy = self.beamtilt_bak
 
         self.b_trial_beam_tilt.config(state=NORMAL)
         self.b_stop_trial_beam_tilt.config(state=DISABLED)
-        self.lb_col.config(text=f'The beam tilt restored to {self.beamtilt_bak[0]}, {self.beamtilt_bak[1]}')
+        self.lb_col.config(text=f'The beam tilt restored to {self.beamtilt_bak[0]*np.pi/180:.5f}, {self.beamtilt_bak[1]*np.pi/180:.5f}')
 
     def set_zone_axis(self):
-        pass
+        '''Set the zone axis by moving stage, with backlash elimination '''
+        camera_length = int(self.ctrl.magnification.value)
+        pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][camera_length] * self.wavelength / 2 # rad/pix
+        self.stage_bak = self.ctrl.stage.get()
+
+        x_laue = self.var_laue_circle_x.get()
+        y_laue = self.var_laue_circle_y.get()
+        x_cent = self.var_center_x.get()
+        y_cent = self.var_center_y.get()
+        movement = pixelsize * np.array([x_laue - x_cent, y_laue - y_cent]) * 180 / np.pi # unit: degree
+        alpha_target = self.stage_bak.a + movement[0]
+        beta_target = self.stage_bak.b + movement[1]
+
+        self.ctrl.stage.eliminate_backlash_a(alpha_target, step=1)
+        self.ctrl.stage.a = alpha_target
+        self.ctrl.stage.eliminate_backlash_b(beta_target, step=1)
+        self.ctrl.stage.b = beta_target
+
+        self.b_set_zone_axis.config(state=DISABLED)
+        self.b_unset_zone_axis.config(state=NORMAL)
+        self.lb_col.config(text=f'The stage is tilted by {movement[0]:.2f} degree, {movement[1]:.2f} degree. Now the stage angle is {alpha_target:.2f} degree, {beta_target:.2f} degree')
 
     def unset_zone_axis(self):
-        pass
+        '''Return to the original position'''
+        self.ctrl.stage.eliminate_backlash_a(self.stage_bak.a, step=1)
+        self.ctrl.stage.a = self.stage_bak.a
+        self.ctrl.stage.eliminate_backlash_b(self.stage_bak.b, step=1)
+        self.ctrl.stage.b = self.stage_bak.b
+
+        self.b_set_zone_axis.config(state=NORMAL)
+        self.b_unset_zone_axis.config(state=DISABLED)
+        self.lb_col.config(text=f'The stage tilt restored to {self.stage_bak.a:.2f} degree, {self.stage_bak.b:.2f} degree')
 
 
 module = BaseModule(name='ZoneAxis', display_name='ZoneAxis', tk_frame=ExperimentalZoneAxis, location='bottom')

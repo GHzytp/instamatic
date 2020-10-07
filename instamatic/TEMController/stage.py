@@ -307,7 +307,7 @@ class Stage:
         self.set_xy_with_backlash_correction(x=stage.x, y=stage.y, step=step, settle_delay=settle_delay)
 
     def eliminate_backlash_a(self, target_angle: float = 0.0, step: float = 1.0, n_steps: int = 3, settle_delay: float = 0.200) -> None:
-        """Eliminate backlash by relaxing the position. The routine will move
+        """Eliminate backlash of alpha by relaxing the position. The routine will move
         in opposite direction of the targeted angle by `n_steps`*`step`, and
         walk up to the current tilt angle in `n_steps`. Based on Suloway et
         al., J. Struct. Biol. (2009), doi: 10.1016/j.jsb.2009.03.019.
@@ -334,4 +334,34 @@ class Stage:
 
         for i in reversed(range(n_steps)):
             self.a = current - s * i * step
+            time.sleep(settle_delay)
+
+    def eliminate_backlash_b(self, target_angle: float = 0.0, step: float = 1.0, n_steps: int = 3, settle_delay: float = 0.200) -> None:
+        """Eliminate backlash of beta by relaxing the position. The routine will move
+        in opposite direction of the targeted angle by `n_steps`*`step`, and
+        walk up to the current tilt angle in `n_steps`. Based on Suloway et
+        al., J. Struct. Biol. (2009), doi: 10.1016/j.jsb.2009.03.019.
+
+        target_angle: float,
+            target angle for the rotation in degrees
+        step: float,
+            stepsize in degrees
+        n_steps: int > 0,
+            number of steps to walk up to current angle
+        settle_delay: float,
+            delay between movements in seconds to allow the stage to settle
+        """
+        current = self.b
+
+        if target_angle > current:
+            s = +1
+        elif target_angle < current:
+            s = -1
+        else:
+            return
+
+        n_steps += 1
+
+        for i in reversed(range(n_steps)):
+            self.b = current - s * i * step
             time.sleep(settle_delay)
