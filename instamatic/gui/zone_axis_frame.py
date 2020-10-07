@@ -289,7 +289,7 @@ class ExperimentalZoneAxis(LabelFrame):
         y_laue = self.var_laue_circle_y.get()
         x_cent = self.var_center_x.get()
         y_cent = self.var_center_y.get()
-        movement = pixelsize * np.array([x_cent - x_laue, y_cent - y_laue]) # unit: rad
+        movement = pixelsize * np.array([x_cent - x_laue, y_cent - y_laue]) * 180 / np.pi # unit: degree
         beamtilt_target = self.beamtilt_bak + movement
 
         self.ctrl.beamtilt.xy = self.beamtilt_bak + movement

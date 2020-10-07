@@ -1322,13 +1322,13 @@ class FEIMicroscope:
     def setRotationCenter(self, x=None, y=None):
         """Corresponds to the alignment beam tilt value. Units are degree, range is ± 0.2-0.3rad. 
            Do not confuse RotationCenter with dark field (Tilt). Be aware that this is an alignment function."""
-        try:
-            if abs(x) > 0.3 or abs(y) > 0.3:
-                raise FEIValueError('Invalid rotation center setting: can only be float numbers between -0.3 and 0.3.')
-        except TypeError:
-            pass
 
         if USETOM:
+            try:
+                if abs(x) > 3.438 or abs(y) > 3.438:
+                    raise FEIValueError('Invalid rotation center setting: can only be float numbers between -3.438 and 3.438.')
+            except TypeError:
+                pass
             bt = self.illu_tom.BeamAlignmentTilt
             if x is not None:
                 bt.X = x * pi / 36
@@ -1336,6 +1336,11 @@ class FEIMicroscope:
                 bt.Y = y * pi / 36
             self.illu_tom.BeamAlignmentTilt = bt
         else:
+            try:
+                if abs(x) > 17.189 or abs(y) > 17.189:
+                    raise FEIValueError('Invalid rotation center setting: can only be float numbers between -17.189 and 17.189.')
+            except TypeError:
+                pass
             bt = self.illu_tem.RotationCenter
             if x is not None:
                 bt.X = x * pi / 180
