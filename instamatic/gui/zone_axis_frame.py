@@ -22,7 +22,6 @@ class ImageGrabber:
     The callback function is used to send the frame back to the parent routine.
     """
     def __init__(self, ctrl, exposure, callback):
-        super().__init__()
         self.ctrl = ctrl
         self.exposure = exposure
         self.callback = callback
@@ -114,6 +113,8 @@ class ExperimentalZoneAxis(LabelFrame):
         self.wavelength = relativistic_wavelength(self.ctrl.high_tension) # unit: Angstrom
         self.beamtilt_bak = self.ctrl.beamtilt.xy
         self.stage_bak = self.ctrl.stage.get()
+
+        self._drag_data = {"x": 0, "y": 0}
 
         self.init_vars()
 
@@ -266,9 +267,55 @@ class ExperimentalZoneAxis(LabelFrame):
 
         self.after(self.frame_delay, self.start_stream)
 
+    def _on_mousewheel(self, event):
+        """Begining drag of an object"""
+        # record the item and its location
+        r = self.var_laue_circle_r.get()
+        self.var_laue_circle_r.set(r + 10 * (event.delta / 120))
+        x = self.var_laue_circle_x.get() * self.ratio
+        y = self.var_laue_circle_y.get() * self.ratio
+        r = self.var_laue_circle_r.get() * self.ratio
+        self.canvas.coords(self.arc, x - r, y - r, x + r, y + r)
+
+    def _mouse_move_start(self, event):
+        self._drag_data["x"] = event.x
+        self._drag_data["y"] = event.y
+
+    def _mouse_move_end(self, event):
+        """End drag of an object"""
+        # reset the drag information
+        self._drag_data["x"] = 0
+        self._drag_data["y"] = 0
+
+    def _mouse_move(self, event):
+        """Handle dragging of an object"""
+        # compute how much the mouse has moved
+        delta_x = event.x - self._drag_data["x"]
+        delta_y = event.y - self._drag_data["y"]
+
+        # move the object the appropriate amount
+        x = self.var_laue_circle_x.get()
+        y = self.var_laue_circle_y.get()
+        r = self.var_laue_circle_r.get()
+        self.var_laue_circle_x.set(x + delta_x)
+        self.var_laue_circle_y.set(y + delta_y)
+        x = self.var_laue_circle_x.get() * self.ratio
+        y = self.var_laue_circle_y.get() * self.ratio
+        r = self.var_laue_circle_r.get() * self.ratio
+        self.canvas.coords(self.arc, x - r, y - r, x + r, y + r)
+        # record the new position
+        self._drag_data["x"] = event.x
+        self._drag_data["y"] = event.y
+
+
     def start_find_laue_circle(self):
         self.update_image = True
         self.start_stream()
+
+        self.canvas.bind('<MouseWheel>', self._on_mousewheel)
+        self.canvas.bind('<ButtonPress-1>', self._mouse_move_start)
+        self.canvas.bind('<ButtonRelease-1>', self._mouse_move_end)
+        self.canvas.bind("<B1-Motion>", self._mouse_move)
 
         self.b_start_laue_circle.config(state=DISABLED)
         self.b_pause_stream.config(state=NORMAL)
@@ -285,6 +332,11 @@ class ExperimentalZoneAxis(LabelFrame):
 
     def stop_find_laue_circle(self):
         self.stopEvent.set()
+
+        self.canvas.unbind('<MouseWheel>')
+        self.canvas.unbind('<ButtonPress-1>')
+        self.canvas.unbind('<ButtonRelease-1>')
+        self.canvas.unbind("<B1-Motion>")
 
         self.b_start_laue_circle.config(state=NORMAL)
         self.b_pause_stream.config(state=DISABLED)

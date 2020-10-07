@@ -6,6 +6,7 @@ import threading
 import traceback
 from tkinter import *
 from tkinter.ttk import *
+from tkinter import messagebox
 
 import instamatic
 from .modules import JOBS
@@ -157,12 +158,13 @@ class MainFrame:
         self.root.bind('<Escape>', self.close)
 
     def close(self):
-        try:
-            self.stream_frame.close()
-            self.app.close()
-        except AttributeError:
-            pass
-        sys.exit()
+        if messagebox.askokcancel("Quit", "Do you really wish to quit?"):
+            try:
+                self.stream_frame.close()
+                self.app.close()
+            except AttributeError:
+                pass
+            sys.exit()
 
 
 def start_gui(ctrl, log=None):
