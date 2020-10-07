@@ -100,8 +100,6 @@ class VideoStream:
     """Handle the continuous stream of incoming data from the ImageGrabber."""
 
     def __init__(self, cam='simulate'):
-        threading.Thread.__init__(self)
-
         if isinstance(cam, str):
             self.cam = Camera(name=cam)
         else:

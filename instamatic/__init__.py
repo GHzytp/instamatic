@@ -9,11 +9,11 @@ __banner__ = r"""
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 """
 
-__version__ = '1.6.0'
+__version__ = '2.0.0a1'
 __title__ = 'instamatic'
 __long_title__ = f'{__title__} v{__version__}'
-__author__ = 'Stef Smeets'
-__author_email__ = 's.smeets@tudelft.nl'
+__authors__ = 'Taimin Yang, Stef Smeets, Bin Wang'
+__author_email__ = 'taiminyang@gmail.com, mail@stefsmeets.nl, alexwang911217@gmail.com'
 __description__ = 'Python program for automated serial electron diffraction data collection'
 __license__ = 'GPLv3'
 __url__ = 'http://github.com/stefsmeets/instamatic'

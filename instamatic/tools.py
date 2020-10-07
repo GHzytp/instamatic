@@ -125,6 +125,24 @@ def find_beam_center(img: np.ndarray, sigma: int = 30, m: int = 100, kind: int =
     center = np.array([cx, cy])
     return center
 
+def find_beam_center_thresh(img: np.ndarray, sigma: int = 30, thresh: int = 7000, m: int = 100, kind: int = 3) -> (float, float):
+    """Find the center of the primary beam in the image `img` The position is
+    determined by summing along X/Y directions and finding the position along
+    the two directions independently.
+
+    Uses interpolation by factor `m` to find the coordinates of the
+    pimary beam with subpixel accuracy.
+    """
+    img_thresh = img.astype(np.uint)
+    img_thresh[img_thresh < thresh] = 0
+    xx = np.sum(img_thresh, axis=1)
+    yy = np.sum(img_thresh, axis=0)
+
+    cx = find_peak_max(xx, sigma, m=m, kind=kind)
+    cy = find_peak_max(yy, sigma, m=m, kind=kind)
+
+    center = np.array([cx, cy])
+    return center
 
 def find_beam_center_with_beamstop(img, z: int = None, method='thresh', plot=False) -> (float, float):
     """Find the beam center when a beam stop is present.

@@ -2,6 +2,7 @@ import threading
 from tkinter import *
 from tkinter.ttk import *
 import tkinter
+import numpy as np
 
 from .base_module import BaseModule
 from instamatic import config
@@ -37,14 +38,14 @@ class ExperimentalCtrl(LabelFrame):
         b_alpha_angle_get.grid(row=1, column=3, sticky='W')
 
         b_find_eucentric_height = Button(frame, text='Eucentric', command=self.find_eucentric_height)
-        b_find_eucentric_height.grid(row=1, column=4, sticky='EW', columnspan=1)
+        b_find_eucentric_height.grid(row=1, column=4, sticky='W')
 
         if self.ctrl.tem.interface != "fei":
             b_stage_stop = Button(frame, text='Stop stage', command=self.stage_stop)
-            b_stage_stop.grid(row=1, column=5, sticky='W')
+            b_stage_stop.grid(row=1, column=6, sticky='W')
 
         cb_nowait = Checkbutton(frame, text='Wait for stage', variable=self.var_stage_wait)
-        cb_nowait.grid(row=1, column=6, sticky='W')
+        cb_nowait.grid(row=1, column=5, sticky='W')
 
         e_alpha_wobbler = Spinbox(frame, width=10, textvariable=self.var_alpha_wobbler, from_=-90, to=90, increment=1)
         e_alpha_wobbler.grid(row=2, column=1, sticky='EW')
@@ -53,13 +54,13 @@ class ExperimentalCtrl(LabelFrame):
         self.b_stop_wobble = Button(frame, text='Stop', command=self.stop_alpha_wobbler, state=DISABLED)
         self.b_stop_wobble.grid(row=2, column=3, sticky='W')
 
-        Label(frame, text='Select TEM Mode:').grid(row=2, column=4, columnspan=2, sticky='E')
+        Label(frame, text='Select Mode:').grid(row=2, column=4, sticky='E')
         
         if self.ctrl.tem.interface == "fei":
             self.o_mode = OptionMenu(frame, self.var_mode, self.mode, 'LM', 'Mi', 'SA', 'Mh', 'LAD', 'D', command=self.set_mode)
         else:
             self.o_mode = OptionMenu(frame, self.var_mode, self.mode, 'diff', 'mag1', 'mag2', 'lowmag', 'samag', command=self.set_mode)
-        self.o_mode.grid(row=2, column=6, sticky='E', padx=10)
+        self.o_mode.grid(row=2, column=5, sticky='E', padx=10)
 
         e_stage_x = Entry(frame, width=10, textvariable=self.var_stage_x)
         e_stage_x.grid(row=3, column=1, sticky='EW')
@@ -96,6 +97,12 @@ class ExperimentalCtrl(LabelFrame):
         b_magnification_set.grid(row=5, column=2, sticky='W')
         b_magnification = Button(frame, text='Get', command=self.get_magnification)
         b_magnification.grid(row=5, column=3, sticky='W')
+
+        if self.ctrl.tem.interface == "fei":
+            self.l_stage_speed = Label(frame, text='Stage Speed')
+            self.l_stage_speed.grid(row=5, column=4, sticky='E')
+            self.e_stage_speed = Spinbox(frame, width=10, textvariable=self.var_stage_speed, from_=0.01, to=1, increment=0.01, command=self.set_stage_speed)
+            self.e_stage_speed.grid(row=5, column=5, sticky='W')
 
         frame.pack(side='top', fill='x', padx=10, pady=10)
         frame = Frame(self)
@@ -342,6 +349,7 @@ class ExperimentalCtrl(LabelFrame):
         self.var_goniotool_tx = IntVar(value=1)
 
         self.var_magnification = IntVar(value=1)
+        self.var_stage_speed = DoubleVar(value=1)
 
         if self.ctrl.tem.interface == 'fei':
             self.var_brightness = DoubleVar(value=self.ctrl.brightness.value)
@@ -616,10 +624,27 @@ class ExperimentalCtrl(LabelFrame):
         self.var_alpha_angle.set(self.ctrl.stage.a)
 
     def set_alpha_angle(self):
-        self.q.put(('ctrl', {'task': 'stage.set',
-                             'a': self.var_alpha_angle.get(),
-                             'wait': self.var_stage_wait.get()}))
+        if self.ctrl.tem.interface == "fei":
+            self.q.put(('ctrl', {'task': 'stage.set_with_speed',
+                                 'a': self.var_alpha_angle.get(),
+                                 'wait': self.var_stage_wait.get(),
+                                 'speed': self.var_stage_speed.get()}))
+        else:
+            self.q.put(('ctrl', {'task': 'stage.set',
+                                 'a': self.var_alpha_angle.get(),
+                                 'wait': self.var_stage_wait.get()}))
         self.triggerEvent.set()
+
+    def set_stage_speed(self):
+        speed_allowed = [0.01, 0.02, 0.03, 0.04, 0.05, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.00]
+        speed = self.var_stage_speed.get()
+        idx = np.searchsorted(speed_allowed, speed)
+        idx = np.clip(idx, 1, len(speed_allowed)-1)
+        left = speed_allowed[idx-1]
+        right = speed_allowed[idx]
+        idx -= speed - left < right - speed
+        self.var_stage_speed.set(speed_allowed[idx])
+
 
     def set_goniotool_tx(self, event=None, value=None):
         if not value:
@@ -640,11 +665,19 @@ class ExperimentalCtrl(LabelFrame):
 
 
     def set_stage(self):
-        self.q.put(('ctrl', {'task': 'stage.set',
-                             'x': self.var_stage_x.get(),
-                             'y': self.var_stage_y.get(),
-                             'z': self.var_stage_z.get(),
-                             'wait': self.var_stage_wait.get()}))
+        if self.ctrl.tem.interface == "fei":
+            self.q.put(('ctrl', {'task': 'stage.set_with_speed',
+                                 'x': self.var_stage_x.get(),
+                                 'y': self.var_stage_y.get(),
+                                 'z': self.var_stage_z.get(),
+                                 'wait': self.var_stage_wait.get(),
+                                 'speed': self.var_stage_speed.get()}))
+        else:
+            self.q.put(('ctrl', {'task': 'stage.set',
+                                 'x': self.var_stage_x.get(),
+                                 'y': self.var_stage_y.get(),
+                                 'z': self.var_stage_z.get(),
+                                 'wait': self.var_stage_wait.get()}))
         self.triggerEvent.set()
 
     def get_stage(self, event=None):

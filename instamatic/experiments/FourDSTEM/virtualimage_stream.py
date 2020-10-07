@@ -56,8 +56,6 @@ class VideoStream:
     """Handle the continuous stream of incoming data from the ImageGrabber."""
 
     def __init__(self):
-        threading.Thread.__init__(self)
-
         self.frame = np.zeros((4, 4))
 
         self.grabber = self.setup_grabber()

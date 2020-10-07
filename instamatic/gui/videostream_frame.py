@@ -30,7 +30,7 @@ class VideoStreamFrame(LabelFrame):
 
         if self.stream.cam.interface=="DM":
             self.image_stream = get_instance().image_stream
-            self.frame_delay = int(self.stream.frametime / 2 *1000)
+            self.frame_delay = int(self.stream.frametime / 2 * 1000)
             self.frametime = self.stream.frametime / 2
         else:
             self.frame_delay = 50

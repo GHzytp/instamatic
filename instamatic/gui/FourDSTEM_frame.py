@@ -37,7 +37,7 @@ class ExperimentalFourDSTEM(LabelFrame):
             self.cam_x = min(self.cam_x, self.cam_y)
 
         self.panel = None
-        self.frame_delay = 500
+        self.frame_delay = 600
         self.virtualimage_stream = virtualimage_stream.VideoStream()
 
         self.init_vars()
@@ -245,7 +245,7 @@ class ExperimentalFourDSTEM(LabelFrame):
 
     def start_virtual_img(self, event=None):
         #self.virtual_img = virtual_img = FourDSTEM.VIRTUALIMGBUF.get() # obtain data from the buffer
-        self.virtual_img = virtual_img = self.virtualimage_stream.frame
+        virtual_img = self.virtualimage_stream.frame
         # the display range in ImageTk is from 0 to 256
         tmp = virtual_img - np.min(virtual_img)
         virtual_img = tmp * (256.0 / (1 + np.percentile(tmp, 99.5)))  # use 128x128 array for faster calculation
@@ -395,6 +395,7 @@ def acquire_FourDSTEM(controller, **kwargs):
         controller.exp.start_acquire()
     elif task == 'stop':
         controller.exp.stop_acquire()
+        del controller.exp
 
 def preview_FourDSTEM(controller, **kwargs):
     task = kwargs.pop('task')
@@ -406,6 +407,7 @@ def preview_FourDSTEM(controller, **kwargs):
         controller.exp.start_preview()
     elif task == 'stop':
         controller.exp.stop_preview()
+        del controller.exp
 
 def acquire_raw_img(controller, **kwargs):
     controller.log.info('Acquire 4DSTEM raw images')
@@ -420,6 +422,7 @@ def acquire_raw_img(controller, **kwargs):
         controller.exp.start_acq_raw_img()
     elif task == 'stop':
         controller.exp.stop_acq_raw_img()
+        del controller.exp
 
 def acquire_one_virtual_img(controller, **kwargs):
     controller.log.info('Acquire 4DSTEM one virtual image')
