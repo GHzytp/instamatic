@@ -9,6 +9,7 @@ from tkinter.ttk import *
 from tkinter import messagebox
 
 import instamatic
+from instamatic import config
 from .modules import JOBS
 from .modules import MODULES
 from instamatic.formats import *
@@ -156,6 +157,7 @@ class MainFrame:
         self.root.wm_protocol('WM_DELETE_WINDOW', self.close)
 
         self.root.bind('<Escape>', self.close)
+        self.root.bind('<FocusOut>', self.focus_out)
 
     def close(self):
         if messagebox.askokcancel("Quit", "Do you really wish to quit?"):
@@ -165,6 +167,12 @@ class MainFrame:
             except AttributeError:
                 pass
             sys.exit()
+
+    def focus_out(self, event):
+        if config.camera.interface == 'DM':
+            if event.widget == self.root:
+                messagebox.showinfo("Reminder", 
+                    f"Don't use digital micrograph to collect images when {instamatic.__long_title__} is running.")
 
 
 def start_gui(ctrl, log=None):

@@ -95,7 +95,9 @@ class AboutFrame(LabelFrame):
 
         Label(frame, text='').grid(row=0, column=0, sticky='W')
         Label(frame, text='Contact:').grid(row=1, column=0, sticky='W', padx=10)
-        Label(frame, text='Stef Smeets (stef.smeets@tudelft.nl)').grid(row=1, column=1, sticky='W')
+        Label(frame, text='Taimin Yang (taiminyang@gmail.com)').grid(row=1, column=1, sticky='W')
+        Label(frame, text='Stef Smeets (mail@stefsmeets.nl)').grid(row=2, column=1, sticky='W')
+        Label(frame, text='Bin Wang (alexwang911217@gmail.com)').grid(row=3, column=1, sticky='W')
         Label(frame, text='').grid(row=5, column=0, sticky='W')
 
         Label(frame, text='Source code:').grid(row=10, column=0, sticky='W', padx=10)

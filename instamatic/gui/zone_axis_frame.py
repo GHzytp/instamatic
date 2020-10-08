@@ -346,6 +346,7 @@ class ExperimentalZoneAxis(LabelFrame):
     def trial_beam_tilt(self):
         # Need beam tilt calibration: check when adding the beam tilt, how the cent spot of diff pattern will move.
         camera_length = int(self.ctrl.magnification.value)
+        # 2dsin(theta)=lambda => theta = lambda / 2 * (1 / d)
         pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][camera_length] * self.wavelength / 2 # rad/pix
         self.beamtilt_bak = self.ctrl.beamtilt.xy
 
