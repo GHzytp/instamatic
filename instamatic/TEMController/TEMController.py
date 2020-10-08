@@ -668,8 +668,8 @@ class TEMController:
             Path or filename to which the image/header is saved (defaults to tiff)
         plot: bool
             Toggle whether to show the image using matplotlib after acquisition
-        full_header: bool
-            Return the full header
+        header_keys: Tuple[str]
+            Default will not query the microscope information using to_dict because it has a lot of overheads
 
         Returns
         -------

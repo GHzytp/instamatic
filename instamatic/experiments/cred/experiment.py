@@ -106,6 +106,7 @@ class Experiment:
                  footfree_rotate_to: float = 60.0,
                  enable_image_interval: bool = False,
                  image_interval: int = 99999,
+                 low_angle_image_interval: int = 99999,
                  diff_defocus: int = 0,
                  start_frames: int = 5,
                  start_frames_interval: int = 2,
@@ -150,9 +151,12 @@ class Experiment:
         if enable_image_interval:
             self.image_interval = image_interval
             print_and_log(f'Image interval enabled: every {self.image_interval} frames an image with defocus {self.diff_defocus} will be displayed (t={self.exposure_image} s).', logger=self.logger)
+            self.low_angle_image_interval = low_angle_image_interval
+            print_and_log(f'Image interval enabled: every {self.low_angle_image_interval} frames an image at low angle (lower than {self.defocus_start_angle}) with defocus {self.diff_defocus} will be displayed (t={self.exposure_image} s).', logger=self.logger)
         else:
             self.image_interval = 99999
-
+            self.low_angle_image_interval = 99999
+        
         self.relax_beam_before_experiment = self.image_interval_enabled and config.settings.cred_relax_beam_before_experiment
 
         self.track_stage_position = config.settings.cred_track_stage_positions
@@ -346,7 +350,8 @@ class Experiment:
 
         while not self.stopEvent.is_set():
             if self.image_interval_enabled and ((i < self.start_frames and i % self.start_frames_interval == 0 ) or 
-            (i % self.image_interval == 0 and np.abs(self.current_angle) > np.abs(self.defocus_start_angle))):
+            (i % self.image_interval == 0 and np.abs(self.current_angle) > np.abs(self.defocus_start_angle)) or 
+            (i % self.low_angle_image_interval == 0 and np.abs(self.current_angle) <= np.abs(self.defocus_start_angle))):
                 t_start = time.perf_counter()
                 acquisition_time = (t_start - t0) / (i - 1)
 
