@@ -970,6 +970,12 @@ class FEIMicroscope:
         """user diff shift, encoded in a different way than system status on TEM USER INTERFACE: 
            180/pi*number = number on TEM USER INTERFACE. Not exactly though, close enough
            The diffraction pattern shift with respect to the origin that is defined by alignment. Units: degree."""
+
+        try:
+            if abs(x) > 28.648 or abs(y) > 28.648:
+                raise FEIValueError('Invalid rotation center setting: can only be float numbers between -28.648 and 28.648.')
+        except TypeError:
+            pass
         ds1 = self.proj_tem.DiffractionShift
 
         if x is not None:

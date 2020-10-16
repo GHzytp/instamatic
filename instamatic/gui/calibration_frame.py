@@ -117,7 +117,7 @@ class CalibrationFrame(LabelFrame):
         self.DiffShiftCalibButton = Button(frame, text='Start DiffShift Calib', command=self.start_diffshift_calib, state=NORMAL)
         self.DiffShiftCalibButton.grid(row=1, column=1, sticky='EW', padx=5)
         self.StageCalibButton = Button(frame, text='Start Stage Calib', command=self.start_stage_calib, state=NORMAL)
-        self.StageCalibButton.grid(row=1, column=1, sticky='EW', padx=5)
+        self.StageCalibButton.grid(row=1, column=2, sticky='EW', padx=5)
 
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_columnconfigure(1, weight=1)

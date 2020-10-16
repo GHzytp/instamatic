@@ -2,6 +2,7 @@ import numpy as np
 import time
 import threading
 import atexit
+import pickle
 from tkinter import *
 from tkinter.ttk import *
 
@@ -112,9 +113,12 @@ class ExperimentalZoneAxis(LabelFrame):
         self.update_image = True
         self.wavelength = relativistic_wavelength(self.ctrl.high_tension) # unit: Angstrom
         self.beamtilt_bak = self.ctrl.beamtilt.xy
+        self.diffshift_bak = self.ctrl.diffshift.xy
         self.stage_bak = self.ctrl.stage.get()
 
         self._drag_data = {"x": 0, "y": 0}
+
+        self.obtain_calibrations()
 
         self.init_vars()
 
@@ -343,28 +347,48 @@ class ExperimentalZoneAxis(LabelFrame):
         self.b_stop_laue_circle.config(state=DISABLED)
         self.lb_col.config(text='Stop finding laue circle.')
 
+    def obtain_calibrations(self):
+        try:
+            with open(config.locations['base'] / 'calibration/BeamTiltCalib/calib_beamtilt.pickle', 'rb') as f:
+                self.transform_r_beamtilt, self.transform_t_beamtilt, _, _ = pickle.load(f)
+        except:
+            self.transform_r_beamtilt = np.array([[1, 0], [0, 1]])
+            self.transform_t_beamtilt = np.array([0, 0])
+
+        try:
+            with open(config.locations['base'] / 'calibration/DiffShiftCalib/calib_diffshift.pickle', 'rb') as f:
+                self.transform_r_diffshift, self.transform_t_diffshift, _, _ = pickle.load(f)
+        except:
+            self.transform_r_diffshift = np.array([[1, 0], [0, 1]])
+            self.transform_t_diffshift = np.array([0, 0])
+
     def trial_beam_tilt(self):
         # Need beam tilt calibration: check when adding the beam tilt, how the cent spot of diff pattern will move.
+        self.obtain_calibrations()
+        
         camera_length = int(self.ctrl.magnification.value)
         # 2dsin(theta)=lambda => theta = lambda / 2 * (1 / d)
-        pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][camera_length] * self.wavelength / 2 # rad/pix
+        pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][camera_length] * self.binsize * self.wavelength / 2 # rad/pix
         self.beamtilt_bak = self.ctrl.beamtilt.xy
 
-        x_laue = self.var_laue_circle_x.get()
-        y_laue = self.var_laue_circle_y.get()
-        x_cent = self.var_center_x.get()
-        y_cent = self.var_center_y.get()
-        movement = pixelsize * np.array([x_laue - x_cent, y_laue - y_cent]) * 180 / np.pi # unit: degree
-        beamtilt_target = self.beamtilt_bak + movement
-
+        pixelcoord = np.array([self.var_laue_circle_x.get(), self.var_laue_circle_y.get()])
+        reference_pixel = np.array([self.var_center_x.get(), self.var_center_y.get()])
+        beamtilt_target = pixelsize * 180 / np.pi * pixelcoord_to_movement(pixelcoord=pixelcoord, transform_r=self.transform_r_beamtilt, 
+            transform_t=self.transform_t_beamtilt, reference_movement=self.beamtilt_bak, reference_pixel=reference_pixel)
         self.ctrl.beamtilt.xy = beamtilt_target
+
+        self.diffshift_bak = self.ctrl.diffshift.xy
+        diffshift_target = pixelsize * 180 / np.pi * pixelcoord_to_movement(pixelcoord=-pixelcoord, transform_r=self.transform_r_diffshift, 
+            transform_t=self.transform_t_diffshift, reference_movement=self.diffshift_bak, reference_pixel=reference_pixel)
+        self.ctrl.diffshift.xy = diffshift_target
 
         self.b_trial_beam_tilt.config(state=DISABLED)
         self.b_stop_trial_beam_tilt.config(state=NORMAL)
-        self.lb_col.config(text=f'The beam is tilted by {movement[0]*np.pi/180:.5f}, {movement[1]*np.pi/180:.5f}. Now the beam tilt is {beamtilt_target[0]*np.pi/180:.5f}, {beamtilt_target[1]*np.pi/180:.5f}')
+        self.lb_col.config(text=f'Now the beam tilt is {beamtilt_target[0]*np.pi/180:.5f}, {beamtilt_target[1]*np.pi/180:.5f}. The diffshift is {diffshift_target[0]*np.pi/180:.5f}, {diffshift_target[1]*np.pi/180:.5f}.')
 
     def stop_trial_beam_tilt(self):
         self.ctrl.beamtilt.xy = self.beamtilt_bak
+        self.ctrl.diffshift.xy = self.diffshift_bak
 
         self.b_trial_beam_tilt.config(state=NORMAL)
         self.b_stop_trial_beam_tilt.config(state=DISABLED)
@@ -376,11 +400,12 @@ class ExperimentalZoneAxis(LabelFrame):
         pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][camera_length] * self.wavelength / 2 # rad/pix
         self.stage_bak = self.ctrl.stage.get()
 
+        # TODO: how to find out the transform matrix for the stage rotation?
         x_laue = self.var_laue_circle_x.get()
         y_laue = self.var_laue_circle_y.get()
         x_cent = self.var_center_x.get()
         y_cent = self.var_center_y.get()
-        movement = pixelsize * np.array([x_laue - x_cent, y_laue - y_cent]) * 180 / np.pi # unit: degree
+        movement = pixelsize * 180 / np.pi * np.array([x_laue - x_cent, y_laue - y_cent])  # unit: degree
         alpha_target = self.stage_bak.a + movement[0]
         beta_target = self.stage_bak.b + movement[1]
 
