@@ -10,6 +10,7 @@ from PIL import ImageEnhance
 from PIL import ImageTk
 
 from .base_module import BaseModule
+from instamatic import config
 from instamatic.formats import read_tiff
 from instamatic.formats import write_tiff
 from instamatic.processing.flatfield import apply_flatfield_correction
@@ -27,9 +28,12 @@ class VideoStreamFrame(LabelFrame):
 
         self.stream = stream
         self.app = app
+        self.binsize = self.stream.default_binsize
+        self.resolution = self.stream.dimension
+        self.ctrl = get_instance()
 
         if self.stream.cam.interface=="DM":
-            self.image_stream = get_instance().image_stream
+            self.image_stream = self.ctrl.image_stream
             self.frame_delay = int(self.stream.frametime / 2 * 1000)
             self.frametime = self.stream.frametime / 2
         else:
@@ -45,7 +49,7 @@ class VideoStreamFrame(LabelFrame):
         self.auto_contrast = True
 
         self.resize_image = False
-        self.frame = np.zeros(self.stream.dimension)
+        self.frame = np.zeros(self.resolution)
 
         self.last = time.perf_counter()
         self.nframes = 1
@@ -61,7 +65,7 @@ class VideoStreamFrame(LabelFrame):
         self.init_vars()
         self.buttonbox(self)
         self.header(self)
-        self.makepanel(self)
+        self.makepanel(self, resolution=self.resolution)
 
         try:
             self.parent.wm_title('Video stream')
@@ -76,7 +80,6 @@ class VideoStreamFrame(LabelFrame):
     def init_vars(self):
         self.var_fps = DoubleVar()
         self.var_interval = DoubleVar()
-        # self.var_overhead = DoubleVar()
 
         self.var_frametime = DoubleVar()
         self.var_frametime.set(self.frametime)
@@ -93,6 +96,10 @@ class VideoStreamFrame(LabelFrame):
 
         self.var_auto_contrast = BooleanVar(value=self.auto_contrast)
         self.var_auto_contrast.trace_add('write', self.update_auto_contrast)
+
+        self.var_show_center = BooleanVar(value=True)
+        self.var_show_res = BooleanVar(value=True)
+        self.var_resolution = DoubleVar(value=0)
 
     def buttonbox(self, master):
         if self.stream.cam.interface=="DM":
@@ -124,14 +131,11 @@ class VideoStreamFrame(LabelFrame):
 
         self.e_fps = Entry(frame, width=lwidth, textvariable=self.var_fps, state=DISABLED)
         self.e_interval = Entry(frame, width=lwidth, textvariable=self.var_interval, state=DISABLED)
-        # self.e_overhead    = Entry(frame, bd=0, width=ewidth, textvariable=self.var_overhead, state=DISABLED)
 
         Label(frame, width=lwidth, text='fps:').grid(row=1, column=0)
         self.e_fps.grid(row=1, column=1, sticky='we')
         Label(frame, width=lwidth, text='interval (ms):').grid(row=1, column=2)
         self.e_interval.grid(row=1, column=3, sticky='we')
-        # Label(frame, width=lwidth, text="overhead (ms):").grid(row=1, column=4)
-        # self.e_overhead.grid(row=1, column=5)
 
         frame.pack()
 
@@ -153,14 +157,57 @@ class VideoStreamFrame(LabelFrame):
 
         frame.pack()
 
+        frame = Frame(master)
+
+        Checkbutton(frame, width=15, text='Show Center', variable=self.var_show_center, command=self.show_center).grid(row=1, column=0, sticky='we')
+        Checkbutton(frame, width=15, text='Show Resolution', variable=self.var_show_res, command=self.show_res).grid(row=1, column=1, sticky='we', padx=5)
+        self.l_resolution = Label(frame, width=15, text='')
+        self.l_resolution.grid(row=1, column=2)
+        self.e_resolution = Spinbox(frame, width=ewidth, textvariable=self.var_resolution, from_=0.0, to=10.0, increment=0.1)
+        self.e_resolution.grid(row=1, column=3, padx=5)
+        self.check_tem_state()
+        Button(frame, width=ewidth, text='Check', command=self.check_tem_state).grid(row=1, column=4)
+
+        frame.pack()
+
     def makepanel(self, master, resolution=(512, 512)):
         if self.panel is None:
             image = Image.fromarray(np.zeros(resolution))
             image = ImageTk.PhotoImage(image)
+            self.image = image
 
-            self.panel = Label(master, image=image)
-            self.panel.image = image
+            #self.panel = Label(master, image=image)
+            #self.panel.image = image
+            self.panel = Canvas(master, width=resolution[1], height=resolution[0])
+            self.image_on_panel = self.panel.create_image(0, 0, anchor=NW, image=image)
+            self.center_panel = self.panel.create_oval(resolution[0]/2-5, resolution[0]/2-5, resolution[1]/2+5, resolution[1]/2+5, width=5, outline='green')
+            self.res_shell_panel = self.panel.create_oval(0, 0, resolution[0], resolution[1], outline='red')
             self.panel.pack(side='left', padx=10, pady=10)
+
+    def show_center(self):
+        if self.var_show_center.get():
+            self.panel.itemconfigure(self.center_panel, state='normal')
+        else:
+            self.panel.itemconfigure(self.center_panel, state='hidden')
+
+    def show_res(self):
+        if self.var_show_res.get():
+            self.panel.itemconfigure(self.res_shell_panel, state='normal')
+        else:
+            self.panel.itemconfigure(self.res_shell_panel, state='hidden')
+
+    def check_tem_state(self):
+        mode = self.ctrl.mode.state
+        if mode in ('D', 'LAD', 'diff'):
+            self.l_resolution.config(text='Resolution (A)')
+            camera_length = self.ctrl.magnification.get()
+            pixelsize = config.calibration[mode]['pixelsize'][camera_length] * self.binsize
+            self.var_resolution.set(pixelsize * self.resolution[0] / 2)
+        else:
+            self.l_resolution.config(text='Resolution (nm)')
+            mag = self.ctrl.magnification.get()
+            pixelsize = config.calibration[mode]['pixelsize'][mag] * self.binsize
+            self.var_resolution.set(pixelsize * self.resolution[0] / 2)
 
     def pause_stream(self):
         self.image_stream.pause_streaming()
@@ -255,9 +302,10 @@ class VideoStreamFrame(LabelFrame):
 
         image = ImageTk.PhotoImage(image=image)
 
-        self.panel.configure(image=image)
+        #self.panel.configure(image=image)
+        self.panel.itemconfig(self.image_on_panel, image=image)
         # keep a reference to avoid premature garbage collection
-        self.panel.image = image
+        self.image = image
 
         self.update_frametimes()
         # self.parent.update_idletasks()
@@ -274,11 +322,9 @@ class VideoStreamFrame(LabelFrame):
             interval = (interval * 0.5) + (self.last_interval * 0.5)
 
             fps = 1.0 / interval
-            # overhead = interval - self.stream.frametime
 
             self.var_fps.set(round(fps, 2))
             self.var_interval.set(round(interval * 1000, 2))
-            # self.var_overhead.set(round(overhead*1000, 2))
             self.last = self.current
             self.nframes = 1
 
