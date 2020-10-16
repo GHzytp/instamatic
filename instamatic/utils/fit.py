@@ -120,13 +120,32 @@ def movement_to_pixelcoord(movement, transform_r, transform_t, reference_movemen
     pixelcoord : Nx2 array
         The pixel coordinate of the image
     """
-    r_i = np.linalg.inv(transform)
-    pixelcoord = np.dot(reference_movement - movement, r_i) + reference_pixel
+    r_i = np.linalg.inv(transform_r)
+    pixelcoord = np.dot(movement - reference_movement - transform_t, r_i) + reference_pixel
     return pixelcoord
 
 
-def pixelcoord_to_movement(pixelcoord, transform, reference_movement, reference_pixel):
-    """Converts from pixel coordinates to movement. For example, converts from pixel coordinates to beamshift x,y."""
-    r = transform
-    movement = self.reference_movement - np.dot(pixelcoord - reference_pixel, r)
+def pixelcoord_to_movement(pixelcoord, transform_r, transform_t, reference_movement, reference_pixel):
+    """Converts from pixel coordinates to movement. For example, converts from pixel coordinates to beamshift x,y.
+
+    Parameters
+    ----------
+    pixelcoord : Nx2 array
+        The pixel coordinate of the image
+    transform_r : 2x2 array
+        The rotation and scaling matrix
+    transform_t : 1x2 array
+        The translation vector
+    reference_movement : bool
+        Fit a translation component (tx, ty).
+    reference_pixel : bool
+        Fit a shear component (k1, k2).
+
+    Returns
+    -------
+    movement : Nx2 array
+        The movement coordinate 
+    """
+    r = transform_r
+    movement = reference_movement + transform_t + np.dot(pixelcoord - reference_pixel, r)
     return movement

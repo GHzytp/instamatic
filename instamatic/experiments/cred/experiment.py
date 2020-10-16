@@ -160,6 +160,7 @@ class Experiment:
         self.relax_beam_before_experiment = self.image_interval_enabled and config.settings.cred_relax_beam_before_experiment
 
         self.track_stage_position = config.settings.cred_track_stage_positions
+        self.binsize = self.ctrl.cam.default_binsize
         self.stage_positions = []
 
         if use_vm:
@@ -447,9 +448,9 @@ class Experiment:
         self.total_angle = abs(self.end_angle - self.start_angle)
         self.rotation_axis = config.camera.camera_rotation_vs_stage_xy
 
-        self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][self.camera_length]  # Angstrom^(-1)/pixel
+        self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][self.camera_length] * self.binsize  # Angstrom^(-1)/pixel
 
-        self.physical_pixelsize = config.camera.physical_pixelsize  # mm
+        self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize  # mm
         self.wavelength = config.microscope.wavelength  # angstrom
         self.stretch_azimuth = config.camera.stretch_azimuth  # deg
         self.stretch_amplitude = config.camera.stretch_amplitude  # %

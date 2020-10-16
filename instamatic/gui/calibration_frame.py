@@ -33,6 +33,7 @@ class CalibrationFrame(LabelFrame):
         self.calib_path = config.locations['work'] / 'calibration'
         self.click = 0
         self.counter = 0
+        self.binsize = self.ctrl.cam.default_binsize
 
         self.cam_buffer = []
 
@@ -63,7 +64,7 @@ class CalibrationFrame(LabelFrame):
         self.e_grid_size = Spinbox(frame, width=10, textvariable=self.var_grid_size, from_=0, to=20, increment=1, state=NORMAL)
         self.e_grid_size.grid(row=0, column=1, sticky='EW', padx=5)
         Label(frame, text='Step Size', width=15).grid(row=0, column=2, sticky='W')
-        self.e_step_size = Spinbox(frame, width=10, textvariable=self.var_step_size, from_=0, to=10000, increment=1, state=NORMAL)
+        self.e_step_size = Spinbox(frame, width=10, textvariable=self.var_step_size, from_=0, to=10000, increment=0.01, state=NORMAL)
         self.e_step_size.grid(row=0, column=3, sticky='EW', padx=5)
         
         Label(frame, text='Diff Defocus', width=15).grid(row=1, column=0, sticky='W')
@@ -130,7 +131,7 @@ class CalibrationFrame(LabelFrame):
         self.var_diff_defocus = IntVar(value=15000)
         self.var_toggle_diff_defocus = IntVar(value=0)
         self.var_grid_size = IntVar(value=5)
-        self.var_step_size = IntVar(value=1000)
+        self.var_step_size = DoubleVar(value=1000)
         self.var_mode = StringVar(value=self.mode)
 
     def set_trigger(self, trigger=None, q=None):
@@ -145,11 +146,51 @@ class CalibrationFrame(LabelFrame):
         else:
             self.ctrl.screen.down()
 
-    def disable_widgets(self):
-        pass
+    def disable_widgets(self, widget_list):
+        """The widgets in the list will not be disabled"""
+        self.e_exposure_time.config(state=DISABLED)
+        self.e_current.config(state=DISABLED)
+        self.StartButton.config(state=DISABLED)
+        self.ContinueButton.config(state=DISABLED)
+        self.StopButton.config(state=DISABLED)
+        self.b_toggle_screen.config(state=DISABLED)
+        self.e_diff_focus.config(state=DISABLED)
+        self.e_step_size.config(state=DISABLED)
+        self.e_grid_size.config(state=DISABLED)
+        self.c_toggle_defocus.config(state=DISABLED)
+        self.BeamShiftCalibButton.config(state=DISABLED)
+        self.BeamTiltCalibButton.config(state=DISABLED)
+        self.IS1CalibButton.config(state=DISABLED)
+        self.IS2CalibButton.config(state=DISABLED)
+        self.DiffShiftCalibButton.config(state=DISABLED)
+        self.StageCalibButton.config(state=DISABLED)
+        self.o_mode.configure(state="disabled")
 
-    def enable_widgets(self):
-        pass
+        for widget in widget_list:
+            widget.config(state=NORMAL)
+
+    def enable_widgets(self, widget_list):
+        """The widgets in the list will not be enabled"""
+        self.e_exposure_time.config(state=NORMAL)
+        self.e_current.config(state=NORMAL)
+        self.StartButton.config(state=NORMAL)
+        self.ContinueButton.config(state=NORMAL)
+        self.StopButton.config(state=NORMAL)
+        self.b_toggle_screen.config(state=NORMAL)
+        self.e_diff_focus.config(state=NORMAL)
+        self.e_step_size.config(state=NORMAL)
+        self.e_grid_size.config(state=NORMAL)
+        self.c_toggle_defocus.config(state=NORMAL)
+        self.BeamShiftCalibButton.config(state=NORMAL)
+        self.BeamTiltCalibButton.config(state=NORMAL)
+        self.IS1CalibButton.config(state=NORMAL)
+        self.IS2CalibButton.config(state=NORMAL)
+        self.DiffShiftCalibButton.config(state=NORMAL)
+        self.StageCalibButton.config(state=NORMAL)
+        self.o_mode.configure(state="normal")
+
+        for widget in widget_list:
+            widget.config(state=DISABLED)
 
     def start_cam_calib(self):
         self.cam_buffer = []
@@ -162,38 +203,51 @@ class CalibrationFrame(LabelFrame):
             self.lb_coll1.config(text='Click Start Cam Calib again.')
             self.cam_calib_path = self.calib_path / 'CamCalib'
             self.cam_calib_path.mkdir(parents=True, exist_ok=True)
+            self.disable_widgets([self.e_current, self.b_toggle_screen, self.StartButton, self.ContinueButton, self.StopButton])
             self.click = 1
         elif self.click == 1:
-            self.lb_coll0.config(text='Camera calibration started')
-            self.lb_coll1.config(text='Adjust screen current to a value and put the value to the Screen Current spinbox')
-            self.StartButton.config(state=DISABLED)
-            self.ContinueButton.config(state=NORMAL)
-            self.StopButton.config(state=NORMAL)
-            outfile = self.cam_calib_path / f'calib_cam_{self.counter}_{self.var_current.get():04d}'
-            comment = f'Calib camera {self.counter}: screen current = {self.var_current.get()}'
-            img, h = self.ctrl.get_image(exposure=exposure, out=outfile, comment=comment)
-            self.counter = self.counter + 1
-            self.cam_buffer.append((0, img.mean()))
-            self.click = 0
+            try:
+                self.lb_coll0.config(text='Camera calibration started')
+                self.lb_coll1.config(text='Adjust screen current to a value and put the value to the Screen Current spinbox')
+                self.StartButton.config(state=DISABLED)
+                self.ContinueButton.config(state=NORMAL)
+                self.StopButton.config(state=NORMAL)
+                outfile = self.cam_calib_path / f'calib_cam_{self.counter}_{self.var_current.get():04d}'
+                comment = f'Calib camera {self.counter}: screen current = {self.var_current.get()}'
+                img, h = self.ctrl.get_image(exposure=exposure, out=outfile, comment=comment)
+                self.counter = self.counter + 1
+                self.cam_buffer.append((0, img.mean()))
+                self.click = 0
+            except Exception as e:
+                self.enable_widgets([])
+                self.click = 0
+                raise e
 
     def continue_cam_calib(self):
-        current = self.var_current.get()
-        self.lb_coll1.config(text=f'Now screen current is {current}')
-        outfile = self.cam_calib_path / f'calib_cam_{self.counter:04d}_{current:.3f}'
-        comment = f'Calib camera {self.counter:04d}: screen current = {current:.3f}'
-        img, h = self.ctrl.get_image(exposure=self.var_exposure_time.get(), out=outfile, comment=comment)
-        self.counter = self.counter + 1
-        self.cam_buffer.append((current, img.mean()))
+        try:
+            current = self.var_current.get()
+            self.lb_coll1.config(text=f'Now screen current is {current}')
+            outfile = self.cam_calib_path / f'calib_cam_{self.counter:04d}_{current:.3f}'
+            comment = f'Calib camera {self.counter:04d}: screen current = {current:.3f}'
+            img, h = self.ctrl.get_image(exposure=self.var_exposure_time.get(), out=outfile, comment=comment)
+            self.counter = self.counter + 1
+            self.cam_buffer.append((current, img.mean()))
+        except Exception as e:
+            self.enable_widgets([])
+            raise e
 
     def stop_cam_calib(self):
-        self.lb_coll0.config(text='Camera calibration finished')
-        self.lb_coll1.config(text=f'Results saved to {self.cam_calib_path}')
-        self.StartButton.config(state=NORMAL)
-        self.ContinueButton.config(state=DISABLED)
-        self.StopButton.config(state=DISABLED)
-        array = np.array(self.cam_buffer)
-        self.ax.scatter(array[:,0], array[:,1])
-        self.canvas.draw()
+        try:
+            self.lb_coll0.config(text='Camera calibration finished')
+            self.lb_coll1.config(text=f'Results saved to {self.cam_calib_path}')
+            self.StartButton.config(state=NORMAL)
+            self.ContinueButton.config(state=DISABLED)
+            self.StopButton.config(state=DISABLED)
+            array = np.array(self.cam_buffer)
+            self.ax.scatter(array[:,0], array[:,1])
+            self.canvas.draw()
+        finally:
+            self.enable_widgets([self.ContinueButton, self.StopButton])
 
     def GUI_DiffFocus(self):
         self.c_toggle_defocus.config(state=NORMAL)
@@ -241,199 +295,627 @@ class CalibrationFrame(LabelFrame):
 
     @suppress_stderr
     def beamshift_calib(self):
-        exposure = self.var_exposure_time.get()
-        grid_size = self.var_grid_size.get()
-        step_size = self.var_step_size.get()
-        binsize = self.ctrl.cam.default_binsize
+        try:
+            exposure = self.var_exposure_time.get()
+            grid_size = self.var_grid_size.get()
+            step_size = self.var_step_size.get()
 
-        outfile = self.beamshift_calib_path / 'calib_beamshift_center'
+            outfile = self.beamshift_calib_path / 'calib_beamshift_center'
 
-        img_cent, h_cent = self.ctrl.get_image(exposure=exposure, out=outfile, comment='Beam in center of image')
-        x_cent, y_cent = beamshift_cent = np.array(self.ctrl.beamshift.get())
+            img_cent, h_cent = self.ctrl.get_image(exposure=exposure, out=outfile, comment='Beam in center of image')
+            x_cent, y_cent = beamshift_cent = np.array(self.ctrl.beamshift.get())
 
-        magnification = self.ctrl.magnification.get()
-        step_size = 2500.0 / magnification * step_size
+            magnification = self.ctrl.magnification.get()
+            #step_size = 2500.0 / magnification * step_size
 
-        self.lb_coll0.config(text=f'Beam Shift calibration started. Gridsize: {grid_size} | Stepsize: {step_size:.2f}')
-        img_cent, scale = autoscale(img_cent)
+            self.lb_coll0.config(text=f'Beam Shift calibration started. Gridsize: {grid_size} | Stepsize: {step_size:.2f}')
+            img_cent, scale = autoscale(img_cent)
 
-        pixel_cent = find_beam_center(img_cent) * binsize / scale
-        print('Beamshift: x={} | y={}'.format(*beamshift_cent))
-        print('Pixel: x={} | y={}'.format(*pixel_cent))
+            pixel_cent = find_beam_center(img_cent) * self.binsize / scale
+            print('Beamshift: x={} | y={}'.format(*beamshift_cent))
+            print('Pixel: x={} | y={}'.format(*pixel_cent))
 
-        shifts = []
-        beampos = []
+            shifts = []
+            beampos = []
 
-        n = (grid_size - 1) / 2  # number of points = n*(n+1)
-        x_grid, y_grid = np.meshgrid(np.arange(-n, n + 1) * step_size, np.arange(-n, n + 1) * step_size)
-        tot = grid_size * grid_size
+            n = (grid_size - 1) / 2  # number of points = n*(n+1)
+            x_grid, y_grid = np.meshgrid(np.arange(-n, n + 1) * step_size, np.arange(-n, n + 1) * step_size)
+            tot = grid_size * grid_size
 
-        i = 0
-        with tqdm(total=100, ncols=60, bar_format='{l_bar}{bar}') as pbar:
-            for dx, dy in np.stack([x_grid, y_grid]).reshape(2, -1).T:
-                self.ctrl.beamshift.set(x=x_cent + dx, y=y_cent + dy)
+            i = 0
+            with tqdm(total=100, ncols=60, bar_format='{l_bar}{bar}') as pbar:
+                for dx, dy in np.stack([x_grid, y_grid]).reshape(2, -1).T:
+                    self.ctrl.beamshift.set(x=x_cent + dx, y=y_cent + dy)
+                    self.lb_coll1.config(text=str(pbar))
+                    outfile = self.beamshift_calib_path / f'calib_beamshift_{i:04d}'
+
+                    comment = f'Calib beam shift {i}: dx={dx} - dy={dy}'
+                    img, h = self.ctrl.get_image(exposure=exposure, out=outfile, comment=comment, header_keys='BeamShift')
+                    img = imgscale(img, scale)
+
+                    shift, error, phasediff = phase_cross_correlation(img_cent, img, upsample_factor=10)
+
+                    beamshift = np.array(self.ctrl.beamshift.get())
+                    beampos.append(beamshift)
+                    shifts.append(shift)
+                    pbar.update(100/tot)
+                    i += 1
                 self.lb_coll1.config(text=str(pbar))
-                outfile = self.beamshift_calib_path / f'calib_beamshift_{i:04d}'
 
-                comment = f'Calib beam shift {i}: dx={dx} - dy={dy}'
-                img, h = self.ctrl.get_image(exposure=exposure, out=outfile, comment=comment, header_keys='BeamShift')
-                img = imgscale(img, scale)
+            self.ctrl.beamshift.set(*beamshift_cent) # reset beam to center
 
-                shift, error, phasediff = phase_cross_correlation(img_cent, img, upsample_factor=10)
+            shifts = np.array(shifts) * self.binsize / scale
+            beampos = np.array(beampos) - np.array(beamshift_cent)
 
-                beamshift = np.array(self.ctrl.beamshift.get())
-                beampos.append(beamshift)
-                shifts.append(shift)
-                pbar.update(100/tot)
-                i += 1
-            self.lb_coll1.config(text=str(pbar))
+            fit_result = fit_affine_transformation(shifts, beampos, rotation=True, scaling=True, translation=True)
+            r = fit_result.r
+            t = fit_result.t
+            r_i = np.linalg.inv(r)
+            beampos_ = np.dot(beampos-t, r_i)
+            self.lb_coll0.config(text='Beam Shift calibration finished. Please click Beam Shift Calib again to plot.')
 
-        self.ctrl.beamshift.set(*beamshift_cent) # reset beam to center
+            with open(self.beamshift_calib_path / 'calib_beamshift.pickle', 'wb') as f:
+                pickle.dump([r, t, shifts, beampos_], f)
 
-        shifts = np.array(shifts) * binsize / scale
-        beampos = np.array(beampos) - np.array(beamshift_cent)
-
-        fit_result = fit_affine_transformation(shifts, beampos, rotation=True, scaling=True, translation=True)
-        r = fit_result.r
-        t = fit_result.t
-        r_i = np.linalg.inv(r)
-        beampos_ = np.dot(beampos-t, r_i)
-        self.lb_coll0.config(text='Beam Shift calibration finished. Please click Beam Shift Calib again to plot.')
-
-        with open(self.beamshift_calib_path / 'calib_beamshift.pickle', 'wb') as f:
-            pickle.dump([r, t, shifts, beampos_], f)
+        except Exception as e:
+            self.click = 0
+            raise e
 
     def start_beamshift_calib(self):
-        if self.click == 0:
-            self.lb_coll0.config(text='Calibrate beam shift 1. Go to desired mag 2. Adjust to desired intensity')
-            self.lb_coll1.config(text='Click Start Beam Shift Calib again.')
-            if self.var_mode.get() in ('D', 'LAD', 'diff'):
-                self.beamshift_calib_path = self.calib_path / 'BeamShiftCalib_D'
-            else:
-                self.beamshift_calib_path = self.calib_path / 'BeamShiftCalib'
-            self.beamshift_calib_path.mkdir(parents=True, exist_ok=True)
-            self.click = 1
-        elif self.click == 1:
-            self.ax.cla()
-            self.canvas.draw()
-            self.lb_coll0.config(text='Beam Shift calibration started')
-            self.lb_coll1.config(text='')
-            t = threading.Thread(target=self.beamshift_calib, args=(), daemon=True)
-            t.start()
-            self.click = 2
-        elif self.click == 2:
-            with open(self.beamshift_calib_path / 'calib_beamshift.pickle', 'rb') as f:
-                r, t, shifts, beampos = pickle.load(f)
-            self.ax.scatter(*shifts.T, marker='>', label='Observed')
-            self.ax.scatter(*beampos.T, marker='<', label='Theoretical')
-            self.ax.legend()
-            self.canvas.draw()
+        try:
+            if self.click == 0:
+                self.lb_coll0.config(text='Calibrate beam shift 1. Go to desired mag 2. Adjust to desired intensity')
+                self.lb_coll1.config(text='Click Start Beam Shift Calib again.')
+                if self.var_mode.get() in ('D', 'LAD', 'diff'):
+                    self.beamshift_calib_path = self.calib_path / 'BeamShiftCalib_D'
+                else:
+                    self.beamshift_calib_path = self.calib_path / 'BeamShiftCalib'
+                self.beamshift_calib_path.mkdir(parents=True, exist_ok=True)
+                self.disable_widgets([self.BeamShiftCalibButton])
+                self.click = 1
+            elif self.click == 1:
+                self.ax.cla()
+                self.canvas.draw()
+                self.lb_coll0.config(text='Beam Shift calibration started')
+                self.lb_coll1.config(text='')
+                t = threading.Thread(target=self.beamshift_calib, args=(), daemon=True)
+                t.start()
+                self.click = 2
+            elif self.click == 2:
+                with open(self.beamshift_calib_path / 'calib_beamshift.pickle', 'rb') as f:
+                    r, t, shifts, beampos = pickle.load(f)
+                self.ax.scatter(*shifts.T, marker='>', label='Observed')
+                self.ax.scatter(*beampos.T, marker='<', label='Theoretical')
+                self.ax.legend()
+                self.canvas.draw()
+                self.lb_coll0.config(text='Thoery vs observed plotted.')
+                self.lb_coll1.config(text='')
+                self.enable_widgets([])
+                self.click = 0
+        except Exception as e:
+            self.enable_widgets([])
             self.click = 0
+            raise e
 
     @suppress_stderr
     def beamtilt_calib(self):
-        with tqdm(total=100, ncols=50, bar_format='{l_bar}{bar}') as pbar:
-            for i in range(10):
+        try:
+            exposure = self.var_exposure_time.get()
+            grid_size = self.var_grid_size.get()
+            step_size = self.var_step_size.get()
+
+            outfile = self.beamtilt_calib_path / 'calib_beamtilt_center'
+
+            img_cent, h_cent = self.ctrl.get_image(exposure=exposure, out=outfile, comment='Beam in center of image')
+            x_cent, y_cent = beamtilt_cent = np.array(self.ctrl.beamtilt.get())
+
+            magnification = self.ctrl.magnification.get()
+            #step_size = 2500.0 / magnification * step_size
+
+            self.lb_coll0.config(text=f'Beam Tilt calibration started. Gridsize: {grid_size} | Stepsize: {step_size:.2f}')
+            img_cent, scale = autoscale(img_cent)
+
+            pixel_cent = find_beam_center(img_cent) * self.binsize / scale
+            print('Beamtilt: x={} | y={}'.format(*beamtilt_cent))
+            print('Pixel: x={} | y={}'.format(*pixel_cent))
+
+            shifts = []
+            beampos = []
+
+            n = (grid_size - 1) / 2  # number of points = n*(n+1)
+            x_grid, y_grid = np.meshgrid(np.arange(-n, n + 1) * step_size, np.arange(-n, n + 1) * step_size)
+            tot = grid_size * grid_size
+
+            i = 0
+            with tqdm(total=100, ncols=60, bar_format='{l_bar}{bar}') as pbar:
+                for dx, dy in np.stack([x_grid, y_grid]).reshape(2, -1).T:
+                    self.ctrl.beamtilt.set(x=x_cent + dx, y=y_cent + dy)
+                    self.lb_coll1.config(text=str(pbar))
+                    outfile = self.beamtilt_calib_path / f'calib_beamshift_{i:04d}'
+
+                    comment = f'Calib beam tilt {i}: dx={dx} - dy={dy}'
+                    img, h = self.ctrl.get_image(exposure=exposure, out=outfile, comment=comment, header_keys='BeamTilt')
+                    img = imgscale(img, scale)
+
+                    shift, error, phasediff = phase_cross_correlation(img_cent, img, upsample_factor=10)
+
+                    beamtilt = np.array(self.ctrl.beamtilt.get())
+                    beampos.append(beamtilt)
+                    shifts.append(shift)
+                    pbar.update(100/tot)
+                    i += 1
                 self.lb_coll1.config(text=str(pbar))
-                time.sleep(1)
-                pbar.update(10)
-            self.lb_coll1.config(text=str(pbar))
+
+            self.ctrl.beamtilt.set(*beamtilt_cent) # reset beam to center
+
+            shifts = np.array(shifts) * self.binsize / scale
+            beampos = np.array(beampos) - np.array(beamtilt_cent)
+
+            fit_result = fit_affine_transformation(shifts, beampos, rotation=True, scaling=True, translation=True)
+            r = fit_result.r
+            t = fit_result.t
+            r_i = np.linalg.inv(r)
+            beampos_ = np.dot(beampos-t, r_i)
+            self.lb_coll0.config(text='Beam Tilt calibration finished. Please click Beam Tilt Calib again to plot.')
+
+            with open(self.beamtilt_calib_path / 'calib_beamtilt.pickle', 'wb') as f:
+                pickle.dump([r, t, shifts, beampos_], f)
+
+        except Exception as e:
+            self.click = 0
+            raise e
 
     def start_beamtilt_calib(self):
-        if self.click == 0:
-            self.lb_coll0.config(text='Calibrate beam tilt 1. Go to desired cam length 2. Center the DP')
-            self.lb_coll1.config(text='Click Start Beam Tilt Calib again.')
-            self.click = 1
-        elif self.click == 1:
-            self.lb_coll0.config(text='Beam Tilt calibration started')
-            self.lb_coll1.config(text='')
-            t = threading.Thread(target=self.beamtilt_calib, args=(), daemon=True)
-            t.start()
+        try:
+            if self.click == 0:
+                self.lb_coll0.config(text='Calibrate beam tilt 1. Go to desired cam length 2. Center the DP')
+                self.lb_coll1.config(text='Click Start Beam Tilt Calib again.')
+                if self.var_mode.get() in ('D', 'LAD', 'diff'):
+                    self.beamtilt_calib_path = self.calib_path / 'BeamTiltCalib_D'
+                else:
+                    self.beamtilt_calib_path = self.calib_path / 'BeamTiltCalib'
+                self.beamtilt_calib_path.mkdir(parents=True, exist_ok=True)
+                self.disable_widgets([self.BeamTiltCalibButton])
+                self.click = 1
+            elif self.click == 1:
+                self.ax.cla()
+                self.canvas.draw()
+                self.lb_coll0.config(text='Beam Tilt calibration started')
+                self.lb_coll1.config(text='')
+                t = threading.Thread(target=self.beamtilt_calib, args=(), daemon=True)
+                t.start()
+                self.click = 2
+            elif self.click == 2:
+                with open(self.beamtilt_calib_path / 'calib_beamtilt.pickle', 'rb') as f:
+                    r, t, shifts, beampos = pickle.load(f)
+                self.ax.scatter(*shifts.T, marker='>', label='Observed')
+                self.ax.scatter(*beampos.T, marker='<', label='Theoretical')
+                self.ax.legend()
+                self.canvas.draw()
+                self.lb_coll0.config(text='Thoery vs observed plotted.')
+                self.lb_coll1.config(text='')
+                self.enable_widgets([])
+                self.click = 0
+        except Exception as e:
+            self.enable_widgets([])
             self.click = 0
+            raise e
 
     @suppress_stderr
     def IS1_calib(self):
-        with tqdm(total=100, ncols=50, bar_format='{l_bar}{bar}') as pbar:
-            for i in range(10):
+        try:
+            exposure = self.var_exposure_time.get()
+            grid_size = self.var_grid_size.get()
+            step_size = self.var_step_size.get()
+
+            outfile = self.IS1_calib_path / 'calib_IS1_center'
+
+            img_cent, h_cent = self.ctrl.get_image(exposure=exposure, out=outfile, comment='Beam in center of image')
+            x_cent, y_cent = IS1_cent = np.array(self.ctrl.imageshift1.get())
+
+            magnification = self.ctrl.magnification.get()
+            #step_size = 2500.0 / magnification * step_size
+
+            self.lb_coll0.config(text=f'Image Shift 1 calibration started. Gridsize: {grid_size} | Stepsize: {step_size:.2f}')
+            img_cent, scale = autoscale(img_cent)
+
+            pixel_cent = find_beam_center(img_cent) * self.binsize / scale
+            print('IS1: x={} | y={}'.format(*IS1_cent))
+            print('Pixel: x={} | y={}'.format(*pixel_cent))
+
+            shifts = []
+            beampos = []
+
+            n = (grid_size - 1) / 2  # number of points = n*(n+1)
+            x_grid, y_grid = np.meshgrid(np.arange(-n, n + 1) * step_size, np.arange(-n, n + 1) * step_size)
+            tot = grid_size * grid_size
+
+            i = 0
+            with tqdm(total=100, ncols=60, bar_format='{l_bar}{bar}') as pbar:
+                for dx, dy in np.stack([x_grid, y_grid]).reshape(2, -1).T:
+                    self.ctrl.imageshift1.set(x=x_cent + dx, y=y_cent + dy)
+                    self.lb_coll1.config(text=str(pbar))
+                    outfile = self.IS1_calib_path / f'calib_IS1_{i:04d}'
+
+                    comment = f'Calib image shift 1 {i}: dx={dx} - dy={dy}'
+                    img, h = self.ctrl.get_image(exposure=exposure, out=outfile, comment=comment, header_keys='ImageShift1')
+                    img = imgscale(img, scale)
+
+                    shift, error, phasediff = phase_cross_correlation(img_cent, img, upsample_factor=10)
+
+                    imageshift1 = np.array(self.ctrl.imageshift1.get())
+                    beampos.append(imageshift1)
+                    shifts.append(shift)
+                    pbar.update(100/tot)
+                    i += 1
                 self.lb_coll1.config(text=str(pbar))
-                time.sleep(1)
-                pbar.update(10)
-            self.lb_coll1.config(text=str(pbar))
+
+            self.ctrl.imageshift1.set(*IS1_cent) # reset beam to center
+
+            shifts = np.array(shifts) * self.binsize / scale
+            beampos = np.array(beampos) - np.array(IS1_cent)
+
+            fit_result = fit_affine_transformation(shifts, beampos, rotation=True, scaling=True, translation=True)
+            r = fit_result.r
+            t = fit_result.t
+            r_i = np.linalg.inv(r)
+            beampos_ = np.dot(beampos-t, r_i)
+            self.lb_coll0.config(text='Image Shift 1 calibration finished. Please click IS1 Calib again to plot.')
+
+            with open(self.IS1_calib_path / 'calib_IS1.pickle', 'wb') as f:
+                pickle.dump([r, t, shifts, beampos_], f)
+
+        except Exception as e:
+            self.click = 0
+            raise e
 
     def start_IS1_calib(self):
-        if self.click == 0:
-            self.lb_coll0.config(text='Calibrate Image Shift 1')
-            self.lb_coll1.config(text='Click Start Image Shift 1 Calib again.')
-            self.click = 1
-        elif self.click == 1:
-            self.lb_coll0.config(text='Image Shift 1 calibration started')
-            self.lb_coll1.config(text='')
-            t = threading.Thread(target=self.IS1_calib, args=(), daemon=True)
-            t.start()
+        try:
+            if self.click == 0:
+                self.lb_coll0.config(text='Calibrate Image Shift 1')
+                self.lb_coll1.config(text='Click Start Image Shift 1 Calib again.')
+                if self.var_mode.get() in ('D', 'LAD', 'diff'):
+                    self.IS1_calib_path = self.calib_path / 'IS1Calib_D'
+                else:
+                    self.IS1_calib_path = self.calib_path / 'IS1Calib'
+                self.IS1_calib_path.mkdir(parents=True, exist_ok=True)
+                self.disable_widgets([self.IS1CalibButton])
+                self.click = 1
+            elif self.click == 1:
+                self.ax.cla()
+                self.canvas.draw()
+                self.lb_coll0.config(text='Image Shift 1 calibration started')
+                self.lb_coll1.config(text='')
+                t = threading.Thread(target=self.IS1_calib, args=(), daemon=True)
+                t.start()
+                self.click = 2
+            elif self.click == 2:
+                with open(self.IS1_calib_path / 'calib_IS1.pickle', 'rb') as f:
+                    r, t, shifts, beampos = pickle.load(f)
+                self.ax.scatter(*shifts.T, marker='>', label='Observed')
+                self.ax.scatter(*beampos.T, marker='<', label='Theoretical')
+                self.ax.legend()
+                self.canvas.draw()
+                self.lb_coll0.config(text='Thoery vs observed plotted.')
+                self.lb_coll1.config(text='')
+                self.enable_widgets([])
+                self.click = 0
+        except Exception as e:
+            self.enable_widgets([])
             self.click = 0
+            raise e
 
     @suppress_stderr
     def IS2_calib(self):
-        with tqdm(total=100, ncols=50, bar_format='{l_bar}{bar}') as pbar:
-            for i in range(10):
+        try:
+            exposure = self.var_exposure_time.get()
+            grid_size = self.var_grid_size.get()
+            step_size = self.var_step_size.get()
+
+            outfile = self.IS2_calib_path / 'calib_IS2_center'
+
+            img_cent, h_cent = self.ctrl.get_image(exposure=exposure, out=outfile, comment='Beam in center of image')
+            x_cent, y_cent = IS2_cent = np.array(self.ctrl.imageshift2.get())
+
+            magnification = self.ctrl.magnification.get()
+            #step_size = 2500.0 / magnification * step_size
+
+            self.lb_coll0.config(text=f'Image Shift 2 calibration started. Gridsize: {grid_size} | Stepsize: {step_size:.2f}')
+            img_cent, scale = autoscale(img_cent)
+
+            pixel_cent = find_beam_center(img_cent) * self.binsize / scale
+            print('IS2: x={} | y={}'.format(*IS2_cent))
+            print('Pixel: x={} | y={}'.format(*pixel_cent))
+
+            shifts = []
+            beampos = []
+
+            n = (grid_size - 1) / 2  # number of points = n*(n+1)
+            x_grid, y_grid = np.meshgrid(np.arange(-n, n + 1) * step_size, np.arange(-n, n + 1) * step_size)
+            tot = grid_size * grid_size
+
+            i = 0
+            with tqdm(total=100, ncols=60, bar_format='{l_bar}{bar}') as pbar:
+                for dx, dy in np.stack([x_grid, y_grid]).reshape(2, -1).T:
+                    self.ctrl.imageshift2.set(x=x_cent + dx, y=y_cent + dy)
+                    self.lb_coll1.config(text=str(pbar))
+                    outfile = self.IS2_calib_path / f'calib_IS2_{i:04d}'
+
+                    comment = f'Calib image shift 2 {i}: dx={dx} - dy={dy}'
+                    img, h = self.ctrl.get_image(exposure=exposure, out=outfile, comment=comment, header_keys='ImageShift2')
+                    img = imgscale(img, scale)
+
+                    shift, error, phasediff = phase_cross_correlation(img_cent, img, upsample_factor=10)
+
+                    imageshift2 = np.array(self.ctrl.imageshift2.get())
+                    beampos.append(imageshift2)
+                    shifts.append(shift)
+                    pbar.update(100/tot)
+                    i += 1
                 self.lb_coll1.config(text=str(pbar))
-                time.sleep(1)
-                pbar.update(10)
-            self.lb_coll1.config(text=str(pbar))
+
+            self.ctrl.imageshift2.set(*IS2_cent) # reset beam to center
+
+            shifts = np.array(shifts) * self.binsize / scale
+            beampos = np.array(beampos) - np.array(IS2_cent)
+
+            fit_result = fit_affine_transformation(shifts, beampos, rotation=True, scaling=True, translation=True)
+            r = fit_result.r
+            t = fit_result.t
+            r_i = np.linalg.inv(r)
+            beampos_ = np.dot(beampos-t, r_i)
+            self.lb_coll0.config(text='Image Shift 2 calibration finished. Please click IS2 Calib again to plot.')
+
+            with open(self.IS2_calib_path / 'calib_IS2.pickle', 'wb') as f:
+                pickle.dump([r, t, shifts, beampos_], f)
+
+        except Exception as e:
+            self.click = 0
+            raise e
 
     def start_IS2_calib(self):
-        if self.click == 0:
-            self.lb_coll0.config(text='Calibrate Image Shift 2')
-            self.lb_coll1.config(text='Click Start Image Shift 2 Calib again.')
-            self.click = 1
-        elif self.click == 1:
-            self.lb_coll0.config(text='Image Shift 2 calibration started')
-            self.lb_coll1.config(text='')
-            t = threading.Thread(target=self.IS2_calib, args=(), daemon=True)
-            t.start()
+        try:
+            if self.click == 0:
+                self.lb_coll0.config(text='Calibrate Image Shift 2')
+                self.lb_coll1.config(text='Click Start Image Shift 2 Calib again.')
+                if self.var_mode.get() in ('D', 'LAD', 'diff'):
+                    self.IS2_calib_path = self.calib_path / 'IS2Calib_D'
+                else:
+                    self.IS2_calib_path = self.calib_path / 'IS2Calib'
+                self.IS2_calib_path.mkdir(parents=True, exist_ok=True)
+                self.disable_widgets([self.IS2CalibButton])
+                self.click = 1
+            elif self.click == 1:
+                self.ax.cla()
+                self.canvas.draw()
+                self.lb_coll0.config(text='Image Shift 2 calibration started')
+                self.lb_coll1.config(text='')
+                t = threading.Thread(target=self.IS2_calib, args=(), daemon=True)
+                t.start()
+                self.click = 2
+            elif self.click == 2:
+                with open(self.IS2_calib_path / 'calib_IS2.pickle', 'rb') as f:
+                    r, t, shifts, beampos = pickle.load(f)
+                self.ax.scatter(*shifts.T, marker='>', label='Observed')
+                self.ax.scatter(*beampos.T, marker='<', label='Theoretical')
+                self.ax.legend()
+                self.canvas.draw()
+                self.lb_coll0.config(text='Thoery vs observed plotted.')
+                self.lb_coll1.config(text='')
+                self.enable_widgets([])
+                self.click = 0
+        except Exception as e:
+            self.enable_widgets([])
             self.click = 0
+            raise e
+
 
     @suppress_stderr
     def diffshift_calib(self):
-        with tqdm(total=100, ncols=50, bar_format='{l_bar}{bar}') as pbar:
-            for i in range(10):
+        try:
+            exposure = self.var_exposure_time.get()
+            grid_size = self.var_grid_size.get()
+            step_size = self.var_step_size.get()
+
+            outfile = self.diffshift_calib_path / 'calib_diffshift_center'
+
+            img_cent, h_cent = self.ctrl.get_image(exposure=exposure, out=outfile, comment='Beam in center of image')
+            x_cent, y_cent = diffshift_cent = np.array(self.ctrl.diffshift.get())
+
+            magnification = self.ctrl.magnification.get()
+            #step_size = 2500.0 / magnification * step_size
+
+            self.lb_coll0.config(text=f'Diff Shift calibration started. Gridsize: {grid_size} | Stepsize: {step_size:.2f}')
+            img_cent, scale = autoscale(img_cent)
+
+            pixel_cent = find_beam_center(img_cent) * self.binsize / scale
+            print('Diffshift: x={} | y={}'.format(*diffshift_cent))
+            print('Pixel: x={} | y={}'.format(*pixel_cent))
+
+            shifts = []
+            beampos = []
+
+            n = (grid_size - 1) / 2  # number of points = n*(n+1)
+            x_grid, y_grid = np.meshgrid(np.arange(-n, n + 1) * step_size, np.arange(-n, n + 1) * step_size)
+            tot = grid_size * grid_size
+
+            i = 0
+            with tqdm(total=100, ncols=60, bar_format='{l_bar}{bar}') as pbar:
+                for dx, dy in np.stack([x_grid, y_grid]).reshape(2, -1).T:
+                    self.ctrl.diffshift.set(x=x_cent + dx, y=y_cent + dy)
+                    self.lb_coll1.config(text=str(pbar))
+                    outfile = self.diffshift_calib_path / f'calib_diffshift_{i:04d}'
+
+                    comment = f'Calib diff shift {i}: dx={dx} - dy={dy}'
+                    img, h = self.ctrl.get_image(exposure=exposure, out=outfile, comment=comment, header_keys='DiffShift')
+                    img = imgscale(img, scale)
+
+                    shift, error, phasediff = phase_cross_correlation(img_cent, img, upsample_factor=10)
+
+                    diffshift = np.array(self.ctrl.diffshift.get())
+                    beampos.append(diffshift)
+                    shifts.append(shift)
+                    pbar.update(100/tot)
+                    i += 1
                 self.lb_coll1.config(text=str(pbar))
-                time.sleep(1)
-                pbar.update(10)
-            self.lb_coll1.config(text=str(pbar))
+
+            self.ctrl.diffshift.set(*diffshift_cent) # reset beam to center
+
+            shifts = np.array(shifts) * self.binsize / scale
+            beampos = np.array(beampos) - np.array(diffshift_cent)
+
+            fit_result = fit_affine_transformation(shifts, beampos, rotation=True, scaling=True, translation=True)
+            r = fit_result.r
+            t = fit_result.t
+            r_i = np.linalg.inv(r)
+            beampos_ = np.dot(beampos-t, r_i)
+            self.lb_coll0.config(text='Diff Shift calibration finished. Please click Diff Shift Calib again to plot.')
+
+            with open(self.diffshift_calib_path / 'calib_diffshift.pickle', 'wb') as f:
+                pickle.dump([r, t, shifts, beampos_], f)
+
+        except Exception as e:
+            self.click = 0
+            raise e
 
     def start_diffshift_calib(self):
-        if self.click == 0:
-            self.lb_coll0.config(text='Calibrate stage vs camera 1. Go to image mode 2. Find area with particles.')
-            self.lb_coll1.config(text='Click Start Stage Calib again.')
-            self.click = 1
-        elif self.click == 1:
-            self.lb_coll0.config(text='Stage calibration started')
-            self.lb_coll1.config(text='')
-            t = threading.Thread(target=self.diffshift_calib, args=(), daemon=True)
-            t.start()
+        try:
+            if self.click == 0:
+                self.lb_coll0.config(text='Calibrate Diff Shift')
+                self.lb_coll1.config(text='Click Start Diff Shift Calib again.')
+                if self.var_mode.get() in ('D', 'LAD', 'diff'):
+                    self.diffshift_calib_path = self.calib_path / 'DiffCalib_D'
+                else:
+                    self.diffshift_calib_path = self.calib_path / 'DiffCalib'
+                self.diffshift_calib_path.mkdir(parents=True, exist_ok=True)
+                self.disable_widgets([self.DiffShiftCalibButton])
+                self.click = 1
+            elif self.click == 1:
+                self.ax.cla()
+                self.canvas.draw()
+                self.lb_coll0.config(text='Diff Shift calibration started')
+                self.lb_coll1.config(text='')
+                t = threading.Thread(target=self.diffshift_calib, args=(), daemon=True)
+                t.start()
+                self.click = 2
+            elif self.click == 2:
+                with open(self.diffshift_calib_path / 'calib_diffshift.pickle', 'rb') as f:
+                    r, t, shifts, beampos = pickle.load(f)
+                self.ax.scatter(*shifts.T, marker='>', label='Observed')
+                self.ax.scatter(*beampos.T, marker='<', label='Theoretical')
+                self.ax.legend()
+                self.canvas.draw()
+                self.lb_coll0.config(text='Thoery vs observed plotted.')
+                self.lb_coll1.config(text='')
+                self.enable_widgets([])
+                self.click = 0
+        except Exception as e:
+            self.enable_widgets([])
             self.click = 0
+            raise e
 
     @suppress_stderr
     def stage_calib(self):
-        with tqdm(total=100, ncols=50, bar_format='{l_bar}{bar}') as pbar:
-            for i in range(10):
+        try:
+            exposure = self.var_exposure_time.get()
+            grid_size = self.var_grid_size.get()
+            step_size = self.var_step_size.get()
+
+            outfile = self.stage_calib_path / 'calib_stage_center'
+
+            img_cent, h_cent = self.ctrl.get_image(exposure=exposure, out=outfile, comment='Object in center of image')
+            x_cent, y_cent = stage_cent = np.array(self.ctrl.stage.xy)
+
+            magnification = self.ctrl.magnification.get()
+            #step_size = 2500.0 / magnification * step_size
+
+            self.lb_coll0.config(text=f'Stage calibration started. Gridsize: {grid_size} | Stepsize: {step_size:.2f}')
+            img_cent, scale = autoscale(img_cent)
+
+            pixel_cent = find_beam_center(img_cent) * self.binsize / scale
+            print('Stage: x={} | y={}'.format(*stage_cent))
+            print('Pixel: x={} | y={}'.format(*pixel_cent))
+
+            shifts = []
+            beampos = []
+
+            n = (grid_size - 1) / 2  # number of points = n*(n+1)
+            x_grid, y_grid = np.meshgrid(np.arange(-n, n + 1) * step_size, np.arange(-n, n + 1) * step_size)
+            tot = grid_size * grid_size
+
+            i = 0
+            with tqdm(total=100, ncols=60, bar_format='{l_bar}{bar}') as pbar:
+                for dx, dy in np.stack([x_grid, y_grid]).reshape(2, -1).T:
+                    self.ctrl.stage.set_xy_with_backlash_correction(x=x_cent+dx, y=y_cent+dy, step=2000)
+                    self.lb_coll1.config(text=str(pbar))
+                    outfile = self.stage_calib_path / f'calib_beamshift_{i:04d}'
+
+                    comment = f'Calib stage {i}: dx={dx} - dy={dy}'
+                    img, h = self.ctrl.get_image(exposure=exposure, out=outfile, comment=comment, header_keys='StagePosition')
+                    img = imgscale(img, scale)
+
+                    shift, error, phasediff = phase_cross_correlation(img_cent, img, upsample_factor=10)
+
+                    stageshift = np.array(self.ctrl.stage.xy)
+                    beampos.append(stageshift)
+                    shifts.append(shift)
+                    pbar.update(100/tot)
+                    i += 1
                 self.lb_coll1.config(text=str(pbar))
-                time.sleep(1)
-                pbar.update(10)
-            self.lb_coll1.config(text=str(pbar))
+
+            self.ctrl.stage.set_xy_with_backlash_correction(*stage_cent, step=2000) # reset beam to center
+
+            shifts = np.array(shifts) * self.binsize / scale
+            beampos = np.array(beampos) - np.array(stage_cent)
+
+            fit_result = fit_affine_transformation(shifts, beampos, rotation=True, scaling=True, translation=True)
+            r = fit_result.r
+            t = fit_result.t
+            r_i = np.linalg.inv(r)
+            beampos_ = np.dot(beampos-t, r_i)
+            self.lb_coll0.config(text='Stage calibration finished. Please click Stage Calib again to plot.')
+
+            with open(self.stage_calib_path / 'calib_stage.pickle', 'wb') as f:
+                pickle.dump([r, t, shifts, beampos_], f)
+
+        except Exception as e:
+            self.click = 0
+            raise e
 
     def start_stage_calib(self):
-        if self.click == 0:
-            self.lb_coll0.config(text='Calibrate stage vs camera 1. Go to image mode 2. Find area with particles.')
-            self.lb_coll1.config(text='Click Start Stage Calib again.')
-            self.click = 1
-        elif self.click == 1:
-            self.lb_coll0.config(text='Stage calibration started')
-            self.lb_coll1.config(text='')
-            t = threading.Thread(target=self.stage_calib, args=(), daemon=True)
-            t.start()
+        try:
+            if self.click == 0:
+                self.lb_coll0.config(text='Calibrate stage vs camera 1. Go to image mode 2. Find area with particles.')
+                self.lb_coll1.config(text='Click Start Stage Calib again.')
+                if self.var_mode.get() in ('D', 'LAD', 'diff'):
+                    self.stage_calib_path = self.calib_path / 'StageCalib_D'
+                else:
+                    self.stage_calib_path = self.calib_path / 'StageCalib'
+                self.stage_calib_path.mkdir(parents=True, exist_ok=True)
+                self.disable_widgets([self.StageCalibButton])
+                self.click = 1
+            elif self.click == 1:
+                self.ax.cla()
+                self.canvas.draw()
+                self.lb_coll0.config(text='Stage calibration started')
+                self.lb_coll1.config(text='')
+                t = threading.Thread(target=self.stage_calib, args=(), daemon=True)
+                t.start()
+                self.click = 2
+            elif self.click == 2:
+                with open(self.stage_calib_path / 'calib_stage.pickle', 'rb') as f:
+                    r, t, shifts, beampos = pickle.load(f)
+                self.ax.scatter(*shifts.T, marker='>', label='Observed')
+                self.ax.scatter(*beampos.T, marker='<', label='Theoretical')
+                self.ax.legend()
+                self.canvas.draw()
+                self.enable_widgets([])
+                self.click = 0
+        except Exception as e:
+            self.enable_widgets([])
             self.click = 0
+            raise e
+
 
 module = BaseModule(name='Calibration', display_name='Calib', tk_frame=CalibrationFrame, location='bottom')
 commands = {}

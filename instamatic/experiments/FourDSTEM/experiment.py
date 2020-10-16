@@ -104,7 +104,8 @@ class Experiment:
         self.save_raw_imgs = save_raw_imgs
         self.acquisition_finished = acquisition_finished
 
-        self.physical_pixelsize = config.camera.physical_pixelsize
+        self.binsize = self.ctrl.cam.default_binsize
+        self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize
         self.wavelength = config.microscope.wavelength  # angstrom
         self.stretch_azimuth = config.camera.stretch_azimuth  # deg
         self.stretch_amplitude = config.camera.stretch_amplitude  # %
@@ -116,7 +117,6 @@ class Experiment:
 
         self.buffer = []
 
-        self.physical_pixelsize = config.camera.physical_pixelsize  # mm
         self.wavelength = config.microscope.wavelength  # angstrom
 
         self.stopScanEvent = threading.Event()
@@ -147,7 +147,7 @@ class Experiment:
         self.logger.info(f'Data saving path: {self.path}')
 
         self.camera_length = int(self.ctrl.magnification.value)
-        self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][self.camera_length]
+        self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][self.camera_length] * self.binsize
 
     def generate_scan_pattern(self):
         start_x = -self.interval_x * (self.nx - 1) / 2

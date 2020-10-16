@@ -237,7 +237,7 @@ class Stage:
             delay between movements in seconds to allow the stage to settle
         """
         wait = True
-        self.set(x=x - step, y=y - step)
+        self.set(x=x-step, y=y-step, wait=wait)
         if settle_delay:
             time.sleep(settle_delay)
 
