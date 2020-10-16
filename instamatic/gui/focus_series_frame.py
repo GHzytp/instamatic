@@ -13,6 +13,7 @@ from PIL import ImageTk
 from .base_module import BaseModule
 from instamatic import config
 from instamatic.utils.spinbox import Spinbox
+from .io_frame import module as io_module
 
 class ExperimentalFocusSeries(LabelFrame):
     """GUI frame for collecting focus series data"""
@@ -24,6 +25,7 @@ class ExperimentalFocusSeries(LabelFrame):
 
         from instamatic import TEMController
         self.ctrl = TEMController.get_instance()
+        #self.io_module = io_module.initialize(parent)
         self.cam_x, self.cam_y = self.ctrl.cam.getCameraDimensions()
 
         self.image_buffer = []

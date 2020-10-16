@@ -486,6 +486,7 @@ if __name__ == '__main__':
     logger = logging.getLogger(__name__)
 
     root = Tk()
+    root.title('4DSTEM')
     trigger = threading.Event()
     q = queue.Queue(maxsize=1)
     ctrl = ExperimentalFourDSTEM(root)

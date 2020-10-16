@@ -137,6 +137,8 @@ def find_holes(img, area=0, plot=True, fname=None, verbose=True, max_eccentricit
         increase verbosity of output if True
     max_eccentricity: float,
         the maximum allowed eccentricity for hole detection (0.0: perfect circle to 1.0: prefect eccentric)
+        The eccentricity (e) of an ellipse is the ratio of the distance from the center
+        to the foci (c) and the distance from the center to the vertices (a).
 
     Returns:
         props: list,

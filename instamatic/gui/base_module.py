@@ -18,12 +18,13 @@ class BaseModule:
         self.tk_frame = tk_frame
         self.location = location
         self.kwargs = kwargs
+        self.frame = None
 
     def set_kwargs(self, **kwargs):
         self.kwargs = kwargs
 
     def initialize(self, parent, **kwargs):
-        frame = self.tk_frame(parent, **self.kwargs)
-            
-        self.frame = frame
-        return frame
+        if self.frame is None:
+            frame = self.tk_frame(parent, **self.kwargs)
+            self.frame = frame
+        return self.frame
