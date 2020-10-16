@@ -220,11 +220,6 @@ class Stage:
         self.a = a_center
         print(f'Print z={self.z:.2f}')
 
-    def relax_xy(self, step: int = 100) -> None:
-        """Relax the stage by moving it in the opposite direction from the last
-        movement."""
-        pass
-
     def set_xy_with_backlash_correction(self, x: int = None, y: int = None, step: float = 5000, settle_delay: float = 0.200) -> None:
         """Move to new x/y position with backlash correction. This is done by
         approaching the target x/y position always from the same direction.

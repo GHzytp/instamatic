@@ -107,11 +107,11 @@ class VideoStreamFrame(LabelFrame):
             frame.pack(side='bottom', fill='both')
             self.btn_save = Button(frame, text='Save Image',
                      command=self.saveImage)
-            self.btn_save.pack(side='left', expand=True, fill='both', padx=10, pady=10)
+            self.btn_save.pack(side='left', expand=True, fill='both', padx=5, pady=5)
             self.btn_pause = Button(frame, text='Pause Stream', command=self.pause_stream, state=NORMAL)
-            self.btn_pause.pack(side='left', expand=True, fill='both', padx=10, pady=10)
+            self.btn_pause.pack(side='left', expand=True, fill='both', padx=5, pady=5)
             self.btn_continue = Button(frame, text='Continue Stream', command=self.continue_stream, state=DISABLED)
-            self.btn_continue.pack(side='left', expand=True, fill='both', padx=10, pady=10)
+            self.btn_continue.pack(side='left', expand=True, fill='both', padx=5, pady=5)
         else:
             btn = Button(master, text='Save image',
                      command=self.saveImage)
@@ -163,7 +163,7 @@ class VideoStreamFrame(LabelFrame):
         Checkbutton(frame, width=15, text='Show Resolution', variable=self.var_show_res, command=self.show_res).grid(row=1, column=1, sticky='we', padx=5)
         self.l_resolution = Label(frame, width=15, text='')
         self.l_resolution.grid(row=1, column=2)
-        self.e_resolution = Spinbox(frame, width=ewidth, textvariable=self.var_resolution, from_=0.0, to=10.0, increment=0.1)
+        self.e_resolution = Entry(frame, width=15, textvariable=self.var_resolution, state=DISABLED)
         self.e_resolution.grid(row=1, column=3, padx=5)
         self.check_tem_state()
         Button(frame, width=ewidth, text='Check', command=self.check_tem_state).grid(row=1, column=4)
@@ -182,7 +182,7 @@ class VideoStreamFrame(LabelFrame):
             self.image_on_panel = self.panel.create_image(0, 0, anchor=NW, image=image)
             self.center_panel = self.panel.create_oval(resolution[0]/2-5, resolution[0]/2-5, resolution[1]/2+5, resolution[1]/2+5, width=5, outline='green')
             self.res_shell_panel = self.panel.create_oval(0, 0, resolution[0], resolution[1], outline='red')
-            self.panel.pack(side='left', padx=10, pady=10)
+            self.panel.pack(side='left', padx=5, pady=5)
 
     def show_center(self):
         if self.var_show_center.get():
@@ -202,12 +202,12 @@ class VideoStreamFrame(LabelFrame):
             self.l_resolution.config(text='Resolution (A)')
             camera_length = self.ctrl.magnification.get()
             pixelsize = config.calibration[mode]['pixelsize'][camera_length] * self.binsize
-            self.var_resolution.set(pixelsize * self.resolution[0] / 2)
+            self.var_resolution.set(round(pixelsize * self.resolution[0] / 2, 2))
         else:
             self.l_resolution.config(text='Resolution (nm)')
             mag = self.ctrl.magnification.get()
             pixelsize = config.calibration[mode]['pixelsize'][mag] * self.binsize
-            self.var_resolution.set(pixelsize * self.resolution[0] / 2)
+            self.var_resolution.set(round(pixelsize * self.resolution[0] / 2, 1))
 
     def pause_stream(self):
         self.image_stream.pause_streaming()
