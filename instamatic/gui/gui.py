@@ -178,8 +178,9 @@ class MainFrame:
 def start_gui(ctrl, log=None):
     """Function to start the gui, to be imported and run elsewhere when ctrl is
     initialized Requires the `ctrl` object to be passed."""
-    root = Tk()
 
+    root = Tk()
+    
     gui = MainFrame(root, cam=ctrl.cam, modules=MODULES)
 
     experiment_ctrl = DataCollectionController(ctrl=ctrl, stream=ctrl.cam, beam_ctrl=None, app=gui.app, log=log)

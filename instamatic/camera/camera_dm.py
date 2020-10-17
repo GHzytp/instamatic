@@ -33,6 +33,7 @@ class CameraDM:
         #self.acquire_lock()
 
         self.frametime = frametime
+        self.subframetime = config.settings.default_subframe_time
         self.numImg = numImg
 
         atexit.register(self.uninit)
@@ -58,10 +59,16 @@ class CameraDM:
     def init(self):
         pyDM.initCCDCOM()
         
-        pyDM.initAcquisitionParam(self.processing, self.frametime, 
-                                  self.binsize, self.binsize, 
-                                  self.CCD_area[0], self.CCD_area[1], self.CCD_area[2], self.CCD_area[3],
-                                  self.read_mode, self.quality_level, self.is_continuous)
+        if self.subframetime is None:
+            pyDM.initAcquisitionParam(self.processing, self.frametime, 
+                                      self.binsize, self.binsize, 
+                                      self.CCD_area[0], self.CCD_area[1], self.CCD_area[2], self.CCD_area[3],
+                                      self.read_mode, self.quality_level, self.is_continuous)
+        else:
+            pyDM.initAcquisitionParam(self.processing, self.subframetime, 
+                                      self.binsize, self.binsize, 
+                                      self.CCD_area[0], self.CCD_area[1], self.CCD_area[2], self.CCD_area[3],
+                                      self.read_mode, self.quality_level, self.is_continuous)
         
         #pyDM.initAcquisitionMode(0)
         pyDM.prepareImgStack(self.numImg)
@@ -101,13 +108,14 @@ class CameraDM:
             arr = queue.get()
             if n <= 1:
                 return arr.astype(np.uint16)
+            tmp_store = np.empty(self.dimensions, dtype=np.float32) + arr
             for j in range(n-1):
                 tmp = queue.get()
                 if align:
                     shift, error, phasediff = phase_cross_correlation(arr, tmp)
                     tmp = translate_image(tmp, shift)
-                arr += tmp
-            arr = arr / n
+                tmp_store += tmp
+            arr = tmp_store / n
             return arr.astype(np.uint16)
 
     def clear_buffer(self, queue):

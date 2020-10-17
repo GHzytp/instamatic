@@ -59,19 +59,51 @@ class CameraDataStream:
             self.cam.init()
             self.cam.startAcquisition()
             time.sleep(0.5)
-            arr = self.cam.getImage(frametime=self.cam.frametime)
-            if image_size[0]!=arr.shape[0] or image_size[1]!=arr.shape[1]:
-                print("Please adjust the dimension in the configuration file.")
-                self.stop()
 
-            while not self.stopProcEvent.is_set():
+            if self.cam.frametime < 0.05:
+                raise ValueError('Frame time should be larger or equal to 0.05s')
+
+            if self.cam.subframetime is None:
                 arr = self.cam.getImage(frametime=self.cam.frametime)
-                arr[arr < 0] = 0
-                arr = arr.astype(np.uint16)
-                self.put_arr(queue, arr, read_event, write_event, shared_mem)
-                #if i%10 == 0:
-                    #print(f"Number of images produced: {i}")
-                #i = i + 1
+                if image_size[0] != arr.shape[0] or image_size[1] != arr.shape[1]:
+                    print("Please adjust the dimension in the configuration file.")
+                    self.stop()
+
+                while not self.stopProcEvent.is_set():
+                    arr = self.cam.getImage(frametime=self.cam.frametime)
+                    arr[arr < 0] = 0
+                    arr = arr.astype(np.uint16)
+                    self.put_arr(queue, arr, read_event, write_event, shared_mem)
+                    #if i%10 == 0:
+                        #print(f"Number of images produced: {i}")
+                    #i = i + 1
+            else:
+                if self.cam.subframetime >= 0.05:
+                    raise ValueError('Sub frame time should be smaller than 0.05s')
+                if self.cam.frametime < self.cam.subframetime:
+                    raise ValueError('Frame time should be larger or equal to subframe time.')
+
+                n = decimal.Decimal(str(self.cam.frametime)) / decimal.Decimal(str(self.cam.subframetime))
+                if n != int(n):
+                    raise ValueError('Frame time should be an integer times of sub frame time')
+
+                arr = self.cam.getImage(frametime=self.cam.subframetime)
+                if image_size[0] != arr.shape[0] or image_size[1] != arr.shape[1]:
+                    print("Please adjust the dimension in the configuration file.")
+                    self.stop()
+
+                while not self.stopProcEvent.is_set():
+                    tmp_store = np.empty(self.cam.dimensions, dtype=np.float32)
+                    for j in range(int(n)):
+                        arr = self.cam.getImage(frametime=self.cam.subframetime)
+                        tmp_store += arr # cost 3.25ms for 1k by 1k image(float64+uint16) 1.87ms(float32+uint16) 
+                    tmp_store = tmp_store / int(n) # cost 2.56ms for 1k by 1k image(float64) 1.28ms(float32)
+                    tmp_store[arr < 0] = 0 # cost 0.97ms for 1k by 1k image(float64) 0.8ms(float32)
+                    arr = tmp_store.astype(np.uint16)
+                    self.put_arr(queue, arr, read_event, write_event, shared_mem)
+                    #if i%10 == 0:
+                        #print(f"Number of images produced: {i}")
+                    #i = i + 1
         except:
             raise DataStreamError(f'CameraDataStream encountered en error!')
         finally:

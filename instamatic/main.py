@@ -4,6 +4,7 @@ import os
 import pprint
 import sys
 from pathlib import Path
+from tkinter import Tk
 
 import instamatic
 from instamatic import config
@@ -133,6 +134,17 @@ def main():
     logging.captureWarnings(True)
     log = logging.getLogger(__name__)
     log.info(f'Instamatic started: {repr(options.__dict__)}')
+
+    if config.settings.show_config_page:
+        import threading
+        from instamatic.gui.config_frame import ConfigFrame
+        def config_page():
+            root = Tk()
+            ConfigFrame(root).pack(side='top', fill='both', expand=True)
+            root.mainloop()
+        t = threading.Thread(target=config_page, args=(), daemon=True)
+        t.start()
+        t.join()
 
     from instamatic import TEMController
     ctrl = TEMController.initialize(stream=True)
