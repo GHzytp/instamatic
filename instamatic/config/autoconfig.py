@@ -149,6 +149,7 @@ It establishes a connection to the microscope and reads out the camera lengths a
         tem_config['neutral']['objective'] = {}
         tem_config['neutral']['objective']['mag1'] = neutral_obj_ranges
     elif tem_interface_name == 'fei':
+        holder_name = input('Holder name: ')
         x_limit = input('Stage limit x: ')
         x = [int(x_limit.split(' ')[0]), int(x_limit.split(' ')[-1])]
         y_limit = input('Stage limit y: ')
@@ -162,12 +163,13 @@ It establishes a connection to the microscope and reads out the camera lengths a
             b = [int(b_limit.split(' ')[0]), int(b_limit.split(' ')[-1])]
         else:
             b = None
-        tem_config['stageLimit'] = {}
-        tem_config['stageLimit']['x'] = x
-        tem_config['stageLimit']['y'] = y
-        tem_config['stageLimit']['z'] = z
-        tem_config['stageLimit']['a'] = a
-        tem_config['stageLimit']['b'] = b
+        tem_config[holder_name] = {}
+        tem_config[holder_name]['stageLimit'] = {}
+        tem_config[holder_name]['stageLimit']['x'] = x
+        tem_config[holder_name]['stageLimit']['y'] = y
+        tem_config[holder_name]['stageLimit']['z'] = z
+        tem_config[holder_name]['stageLimit']['a'] = a
+        tem_config[holder_name]['stageLimit']['b'] = b
 
     for mode, rng in ranges.items():
         try:

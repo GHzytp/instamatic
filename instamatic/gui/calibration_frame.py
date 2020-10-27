@@ -212,7 +212,7 @@ class CalibrationFrame(LabelFrame):
                 self.StartButton.config(state=DISABLED)
                 self.ContinueButton.config(state=NORMAL)
                 self.StopButton.config(state=NORMAL)
-                outfile = self.cam_calib_path / f'calib_cam_{self.counter}_{self.var_current.get():04d}'
+                outfile = self.cam_calib_path / f'calib_cam_{self.counter}_{self.var_current.get():.3f}'
                 comment = f'Calib camera {self.counter}: screen current = {self.var_current.get()}'
                 img, h = self.ctrl.get_image(exposure=exposure, out=outfile, comment=comment)
                 self.counter = self.counter + 1

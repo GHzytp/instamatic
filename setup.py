@@ -41,7 +41,7 @@ setup(
             'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
             'Operating System :: Microsoft :: Windows',
             'Topic :: Scientific/Engineering :: Human Machine Interfaces',
-            'Topic :: Scientific/Engineering :: Chemistry',
+            'Topic :: Scientific/Engineering :: Physics, Chemistry, Biology',
             'Topic :: Software Development :: Libraries'],
     entry_points={
         'console_scripts': [
@@ -81,7 +81,6 @@ setup(
         'instamatic.experiments',
         'instamatic.experiments.autocred',
         'instamatic.experiments.cred',
-        'instamatic.experiments.cred_gatan',
         'instamatic.experiments.cred_tvips',
         'instamatic.experiments.red',
         'instamatic.experiments.serialed',
@@ -128,7 +127,8 @@ setup(
         'tifffile>=2019.7.26.2',
         'tqdm>=4.41.1',
         'virtualbox>=2.0.0',
-        'msgpack>=1.0.0'],
+        'msgpack>=1.0.0',
+        'numexpr>=2.7.0'],
     extras_require={
         'dev': [
             'check-manifest',

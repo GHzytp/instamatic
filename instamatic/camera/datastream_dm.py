@@ -6,9 +6,11 @@ import queue
 import decimal
 import ctypes
 import numpy as np
+import numexpr as ne
 from abc import ABC, abstractmethod
 
 from instamatic.tools import printer
+from instamatic.formats import read_tiff
 from instamatic import config
 from .camera_dm import CameraDM
 
@@ -60,9 +62,6 @@ class CameraDataStream:
             self.cam.startAcquisition()
             time.sleep(0.5)
 
-            if self.cam.frametime < 0.05:
-                raise ValueError('Frame time should be larger or equal to 0.05s')
-
             if self.cam.subframetime is None:
                 arr = self.cam.getImage(frametime=self.cam.frametime)
                 if image_size[0] != arr.shape[0] or image_size[1] != arr.shape[1]:
@@ -71,15 +70,13 @@ class CameraDataStream:
 
                 while not self.stopProcEvent.is_set():
                     arr = self.cam.getImage(frametime=self.cam.frametime)
-                    arr[arr < 0] = 0
+                    arr[ne.evluate('arr < 0')] = 0
                     arr = arr.astype(np.uint16)
                     self.put_arr(queue, arr, read_event, write_event, shared_mem)
                     #if i%10 == 0:
                         #print(f"Number of images produced: {i}")
                     #i = i + 1
             else:
-                if self.cam.subframetime >= 0.05:
-                    raise ValueError('Sub frame time should be smaller than 0.05s')
                 if self.cam.frametime < self.cam.subframetime:
                     raise ValueError('Frame time should be larger or equal to subframe time.')
 
@@ -92,13 +89,26 @@ class CameraDataStream:
                     print("Please adjust the dimension in the configuration file.")
                     self.stop()
 
+                if config.camera.processing == 1:
+                    try:
+                        dark_ref, _ = read_tiff(config.settings.dark_reference)
+                        gain_norm, _ = read_tiff(config.settings.gain_normalize) * config.settings.multiplier
+                    except:
+                        dark_ref = None
+                        gain_norm = None
+
                 while not self.stopProcEvent.is_set():
                     tmp_store = np.empty(self.cam.dimensions, dtype=np.float32)
                     for j in range(int(n)):
-                        arr = self.cam.getImage(frametime=self.cam.subframetime)
-                        tmp_store += arr # cost 3.25ms for 1k by 1k image(float64+uint16) 1.87ms(float32+uint16) 
-                    tmp_store = tmp_store / int(n) # cost 2.56ms for 1k by 1k image(float64) 1.28ms(float32)
-                    tmp_store[arr < 0] = 0 # cost 0.97ms for 1k by 1k image(float64) 0.8ms(float32)
+                        if dark_ref and gain_norm:
+                            arr = self.cam.getImage(frametime=self.cam.subframetime)
+                            arr = ne.evaluate('(arr - dark_ref) * gain_norm') # 1ms 4ms
+                            tmp_store += arr # 0.8ms cost 3.25ms for 1k by 1k image(float64+uint16) 1.87ms(float32+uint16) 
+                        else:
+                            arr = self.cam.getImage(frametime=self.cam.subframetime)
+                            tmp_store += arr
+                    tmp_store /= j + 1 # 0.22ms cost 2.56ms for 1k by 1k image(float64) 1.28ms(float32)
+                    tmp_store[ne.evaluate('tmp_store < 0')] = 0 # 0.7ms cost 0.97ms for 1k by 1k image(float64) 0.8ms(float32)
                     arr = tmp_store.astype(np.uint16)
                     self.put_arr(queue, arr, read_event, write_event, shared_mem)
                     #if i%10 == 0:
@@ -122,7 +132,7 @@ class CameraDataStream:
 
     def start_loop(self):
         self.stopProcEvent.clear()
-        self.proc = multiprocessing.Process(target=self.run, args=(None,readEvent,writeEvent, sharedMem), daemon=True)
+        self.proc = multiprocessing.Process(target=self.run, args=(None,readEvent,writeEvent,sharedMem), daemon=True)
         self.proc.start()
 
     def stop(self):
@@ -192,7 +202,7 @@ class StreamBufferProc(StreamBuffer):
                     self.stop()
                     break
 
-                arr = np.empty((image_size[0], image_size[1]))
+                arr = np.empty((image_size[0], image_size[1]), dtype=np.float32)
                 t0 = time.perf_counter()
                 for j in range(int(n)):
                     if not self.stopEvent.is_set():
@@ -201,8 +211,8 @@ class StreamBufferProc(StreamBuffer):
                     else:
                         break
                 dt = time.perf_counter() - t0
-                image = arr / (j + 1)
-                queue_out.put_nowait(image)
+                arr /= (j + 1)
+                queue_out.put_nowait(arr.astype(np.uint16))
                 #if i%2 == 0:
                     #print(f"Number of images processed: {i} {n}")
                 if queue_in is None:
@@ -242,7 +252,7 @@ class StreamBufferThread(StreamBuffer):
                     self.stop()
                     break
 
-                arr = np.empty((image_size[0], image_size[1]))
+                arr = np.empty((image_size[0], image_size[1]), dtype=np.float32)
                 t0 = time.perf_counter()
                 for j in range(int(n)):
                     if not self.stopEvent.is_set():
@@ -252,8 +262,8 @@ class StreamBufferThread(StreamBuffer):
                     else:
                         break
                 dt = time.perf_counter() - t0
-                image = arr / (j + 1)
-                queue_out.put_nowait(image)
+                arr /= (j + 1)
+                queue_out.put_nowait(arr.astype(np.uint16))
                 if i%10 == 0:
                     if queue_in is None:
                         print(f"Stream Buffer: {queue_out.qsize()}, Actual time: {dt}")

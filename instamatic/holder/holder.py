@@ -3,11 +3,14 @@ from instamatic import config
 
 logger = logging.getLogger(__name__)
 
-default_holder_interface = config.holder.interface
+try:
+    default_holder_interface = config.holder.interface
+except AttributeError:
+    default_holder_interface = None
 
 __all__ = ['Holder', 'get_holder']
 
-_holder = None  # store reference of ctrl so it can be accessed without re-initializing
+_holder = None  # store reference of holder so it can be accessed without re-initializing
 
 default_holder = config.holder.name
 
@@ -21,7 +24,7 @@ def initialize(holder_name: str = default_holder):
     return holder
 
 def get_instance():
-    """Gets the current `ctrl` instance if it has been initialized, otherwise 
+    """Gets the current `holder` instance if it has been initialized, otherwise 
     initialize it using default parameters."""
 
     global _holder
