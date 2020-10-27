@@ -5,6 +5,7 @@ from tkinter import *
 from tkinter.ttk import *
 
 import numpy as np
+import numexpr as ne
 from PIL import Image
 from PIL import ImageEnhance
 from PIL import ImageTk
@@ -34,7 +35,7 @@ class VideoStreamFrame(LabelFrame):
 
         if self.stream.cam.interface=="DM":
             self.image_stream = self.ctrl.image_stream
-            self.frame_delay = int(self.stream.frametime / 2 * 1000)
+            self.frame_delay = max(int(self.stream.frametime / 2 * 1000), 50)
             self.frametime = self.stream.frametime / 2
         else:
             self.frame_delay = 50
@@ -172,14 +173,22 @@ class VideoStreamFrame(LabelFrame):
 
     def makepanel(self, master, resolution=(512, 512)):
         if self.panel is None:
-            image = Image.fromarray(np.zeros(resolution))
+            image = Image.fromarray(np.zeros(resolution, dtype=np.float32))
             image = ImageTk.PhotoImage(image)
             self.image = image
+
+            overflow = Image.new('RGBA', resolution, 'blue')
+            self.alpha = alpha = Image.fromarray(np.zeros(resolution, dtype=np.uint8))
+            overflow.putalpha(alpha)
+            overflow_tk = ImageTk.PhotoImage(overflow)
+            self.overflow = overflow
+            self.overflow_tk = overflow_tk
 
             #self.panel = Label(master, image=image)
             #self.panel.image = image
             self.panel = Canvas(master, width=resolution[1], height=resolution[0])
             self.image_on_panel = self.panel.create_image(0, 0, anchor=NW, image=image)
+            self.overflow_on_panel = self.panel.create_image(0, 0, anchor=NW, image=overflow_tk)
             self.center_panel = self.panel.create_oval(resolution[0]/2-5, resolution[0]/2-5, resolution[1]/2+5, resolution[1]/2+5, width=5, outline='green')
             self.res_shell_panel = self.panel.create_oval(0, 0, resolution[0], resolution[1], outline='red')
             self.panel.pack(side='left', padx=5, pady=5)
@@ -280,10 +289,17 @@ class VideoStreamFrame(LabelFrame):
         self.frame = frame = self.stream.frame
         #self.stream.lock.release()
 
+        overflow_alpha = (frame > 64000) * 255
+        overflow_alpha = Image.fromarray(overflow_alpha.astype(np.uint8))
+        self.overflow.putalpha(overflow_alpha)
+        self.overflow_tk = overflow_tk = ImageTk.PhotoImage(image=self.overflow)
+        self.panel.itemconfig(self.overflow_on_panel, image=overflow_tk)
+
         # the display range in ImageTk is from 0 to 256
         if self.auto_contrast:
             tmp = frame - np.min(frame[::8, ::8])
-            frame = tmp * (256.0 / (1 + np.percentile(tmp[::8, ::8], 99.5)))  # use 128x128 array for faster calculation
+            large = np.percentile(tmp[::8, ::8], 99.5)
+            frame = ne.evaluate('tmp * (256.0 / (1 + large))')  # use 128x128 array for faster calculation
 
             image = Image.fromarray(frame)
         elif self.display_range != self.display_range_default:
