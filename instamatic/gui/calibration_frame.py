@@ -11,8 +11,8 @@ from instamatic import config
 from instamatic.utils.fit import fit_affine_transformation
 from instamatic.utils.spinbox import Spinbox
 from instamatic.utils import suppress_stderr
-from instamatic.image_utils import autoscale
-from instamatic.image_utils import imgscale
+from instamatic.image_utils import autoscale, imgscale
+from instamatic.formats import read_tiff, write_tiff
 from instamatic.tools import find_beam_center
 
 from skimage.registration import phase_cross_correlation
@@ -42,19 +42,24 @@ class CalibrationFrame(LabelFrame):
         frame = Frame(self)
 
         Label(frame, text='Exposure Time', width=15).grid(row=0, column=0, sticky='W')
-        self.e_exposure_time = Spinbox(frame, width=15, textvariable=self.var_exposure_time, from_=self.ctrl.cam.default_exposure*2, to=30, increment=self.ctrl.cam.default_exposure)
+        self.e_exposure_time = Spinbox(frame, width=12, textvariable=self.var_exposure_time, from_=self.ctrl.cam.default_exposure*2, to=30, increment=self.ctrl.cam.default_exposure)
         self.e_exposure_time.grid(row=0, column=1, sticky='EW', padx=5)
         Label(frame, text='Screen Current', width=15).grid(row=0, column=2, sticky='W')
-        self.e_current = Spinbox(frame, width=15, textvariable=self.var_current, from_=0, to=300, increment=0.1)
+        self.e_current = Spinbox(frame, width=13, textvariable=self.var_current, from_=0, to=300, increment=0.1)
         self.e_current.grid(row=0, column=3, sticky='EW', padx=5)
+        self.b_toggle_screen = Checkbutton(frame, text='Toggle screen', variable=self.var_toggle_screen, command=self.toggle_screen, state=NORMAL)
+        self.b_toggle_screen.grid(row=0, column=4, sticky='EW', padx=5)
         self.StartButton = Button(frame, text='Start Cam Calib', command=self.start_cam_calib, state=NORMAL)
         self.StartButton.grid(row=1, column=0, sticky='EW')
         self.ContinueButton = Button(frame, text='Continue Calib', command=self.continue_cam_calib, state=DISABLED)
         self.ContinueButton.grid(row=1, column=1, sticky='EW', padx=5)
         self.StopButton = Button(frame, text='Stop Cam Calib', command=self.stop_cam_calib, state=DISABLED)
         self.StopButton.grid(row=1, column=2, sticky='EW')
-        self.b_toggle_screen = Checkbutton(frame, text='Toggle screen', variable=self.var_toggle_screen, command=self.toggle_screen, state=NORMAL)
-        self.b_toggle_screen.grid(row=1, column=3, sticky='EW', padx=10)
+        self.DarkRefButton = Button(frame, text='Dark Reference', command=self.start_dark_reference, state=NORMAL)
+        self.DarkRefButton.grid(row=1, column=3, sticky='EW', padx=5)
+        self.GainNormButton = Button(frame, text='Gain Normalize', command=self.start_gain_normalize, state=NORMAL)
+        self.GainNormButton.grid(row=1, column=4, sticky='EW')
+        
 
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
 
@@ -153,6 +158,8 @@ class CalibrationFrame(LabelFrame):
         self.StartButton.config(state=DISABLED)
         self.ContinueButton.config(state=DISABLED)
         self.StopButton.config(state=DISABLED)
+        self.DarkRefButton.config(state=DISABLED)
+        self.GainNormButton.config(state=DISABLED)
         self.b_toggle_screen.config(state=DISABLED)
         self.e_diff_focus.config(state=DISABLED)
         self.e_step_size.config(state=DISABLED)
@@ -176,6 +183,8 @@ class CalibrationFrame(LabelFrame):
         self.StartButton.config(state=NORMAL)
         self.ContinueButton.config(state=NORMAL)
         self.StopButton.config(state=NORMAL)
+        self.DarkRefButton.config(state=NORMAL)
+        self.GainNormButton.config(state=NORMAL)
         self.b_toggle_screen.config(state=NORMAL)
         self.e_diff_focus.config(state=NORMAL)
         self.e_step_size.config(state=NORMAL)
@@ -191,6 +200,25 @@ class CalibrationFrame(LabelFrame):
 
         for widget in widget_list:
             widget.config(state=DISABLED)
+
+    def collect_image_cam_calib(self, outfile, comment):
+        img, h = self.ctrl.get_image(exposure=self.var_exposure_time.get(), out=outfile, comment=comment)
+        self.cam_buffer.append((self.var_current.get(), img.mean()))
+
+    def collect_image(self, outfile, comment):
+        img, h = self.ctrl.get_image(exposure=self.var_exposure_time.get(), out=outfile, comment=comment)
+        self.enable_widgets([])
+
+    @suppress_stderr
+    def show_progress(self, n):
+        tot = self.var_exposure_time.get()
+        interval = tot / n
+        with tqdm(total=100, ncols=60, bar_format='{l_bar}{bar}') as pbar:
+            for i in range(n):
+                self.lb_coll1.config(text=str(pbar))
+                time.sleep(interval)
+                pbar.update(100/n)
+            self.lb_coll1.config(text=str(pbar))
 
     def start_cam_calib(self):
         self.cam_buffer = []
@@ -214,9 +242,11 @@ class CalibrationFrame(LabelFrame):
                 self.StopButton.config(state=NORMAL)
                 outfile = self.cam_calib_path / f'calib_cam_{self.counter}_{self.var_current.get():.3f}'
                 comment = f'Calib camera {self.counter}: screen current = {self.var_current.get()}'
-                img, h = self.ctrl.get_image(exposure=exposure, out=outfile, comment=comment)
+                t = threading.Thread(target=self.collect_image_cam_calib, args=(outfile,comment), daemon=True)
+                t.start()
+                t = threading.Thread(target=self.show_progress, args=(10,), daemon=True)
+                t.start()
                 self.counter = self.counter + 1
-                self.cam_buffer.append((0, img.mean()))
                 self.click = 0
             except Exception as e:
                 self.enable_widgets([])
@@ -229,9 +259,11 @@ class CalibrationFrame(LabelFrame):
             self.lb_coll1.config(text=f'Now screen current is {current}')
             outfile = self.cam_calib_path / f'calib_cam_{self.counter:04d}_{current:.3f}'
             comment = f'Calib camera {self.counter:04d}: screen current = {current:.3f}'
-            img, h = self.ctrl.get_image(exposure=self.var_exposure_time.get(), out=outfile, comment=comment)
+            t = threading.Thread(target=self.collect_image_cam_calib, args=(outfile,comment), daemon=True)
+            t.start()
+            t = threading.Thread(target=self.show_progress, args=(10,), daemon=True)
+            t.start()
             self.counter = self.counter + 1
-            self.cam_buffer.append((current, img.mean()))
         except Exception as e:
             self.enable_widgets([])
             raise e
@@ -248,6 +280,40 @@ class CalibrationFrame(LabelFrame):
             self.canvas.draw()
         finally:
             self.enable_widgets([self.ContinueButton, self.StopButton])
+
+    def start_dark_reference(self):
+        self.lb_coll0.config(text='Dark reference calibration started. Please make sure the beam is blanked for the camera.')
+        self.lb_coll1.config(text='')
+        self.cam_calib_path = self.calib_path / 'CamCalib'
+        self.cam_calib_path.mkdir(parents=True, exist_ok=True)
+        outfile = self.cam_calib_path / f'dark_reference'
+        comment = f'Dark reference exposure {self.var_exposure_time.get():.1f}s'
+        t = threading.Thread(target=self.collect_image, args=(outfile,comment), daemon=True)
+        t.start()
+        t = threading.Thread(target=self.show_progress, args=(100,), daemon=True)
+        t.start()
+        self.disable_widgets([])
+
+    def gain_normalize(self, outfile, comment, dark_ref):
+        img, h = self.ctrl.get_image(exposure=self.var_exposure_time.get(), comment=comment)
+        img = img - dark_ref
+        img = img.mean() / img
+        write_tiff(outfile, img.astype(np.float32), header=h)
+        self.enable_widgets([])
+
+    def start_gain_normalize(self):
+        self.lb_coll0.config(text='Gain normalize calibration started. Make sure suitable beam current was adjusted.')
+        self.lb_coll1.config(text='')
+        self.cam_calib_path = self.calib_path / 'CamCalib'
+        self.cam_calib_path.mkdir(parents=True, exist_ok=True)
+        outfile = self.cam_calib_path / f'gain_normalize'
+        comment = f'Gain normalize exposure {self.var_exposure_time.get():.1f}s'
+        dark_ref, _ = read_tiff(self.cam_calib_path / f'dark_reference.tiff')
+        t = threading.Thread(target=self.gain_normalize, args=(outfile,comment,dark_ref), daemon=True)
+        t.start()
+        t = threading.Thread(target=self.show_progress, args=(100,), daemon=True)
+        t.start()
+        self.disable_widgets([])
 
     def GUI_DiffFocus(self):
         self.c_toggle_defocus.config(state=NORMAL)

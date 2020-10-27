@@ -70,7 +70,7 @@ class CameraDataStream:
 
                 while not self.stopProcEvent.is_set():
                     arr = self.cam.getImage(frametime=self.cam.frametime)
-                    arr[ne.evluate('arr < 0')] = 0
+                    arr[ne.evaluate('arr < 0')] = 0
                     arr = arr.astype(np.uint16)
                     self.put_arr(queue, arr, read_event, write_event, shared_mem)
                     #if i%10 == 0:

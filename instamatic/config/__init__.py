@@ -172,7 +172,8 @@ def load_microscope_config(microscope_name: str = None):
         microscope_config.update(d)
 
     microscope = microscope_config
-
+    if microscope.interface == 'fei':
+        microscope.stageLimit = getattr(microscope, microscope.holder)['stageLimit']
     settings.microscope = microscope.name
 
 
