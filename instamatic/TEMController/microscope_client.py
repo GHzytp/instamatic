@@ -56,15 +56,26 @@ class MicroscopeClient:
             self.connect()
         except ConnectionRefusedError:
             start_server_in_subprocess()
-
-            for t in range(30):
+            for t in range(25):
                 try:
                     self.connect()
                 except ConnectionRefusedError:
                     time.sleep(1)
                     if t > 3:
                         print('Waiting for server')
-                    if t > 30:
+                    if t > 20:
+                        raise TEMCommunicationError('Cannot establish server connection (timeout)')
+                else:
+                    break
+        except socket.timeout:
+            for t in range(25):
+                try:
+                    self.connect()
+                except socket.timeout:
+                    time.sleep(1)
+                    if t > 3:
+                        print('Waiting for server')
+                    if t > 20:
                         raise TEMCommunicationError('Cannot establish server connection (timeout)')
                 else:
                     break
@@ -76,7 +87,9 @@ class MicroscopeClient:
 
     def connect(self):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s.settimeout(0.1)
         self.s.connect((HOST, PORT))
+        self.s.settimeout(None)
         print(f'Connected to TEM server ({HOST}:{PORT})')
 
     def __getattr__(self, func_name):
@@ -100,6 +113,8 @@ class MicroscopeClient:
 
         self.s.send(dumper(dct))
 
+        status = None
+        data = None
         response = self.s.recv(self._bufsize)
 
         if response:
@@ -117,7 +132,7 @@ class MicroscopeClient:
 
     def _init_dict(self):
         from instamatic.TEMController.microscope import get_tem
-        tem = get_tem(self.name)
+        tem = get_tem(self.interface)
 
         self._dct = {key: value for key, value in tem.__dict__.items() if not key.startswith('_')}
 

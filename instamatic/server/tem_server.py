@@ -17,7 +17,7 @@ box = []
 
 HOST = config.settings.tem_server_host
 PORT = config.settings.tem_server_port
-MAX_IMAGE_SIZE = 6000
+MAX_IMAGE_SIZE = 4096
 BUFSIZE = MAX_IMAGE_SIZE * MAX_IMAGE_SIZE * 4 #1024
 
 default_microscope = config.microscope.name

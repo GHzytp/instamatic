@@ -289,7 +289,7 @@ class VideoStreamFrame(LabelFrame):
         self.frame = frame = self.stream.frame
         #self.stream.lock.release()
 
-        overflow_alpha = (frame > 64000) * 255
+        overflow_alpha = ne.evaluate('(frame > 64000) * 255')
         overflow_alpha = Image.fromarray(overflow_alpha.astype(np.uint8))
         self.overflow.putalpha(overflow_alpha)
         self.overflow_tk = overflow_tk = ImageTk.PhotoImage(image=self.overflow)

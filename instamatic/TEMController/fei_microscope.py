@@ -267,7 +267,7 @@ class FEIMicroscope:
         except OSError:
             comtypes.CoInitialize()
 
-        print('FEI Themis Z initializing...')
+        print(f'{name} initializing...')
         # tem interfaces the GUN, stage obj etc but does not communicate with the Instrument objects
         self.tem = comtypes.client.CreateObject('TEMScripting.Instrument', comtypes.CLSCTX_ALL)
         # tecnai does similar things as tem; the difference is not clear for now
