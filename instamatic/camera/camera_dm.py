@@ -108,7 +108,7 @@ class CameraDM:
             arr = queue.get()
             if n <= 1:
                 return arr.astype(np.uint16)
-            tmp_store = np.empty(self.dimensions, dtype=np.float32) + arr
+            tmp_store = np.zeros(self.dimensions, dtype=np.float32) + arr
             for j in range(n-1):
                 tmp = queue.get()
                 if align:

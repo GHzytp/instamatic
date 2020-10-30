@@ -136,9 +136,8 @@ class ExperimentalcRED(LabelFrame):
         self.CollectionButton = Button(frame, text='Start Collection', command=self.start_collection)
         self.CollectionButton.grid(row=1, column=0, sticky='EW')
 
-        if self.ctrl.tem.interface != "fei":
-            self.CollectionStopButton = Button(frame, text='Stop Collection', command=self.stop_collection, state=DISABLED)
-            self.CollectionStopButton.grid(row=1, column=1, sticky='EW')
+        self.CollectionStopButton = Button(frame, text='Stop Collection', command=self.stop_collection, state=DISABLED)
+        self.CollectionStopButton.grid(row=1, column=1, sticky='EW')
 
         frame.columnconfigure(0, weight=1)
         frame.columnconfigure(1, weight=1)
@@ -216,8 +215,7 @@ class ExperimentalcRED(LabelFrame):
             self.var_toggle_diff_defocus.set(False)
             self.toggle_diff_defocus()
 
-        if self.ctrl.tem.interface != "fei":
-            self.CollectionStopButton.config(state=NORMAL)
+        self.CollectionStopButton.config(state=NORMAL)
 
         self.CollectionButton.config(state=DISABLED)
         if self.mode == 'footfree':
@@ -231,6 +229,7 @@ class ExperimentalcRED(LabelFrame):
             self.lb_coll2.config(text='Click STOP COLLECTION BEFORE removing your foot from the pedal!')
 
         self.parent.bind_all('<space>', self.stop_collection)
+        self.stopEvent.clear()
 
         params = self.get_params()
         self.q.put(('cred', params))
@@ -238,15 +237,16 @@ class ExperimentalcRED(LabelFrame):
         self.triggerEvent.set()
 
         if self.ctrl.tem.interface == "fei":
-            def stop_collection():
-                self.stopEvent.wait()
-                self.parent.unbind_all('<space>')
-                self.CollectionButton.config(state=NORMAL)
-                self.lb_coll1.config(text='')
-                self.lb_coll2.config(text='')
-                self.stopEvent.clear()
-            p = threading.Thread(target=stop_collection, args=())
+            p = threading.Thread(target=self.stop_collection_t, args=())
             p.start()
+
+    def stop_collection_t(self):
+        self.stopEvent.wait()
+        self.parent.unbind_all('<space>')
+        self.CollectionStopButton.config(state=DISABLED)
+        self.CollectionButton.config(state=NORMAL)
+        self.lb_coll1.config(text='')
+        self.lb_coll2.config(text='')
 
     def stop_collection(self, event=None):
         self.stopEvent.set()

@@ -58,7 +58,7 @@ def rotate_image(arr, mode: str, mag: int) -> np.array:
 
 def translate_image(arr, shift: np.array) -> np.array:
     """Translate an image according to shift. Shift should be a 2D numpy array"""
-    img = np.empty(arr.shape).astype(np.uint16)
+    img = np.zeros(arr.shape, dtype=np.uint16)
     shift = np.int16(shift)
     avg = np.uint16(arr.mean())
     if shift[0] >= 0 and shift[1] >= 0:

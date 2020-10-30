@@ -1017,7 +1017,7 @@ def serReader(filename):
                 dataOut = {'data':temp,'eLoss':eLoss,'eOffset':eOffset,'eDelta':eDelta,'scanCalibration':f1.head['Dimensions']}
             elif f1.head['DataTypeID'] == 0x4122:
                 # Images as 2D or 3D image series
-                temp = np.empty([f1.head['ValidNumberElements'],data.shape[0],data.shape[1]],dtype=npType)
+                temp = np.zeros([f1.head['ValidNumberElements'],data.shape[0],data.shape[1]],dtype=npType)
                 for ii in range(0,f1.head['ValidNumberElements']):
                     data0, metadata0 = f1.getDataset(ii)
                     temp[ii, :, :] = data0  # get the next dataset

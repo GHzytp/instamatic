@@ -92,13 +92,14 @@ class CameraDataStream:
                 if config.camera.processing == 1:
                     try:
                         dark_ref, _ = read_tiff(config.settings.dark_reference)
-                        gain_norm, _ = read_tiff(config.settings.gain_normalize) * config.settings.multiplier
+                        gain_norm, _ = read_tiff(config.settings.gain_normalize) 
+                        gain_norm *= config.settings.multiplier
                     except:
                         dark_ref = None
                         gain_norm = None
 
                 while not self.stopProcEvent.is_set():
-                    tmp_store = np.empty(self.cam.dimensions, dtype=np.float32)
+                    tmp_store = np.zeros(self.cam.dimensions, dtype=np.float32)
                     for j in range(int(n)):
                         if dark_ref and gain_norm:
                             arr = self.cam.getImage(frametime=self.cam.subframetime)
@@ -157,10 +158,9 @@ class StreamBuffer(ABC):
     def run(self, queue_in, queue_out, read_event, write_event, shared_mem):        
         pass
 
-    def get_arr(self, queue, read_event, write_event, shared_mem):
+    def get_arr(self, queue, arr, read_event, write_event, shared_mem):
         '''Get an array from a queue or a shared memory space'''
         if queue is None:
-            arr = np.empty(image_size[0]*image_size[1])
             write_event.wait()
             arr[:] = memoryview(shared_mem)[:]
             read_event.set()
@@ -202,11 +202,12 @@ class StreamBufferProc(StreamBuffer):
                     self.stop()
                     break
 
-                arr = np.empty((image_size[0], image_size[1]), dtype=np.float32)
+                arr = np.zeros((image_size[0], image_size[1]), dtype=np.float32)
+                arr_obtain = np.zeros(image_size[0]*image_size[1], dtype=np.uint16)
                 t0 = time.perf_counter()
                 for j in range(int(n)):
                     if not self.stopEvent.is_set():
-                        tmp = self.get_arr(queue_in, read_event, write_event, shared_mem)
+                        tmp = self.get_arr(queue_in, arr_obtain, read_event, write_event, shared_mem)
                         arr += tmp
                     else:
                         break
@@ -252,12 +253,13 @@ class StreamBufferThread(StreamBuffer):
                     self.stop()
                     break
 
-                arr = np.empty((image_size[0], image_size[1]), dtype=np.float32)
+                arr = np.zeros((image_size[0], image_size[1]), dtype=np.float32)
+                arr_obtain = np.zeros(image_size[0]*image_size[1], dtype=np.uint16)
                 t0 = time.perf_counter()
                 for j in range(int(n)):
                     if not self.stopEvent.is_set():
                         self.collectEvent.wait()
-                        tmp = self.get_arr(queue_in, read_event, write_event, shared_mem)
+                        tmp = self.get_arr(queue_in, arr_obtain, read_event, write_event, shared_mem)
                         arr += tmp
                     else:
                         break

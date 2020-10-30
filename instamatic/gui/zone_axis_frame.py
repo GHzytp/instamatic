@@ -210,7 +210,7 @@ class ExperimentalZoneAxis(LabelFrame):
         frame.pack(side='bottom', fill='x', expand=False, padx=5, pady=5)
 
     def init_vars(self):
-        self.var_exposure_time = DoubleVar(value=round(int(1.5/self.ctrl.cam.default_exposure)*self.ctrl.cam.default_exposure, 1))
+        self.var_exposure_time = DoubleVar(value=round(round(1.5/self.ctrl.cam.default_exposure)*self.ctrl.cam.default_exposure, 1))
         self.var_center_x = DoubleVar(value=self.cam_x / 2)
         self.var_center_y = DoubleVar(value=self.cam_y / 2)
         self.var_laue_circle_x = DoubleVar(value=self.cam_x / 2)

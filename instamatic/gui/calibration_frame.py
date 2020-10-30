@@ -132,7 +132,7 @@ class CalibrationFrame(LabelFrame):
     def init_vars(self):
         self.var_toggle_screen = BooleanVar(value=False)
         self.var_current = DoubleVar(value=0)
-        self.var_exposure_time = DoubleVar(value=round(int(1.5/self.ctrl.cam.default_exposure)*self.ctrl.cam.default_exposure, 1))
+        self.var_exposure_time = DoubleVar(value=round(round(1.5/self.ctrl.cam.default_exposure)*self.ctrl.cam.default_exposure, 1))
         self.var_diff_defocus = IntVar(value=15000)
         self.var_toggle_diff_defocus = IntVar(value=0)
         self.var_grid_size = IntVar(value=5)
@@ -202,16 +202,28 @@ class CalibrationFrame(LabelFrame):
             widget.config(state=DISABLED)
 
     def collect_image_cam_calib(self, outfile, comment):
-        img, h = self.ctrl.get_image(exposure=self.var_exposure_time.get(), out=outfile, comment=comment)
+        img, _ = self.ctrl.get_image(exposure=self.var_exposure_time.get(), out=outfile, comment=comment)
         self.cam_buffer.append((self.var_current.get(), img.mean()))
 
     def collect_image(self, outfile, comment):
-        img, h = self.ctrl.get_image(exposure=self.var_exposure_time.get(), out=outfile, comment=comment)
-        self.enable_widgets([])
+        try:
+            n = round(self.var_exposure_time.get()/self.ctrl.cam.default_exposure)
+            arr = np.zeros(self.ctrl.cam.dimensions, dtype=np.float32)
+            self.ctrl.cam.block()
+            t0 = time.perf_counter()
+            for i in range(n):
+                img, _ = self.ctrl.get_image(exposure=self.ctrl.cam.default_exposure)
+                arr += img
+            arr /= n
+            t1 = time.perf_counter()
+            self.ctrl.cam.unblock()
+            write_tiff(outfile, arr, header=comment)
+        finally:
+            self.enable_widgets([self.ContinueButton, self.StopButton])
 
     @suppress_stderr
     def show_progress(self, n):
-        tot = self.var_exposure_time.get()
+        tot = round(self.var_exposure_time.get()/self.ctrl.cam.default_exposure) * self.ctrl.cam.default_exposure
         interval = tot / n
         with tqdm(total=100, ncols=60, bar_format='{l_bar}{bar}') as pbar:
             for i in range(n):
@@ -224,7 +236,7 @@ class CalibrationFrame(LabelFrame):
         self.cam_buffer = []
         self.counter = 0
 
-        exposure = round(int(self.var_exposure_time.get()/self.ctrl.cam.default_exposure)*self.ctrl.cam.default_exposure, 1)
+        exposure = round(round(self.var_exposure_time.get()/self.ctrl.cam.default_exposure)*self.ctrl.cam.default_exposure, 1)
         self.var_exposure_time.set(exposure)
         if self.click == 0:
             self.lb_coll0.config(text='Camera calibration. Please blank the beam and input current to 0')
@@ -282,6 +294,8 @@ class CalibrationFrame(LabelFrame):
             self.enable_widgets([self.ContinueButton, self.StopButton])
 
     def start_dark_reference(self):
+        exposure = round(round(self.var_exposure_time.get()/self.ctrl.cam.default_exposure)*self.ctrl.cam.default_exposure, 1)
+        self.var_exposure_time.set(exposure)
         self.lb_coll0.config(text='Dark reference calibration started. Please make sure the beam is blanked for the camera.')
         self.lb_coll1.config(text='')
         self.cam_calib_path = self.calib_path / 'CamCalib'
@@ -295,13 +309,24 @@ class CalibrationFrame(LabelFrame):
         self.disable_widgets([])
 
     def gain_normalize(self, outfile, comment, dark_ref):
-        img, h = self.ctrl.get_image(exposure=self.var_exposure_time.get(), comment=comment)
-        img = img - dark_ref
-        img = img.mean() / img
-        write_tiff(outfile, img.astype(np.float32), header=h)
-        self.enable_widgets([])
+        try:
+            n = round(self.var_exposure_time.get()/self.ctrl.cam.default_exposure)
+            arr = np.zeros(self.ctrl.cam.dimensions, dtype=np.float32)
+            self.ctrl.cam.block()
+            for i in range(n):
+                img, _ = self.ctrl.get_image(exposure=self.ctrl.cam.default_exposure)
+                arr += img
+            arr /= n
+            arr -= dark_ref
+            arr = arr.mean() / arr
+            self.ctrl.cam.unblock()
+            write_tiff(outfile, arr, header=comment)
+        finally:
+            self.enable_widgets([self.ContinueButton, self.StopButton])
 
     def start_gain_normalize(self):
+        exposure = round(round(self.var_exposure_time.get()/self.ctrl.cam.default_exposure)*self.ctrl.cam.default_exposure, 1)
+        self.var_exposure_time.set(exposure)
         self.lb_coll0.config(text='Gain normalize calibration started. Make sure suitable beam current was adjusted.')
         self.lb_coll1.config(text='')
         self.cam_calib_path = self.calib_path / 'CamCalib'

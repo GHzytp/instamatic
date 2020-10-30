@@ -104,7 +104,7 @@ class ExperimentalFocusSeries(LabelFrame):
         frame.pack(side='bottom', fill='x', expand=False, padx=5, pady=5)
 
     def init_vars(self):
-        self.var_exposure_time = DoubleVar(value=round(int(1.5/self.ctrl.cam.default_exposure)*self.ctrl.cam.default_exposure, 1))
+        self.var_exposure_time = DoubleVar(value=round(round(1.5/self.ctrl.cam.default_exposure)*self.ctrl.cam.default_exposure, 1))
         self.var_focus_interval = IntVar(value=30)
         self.var_unblank_beam = BooleanVar(value=True)
         self.var_align_frames = BooleanVar(value=False)

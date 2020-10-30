@@ -31,7 +31,7 @@ def arrangeData(raw, out=None):
     q4 = raw[3 * s:4 * s][::-1].reshape(256, 256)
 
     if out is None:
-        out = np.empty((516, 516), dtype=raw.dtype)
+        out = np.zeros((516, 516), dtype=raw.dtype)
     out[0:256, 0:256] = q1
     out[0:256, 260:516] = q2
     out[260:516, 0:256] = q4
@@ -220,7 +220,7 @@ class CameraTPX:
         """
 
         if arr is None:
-            arr = np.empty(sz, dtype=np.int16)
+            arr = np.zeros(sz, dtype=np.int16)
 
         ref = np.ctypeslib.as_ctypes(arr)
         sz = ctypes.c_uint32(sz)
