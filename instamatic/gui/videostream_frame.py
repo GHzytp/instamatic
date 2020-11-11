@@ -30,7 +30,12 @@ class VideoStreamFrame(LabelFrame):
         self.stream = stream
         self.app = app
         self.binsize = self.stream.default_binsize
-        self.resolution = self.stream.dimension
+        self.software_binsize = config.settings.software_binsize
+        if self.software_binsize is None:
+            self.dimension = self.stream.dimension
+        else:
+            self.dimension = (round(self.stream.dimension[0]/self.software_binsize), 
+                              round(self.stream.dimension[1]/self.software_binsize))
         self.ctrl = get_instance()
 
         if self.stream.cam.interface=="DM":
@@ -50,7 +55,7 @@ class VideoStreamFrame(LabelFrame):
         self.auto_contrast = True
 
         self.resize_image = False
-        self.frame = np.zeros(self.resolution)
+        self.frame = np.zeros(self.dimension)
 
         self.last = time.perf_counter()
         self.nframes = 1
@@ -66,7 +71,7 @@ class VideoStreamFrame(LabelFrame):
         self.init_vars()
         self.buttonbox(self)
         self.header(self)
-        self.makepanel(self, resolution=self.resolution)
+        self.makepanel(self, dimension=self.dimension)
 
         try:
             self.parent.wm_title('Video stream')
@@ -171,14 +176,14 @@ class VideoStreamFrame(LabelFrame):
 
         frame.pack()
 
-    def makepanel(self, master, resolution=(512, 512)):
+    def makepanel(self, master, dimension=(512, 512)):
         if self.panel is None:
-            image = Image.fromarray(np.zeros(resolution, dtype=np.float32))
+            image = Image.fromarray(np.zeros(dimension, dtype=np.float32))
             image = ImageTk.PhotoImage(image)
             self.image = image
 
-            overflow = Image.new('RGBA', resolution, 'blue')
-            self.alpha = alpha = Image.fromarray(np.zeros(resolution, dtype=np.uint8))
+            overflow = Image.new('RGBA', dimension, 'blue')
+            self.alpha = alpha = Image.fromarray(np.zeros(dimension, dtype=np.uint8))
             overflow.putalpha(alpha)
             overflow_tk = ImageTk.PhotoImage(overflow)
             self.overflow = overflow
@@ -186,11 +191,11 @@ class VideoStreamFrame(LabelFrame):
 
             #self.panel = Label(master, image=image)
             #self.panel.image = image
-            self.panel = Canvas(master, width=resolution[1], height=resolution[0])
+            self.panel = Canvas(master, width=dimension[1], height=dimension[0])
             self.image_on_panel = self.panel.create_image(0, 0, anchor=NW, image=image)
             self.overflow_on_panel = self.panel.create_image(0, 0, anchor=NW, image=overflow_tk)
-            self.center_panel = self.panel.create_oval(resolution[0]/2-5, resolution[0]/2-5, resolution[1]/2+5, resolution[1]/2+5, width=5, outline='green')
-            self.res_shell_panel = self.panel.create_oval(0, 0, resolution[0], resolution[1], outline='red')
+            self.center_panel = self.panel.create_oval(dimension[0]/2-5, dimension[0]/2-5, dimension[1]/2+5, dimension[1]/2+5, width=5, outline='green')
+            self.res_shell_panel = self.panel.create_oval(0, 0, dimension[0], dimension[1], outline='red')
             self.panel.pack(side='left', padx=5, pady=5)
 
     def show_center(self):
@@ -211,12 +216,12 @@ class VideoStreamFrame(LabelFrame):
             self.l_resolution.config(text='Resolution (A)')
             camera_length = self.ctrl.magnification.get()
             pixelsize = config.calibration[mode]['pixelsize'][camera_length] * self.binsize
-            self.var_resolution.set(round(pixelsize * self.resolution[0] / 2, 2))
+            self.var_resolution.set(round(1 / (pixelsize * self.dimension[0] / 2), 2))
         else:
             self.l_resolution.config(text='Resolution (nm)')
             mag = self.ctrl.magnification.get()
             pixelsize = config.calibration[mode]['pixelsize'][mag] * self.binsize
-            self.var_resolution.set(round(pixelsize * self.resolution[0] / 2, 1))
+            self.var_resolution.set(round(pixelsize * self.dimension[0] / 2, 1))
 
     def pause_stream(self):
         self.image_stream.pause_streaming()
@@ -288,7 +293,6 @@ class VideoStreamFrame(LabelFrame):
         #self.stream.lock.acquire(True)
         self.frame = frame = self.stream.frame
         #self.stream.lock.release()
-
         overflow_alpha = ne.evaluate('(frame > 64000) * 255')
         overflow_alpha = Image.fromarray(overflow_alpha.astype(np.uint8))
         self.overflow.putalpha(overflow_alpha)

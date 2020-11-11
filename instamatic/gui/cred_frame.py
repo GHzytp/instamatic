@@ -74,8 +74,8 @@ class ExperimentalcRED(LabelFrame):
         self.e_start_frames_interval.grid(row=8, column=3, sticky='W', padx=10)
 
         Label(frame, text='Low angle image interval').grid(row=9, column=0, sticky='W')
-        self.e_start_frames = Spinbox(frame, textvariable=self.var_low_angle_image_interval, width=sbwidth, from_=0, to=100, increment=1, state=DISABLED)
-        self.e_start_frames.grid(row=9, column=1, sticky='W', padx=10)
+        self.e_low_angle_interval = Spinbox(frame, textvariable=self.var_low_angle_image_interval, width=sbwidth, from_=0, to=100, increment=1, state=DISABLED)
+        self.e_low_angle_interval.grid(row=9, column=1, sticky='W', padx=10)
 
         if self.ctrl.tem.interface != "fei" and ENABLE_FOOTFREE_OPTION:
             Separator(frame, orient=HORIZONTAL).grid(row=10, columnspan=4, sticky='ew', pady=10)
@@ -290,6 +290,7 @@ class ExperimentalcRED(LabelFrame):
             self.e_defocus_start_angle.config(state=NORMAL)
             self.e_start_frames.config(state=NORMAL)
             self.e_start_frames_interval.config(state=NORMAL)
+            self.e_low_angle_interval.config(state=NORMAL)
         else:
             self.e_image_interval.config(state=DISABLED)
             self.e_image_exposure.config(state=DISABLED)
@@ -300,6 +301,7 @@ class ExperimentalcRED(LabelFrame):
             self.e_defocus_start_angle.set(0)
             self.e_start_frames.config(state=DISABLED)
             self.e_start_frames_interval.config(state=DISABLED)
+            self.e_low_angle_interval.config(state=DISABLED)
 
     def relax_beam(self):
         difffocus = self.var_diff_defocus.get()

@@ -119,8 +119,14 @@ class VideoStream:
         self.frame_updated = threading.Event() # For 4DSTEM experiment
 
         self.streamable = self.cam.streamable
-        self.dimension = self.cam.getCameraDimensions()
-        self.frame = np.zeros(self.dimension)
+        self.software_binsize = config.settings.software_binsize
+        self.dimension = self.cam.dimensions
+        if self.software_binsize is None:
+            self.frame = np.zeros(self.cam.dimensions)
+        else:
+            self.frame = np.zeros((round(self.cam.dimensions[0]/self.software_binsize), 
+                                   round(self.cam.dimensions[1]/self.software_binsize)))
+        
 
         self.start()
 
