@@ -30,12 +30,7 @@ class VideoStreamFrame(LabelFrame):
         self.stream = stream
         self.app = app
         self.binsize = self.stream.default_binsize
-        self.software_binsize = config.settings.software_binsize
-        if self.software_binsize is None:
-            self.dimension = self.stream.dimension
-        else:
-            self.dimension = (round(self.stream.dimension[0]/self.software_binsize), 
-                              round(self.stream.dimension[1]/self.software_binsize))
+        self.dimension = self.stream.dimension
         self.ctrl = get_instance()
 
         if self.stream.cam.interface=="DM":
