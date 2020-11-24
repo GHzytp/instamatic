@@ -360,7 +360,7 @@ class Experiment:
                 if self.ctrl.cam.interface == 'DM':
                     # One frame was removed for a clean defocused image so the exposure time for diffraction pattern
                     # should be larger than the total of frametime and exposure time for defocused image
-                    time.sleep(self.frametime)
+                    time.sleep(self.frametime * 3)
                 img, h = self.ctrl.get_image(exposure_image, header_keys=None)
                 self.ctrl.difffocus.set(self.diff_focus_proper, confirm_mode=False)
 

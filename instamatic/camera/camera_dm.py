@@ -42,6 +42,8 @@ class CameraDM:
         self.load_defaults()
         self.binsize = self.default_binsize
 
+        self.scale = config.settings.software_binsize
+
     def acquire_lock(self):
         try:
             os.rename(self.lockfile, self.lockfile)
@@ -108,7 +110,10 @@ class CameraDM:
             arr = queue.get()
             if n <= 1:
                 return arr.astype(np.uint16)
-            tmp_store = np.zeros(self.dimensions, dtype=np.float32) + arr
+            if self.scale is None:
+                tmp_store = np.zeros(self.dimensions, dtype=np.float32) + arr
+            else:
+                tmp_store = np.zeros((round(self.dimensions[0]/self.scale), round(self.dimensions[1]/self.scale)), dtype=np.float32) + arr
             for j in range(n-1):
                 tmp = queue.get()
                 if align:

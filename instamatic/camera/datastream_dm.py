@@ -155,8 +155,9 @@ class ProcessingStream:
                     while not self.stopProcEvent.is_set():
                         arr = self.get_arr(queue, arr_obtain, read_event_processing, write_event_processing, shared_mem_processing)
                         if scale is not None:
-                            arr = block_reduce(arr, block_size=(scale,scale), func=np.mean, cval=0, func_kwargs={'dtype':np.uint16})
+                            arr = block_reduce(arr, block_size=(scale,scale), func=np.mean, cval=0)
                         arr = ne.evaluate('(arr - dark_ref) * gain_norm')
+                        #arr = ne.evaluate('(arr - dark_ref) ')
                         arr[ne.evaluate('arr < 0')] = 0
                         arr = arr.astype(np.uint16)
                         self.put_arr(queue, arr, read_event, write_event, shared_mem)
@@ -164,7 +165,8 @@ class ProcessingStream:
                     while not self.stopProcEvent.is_set():
                         arr = self.get_arr(queue, arr_obtain, read_event_processing, write_event_processing, shared_mem_processing)
                         if scale is not None:
-                            arr = block_reduce(arr, block_size=(scale,scale), func=np.mean, cval=0, func_kwargs={'dtype':np.uint16})
+                            arr = block_reduce(arr, block_size=(scale,scale), func=np.mean, cval=0)
+                            arr = arr.astype(np.uint16)
                         self.put_arr(queue, arr, read_event, write_event, shared_mem)
             else:
                 if self.frametime < self.subframetime:
@@ -181,13 +183,13 @@ class ProcessingStream:
                         if dark_ref is not None and gain_norm is not None:
                             arr = self.get_arr(queue, arr_obtain, read_event_processing, write_event_processing, shared_mem_processing)
                             if scale is not None:
-                                arr = block_reduce(arr, block_size=(scale,scale), func=np.mean, cval=0, func_kwargs={'dtype':np.uint16})
+                                arr = block_reduce(arr, block_size=(scale,scale), func=np.mean, cval=0)
                             arr = ne.evaluate('(arr - dark_ref) * gain_norm') # 1ms 4ms
                             tmp_store += arr # 0.8ms cost 3.25ms for 1k by 1k image(float64+uint16) 1.87ms(float32+uint16) 
                         else:
                             arr = self.get_arr(queue, arr_obtain, read_event_processing, write_event_processing, shared_mem_processing)
                             if scale is not None:
-                                arr = block_reduce(arr, block_size=(scale,scale), func=np.mean, cval=0, func_kwargs={'dtype':np.uint16})
+                                arr = block_reduce(arr, block_size=(scale,scale), func=np.mean, cval=0)
                             tmp_store += arr
                     tmp_store /= j + 1 # 0.22ms cost 2.56ms for 1k by 1k image(float64) 1.28ms(float32)
                     tmp_store[ne.evaluate('tmp_store < 0')] = 0 # 0.7ms cost 0.97ms for 1k by 1k image(float64) 0.8ms(float32)
