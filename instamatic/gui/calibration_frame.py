@@ -20,6 +20,8 @@ from skimage.registration import phase_cross_correlation
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
+SCALE = config.settings.software_binsize
+
 class CalibrationFrame(LabelFrame):
     """GUI frame for common TEM calibrations: stage, beam tilt, beam shift, image shift, diffraction shift"""
     def __init__(self, parent):
@@ -208,7 +210,10 @@ class CalibrationFrame(LabelFrame):
     def collect_image(self, outfile, comment):
         try:
             n = round(self.var_exposure_time.get()/self.ctrl.cam.default_exposure)
-            arr = np.zeros(self.ctrl.cam.dimensions, dtype=np.float32)
+            if SCALE is None:
+                arr = np.zeros(self.ctrl.cam.dimensions, dtype=np.float32)
+            else:
+                arr = np.zeros((round(self.ctrl.cam.dimensions[0]/SCALE),round(self.ctrl.cam.dimensions[1]/SCALE)), dtype=np.float32)
             self.ctrl.cam.block()
             t0 = time.perf_counter()
             for i in range(n):
@@ -311,7 +316,10 @@ class CalibrationFrame(LabelFrame):
     def gain_normalize(self, outfile, comment, dark_ref):
         try:
             n = round(self.var_exposure_time.get()/self.ctrl.cam.default_exposure)
-            arr = np.zeros(self.ctrl.cam.dimensions, dtype=np.float32)
+            if SCALE is None:
+                arr = np.zeros(self.ctrl.cam.dimensions, dtype=np.float32)
+            else:
+                arr = np.zeros((round(self.ctrl.cam.dimensions[0]/SCALE),round(self.ctrl.cam.dimensions[1]/SCALE)), dtype=np.float32)
             self.ctrl.cam.block()
             for i in range(n):
                 img, _ = self.ctrl.get_image(exposure=self.ctrl.cam.default_exposure)
