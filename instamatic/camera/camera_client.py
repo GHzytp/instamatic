@@ -8,6 +8,7 @@ import numpy as np
 
 from instamatic import config
 from instamatic.exceptions import exception_list
+from instamatic.exceptions import TEMCommunicationError
 from instamatic.server.serializer import pickle_dumper as dumper
 from instamatic.server.serializer import pickle_loader as loader
 
