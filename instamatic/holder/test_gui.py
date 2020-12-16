@@ -25,17 +25,17 @@ class HolderGUI(LabelFrame):
         Hoverbox(self.ConnectButton, 'Connect to a holder, enable all the operations. Close the GUI to disconnect.')
 
         Label(frame, text='Holder ID:').grid(row=0, column=1, sticky='W')
-        self.lb_holder_id = Label(frame, width=10, textvariable=self.holder_id)
+        self.lb_holder_id = Label(frame, width=5, textvariable=self.holder_id)
         self.lb_holder_id.grid(row=0, column=2, sticky='EW', padx=5)
 
         Label(frame, text='Angle:').grid(row=0, column=3, sticky='W')
-        self.lb_angle = Label(frame, width=10, text='0.0')
+        self.lb_angle = Label(frame, width=5, text='0.0')
         self.lb_angle.grid(row=0, column=4, sticky='EW', padx=5)
         self.GetAngleButton = Button(frame, text='Get Angle', command=self.get_angle, state=DISABLED)
         self.GetAngleButton.grid(row=0, column=5, sticky='EW')
         Hoverbox(self.GetAngleButton, 'Read current angle, unit is degree.')
         Label(frame, text='Distance:').grid(row=0, column=6, sticky='W', padx=5)
-        self.lb_distance = Label(frame, width=10, text='0.0')
+        self.lb_distance = Label(frame, width=5, text='0.0')
         self.lb_distance.grid(row=0, column=7, sticky='EW')
         self.GetDistButton = Button(frame, text='Get Distance', command=get_instance, state=DISABLED)
         self.GetDistButton.grid(row=0, column=8, sticky='EW', padx=5)
@@ -87,6 +87,13 @@ class HolderGUI(LabelFrame):
         self.GoToXButton = Button(frame, text='Go To X', command=self.goto_x, state=DISABLED)
         self.GoToXButton.grid(row=2, column=8, columnspan=2, sticky='EW')
         Hoverbox(self.GoToXButton, 'Holder X direction move. Need to fill in target')
+
+        self.RotateRecordButton = Button(frame, text='Rotate&Record', command=self.rotate_record, state=DISABLED)
+        self.RotateRecordButton.grid(row=3, column=0, columnspan=2, sticky='EW')
+        Hoverbox(self.RotateRecordButton, 'Holder rotate and record angles. Need to fill in angle and amp.')
+        self.StopRecordButton = Button(frame, text='Stop Record', command=self.stop_record, state=DISABLED)
+        self.StopRecordButton.grid(row=3, column=2, columnspan=2, sticky='EW', padx=5)
+        Hoverbox(self.StopRecordButton, 'Stop recording angles')
 
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
 
@@ -234,6 +241,7 @@ class HolderGUI(LabelFrame):
         self.var_coff_21 = DoubleVar(value=0.0)
         self.var_coff_22 = DoubleVar(value=0.0)
         self.var_coff_23 = DoubleVar(value=0.0)
+        self.stopEvent = threading.Event()
 
     def connect(self):
         self.ctrl = get_instance()
@@ -271,6 +279,25 @@ class HolderGUI(LabelFrame):
 
     def rotate_to(self):
         self.ctrl.holderRotateTo(self.var_angle.get(), self.var_amp.get())
+
+    def rotate_record(self):
+        self.ctrl.holderRotateTo(self.var_angle.get(), self.var_amp.get())
+        t_record_angle = threading.Thread(target=self.record_angle, args=(), daemon=True)
+        t_record_angle.start()
+
+    def record_angle(self):
+        current_angle = self.ctrl.getAngle()
+        target_angle = self.var_angle.get()
+        angle_list = []
+        while round(current_angle, 2) != round(target_angle, 2) and not self.stopEvent.is_set():
+            current_angle = self.ctrl.getAngle()
+            angle_list.append(current_angle)
+            time.sleep(0.001)
+        print(angle_list)
+        self.stopEvent.clear()
+
+    def stop_record(self):
+        self.stopEvent.set()
 
     def goto_x(self):
         self.ctrl.holderGotoX(self.var_target.get())
@@ -344,6 +371,8 @@ class HolderGUI(LabelFrame):
         self.FineMoveButton.config(state=NORMAL)
         self.RotateToButton.config(state=NORMAL)
         self.GoToXButton.config(state=NORMAL)
+        self.RotateRecordButton.config(state=NORMAL)
+        self.StopRecordButton.config(state=NORMAL)
         self.coff_0.config(state=NORMAL)
         self.coff_1.config(state=NORMAL)
         self.coff_2.config(state=NORMAL)
