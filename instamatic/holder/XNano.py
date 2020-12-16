@@ -1,3 +1,4 @@
+import threading
 import logging
 from pathlib import Path
 import ctypes
@@ -21,22 +22,24 @@ class XNanoHolder:
         self.ip = config.holder.IP_Address
         self.lib = ctypes.cdll.LoadLibrary(str(libpath))
 
-        self.lib.holderSend.argtypes = (ctypes.c_char_p, ctypes.POINTER(ctypes.c_byte), ctypes.c_int)
-        self.lib.holderSend.restype = ctypes.c_int
+        self.lib.getHolderId.restype = ctypes.c_ulong
 
+        self.lib.getAngle.restype = ctypes.c_double
         self.lib.getDistance.restype = ctypes.c_double
 
+        self.lib.holderSend.argtypes = (ctypes.c_char_p, ctypes.POINTER(ctypes.c_byte), ctypes.c_int)
+        self.lib.holderSend.restype = ctypes.c_int
+        
         self.lib.holderMove.argtypes = (ctypes.c_int, ctypes.c_uint, ctypes.c_int, ctypes.c_int)
-
         self.lib.holderFine.argtypes = (ctypes.c_int, ctypes.c_int)
-
         self.lib.holderRotateTo.argtypes = (ctypes.c_double, ctypes.c_int)
-
         self.lib.holderGotoX.argtypes = (ctypes.c_double,)
 
         self.lib.getCompCoef.argtypes = (ctypes.POINTER(ctypes.c_double),)
-
         self.lib.setCompCoef.argtypes = (ctypes.c_int, ctypes.c_double)
+
+        listener = threading.Thread(target=self.lib.holderListen, args=(), daemon=True)
+        listener.start()
 
         t = 0
         while True:
@@ -73,11 +76,14 @@ class XNanoHolder:
     def getHolderId(self):
         return self.lib.getHolderId()
 
+    def getAngle(self):
+        return self.lib.getAngle()
+
     def getDistance(self):
         return self.lib.getDistance()
 
     def holderMove(self, axis, pulses, speed_hz, amp_raw):
-        self.lib.holderMove(axis, pulse, speed_hz, amp_raw)
+        self.lib.holderMove(axis, pulses, speed_hz, amp_raw)
 
     def holderStop(self):
         self.lib.holderStop()
@@ -103,7 +109,7 @@ class XNanoHolder:
         return list(table)
 
     def setCompCoef(self, table):
-        if isinstance(table) != list:
+        if not isinstance(table, list):
             raise XNanoValueError('Input parameter must be a list.')
         else:
             if len(table) != 24:
