@@ -210,7 +210,7 @@ class HolderGUI(LabelFrame):
 
     def init_vars(self):
         self.ctrl = None
-        self.holder_id = StringVar(value=0)
+        self.holder_id = IntVar(value=0)
         self.var_angle = DoubleVar(value=0.0)
         self.var_target = DoubleVar(value=0.0)
         self.var_axis = IntVar(value=0)
@@ -245,7 +245,7 @@ class HolderGUI(LabelFrame):
 
     def connect(self):
         self.ctrl = get_instance()
-        self.holder_id = self.ctrl.getHolderId()
+        self.holder_id.set(self.ctrl.getHolderId())
         self.enable_operations()
         self.ConnectButton.config(state=DISABLED)
 
