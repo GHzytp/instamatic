@@ -9,7 +9,7 @@ from tqdm import tqdm
 from .base_module import BaseModule
 from instamatic import config
 from instamatic.utils.fit import fit_affine_transformation
-from instamatic.utils.spinbox import Spinbox
+from instamatic.utils.widgets import Spinbox
 from instamatic.utils import suppress_stderr
 from instamatic.image_utils import autoscale, imgscale
 from instamatic.formats import read_tiff, write_tiff

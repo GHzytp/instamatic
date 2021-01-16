@@ -3,7 +3,7 @@ from tkinter.ttk import *
 import decimal
 
 from .base_module import BaseModule
-from instamatic.utils.spinbox import Spinbox
+from instamatic.utils.widgets import Spinbox
 from instamatic import config
 
 

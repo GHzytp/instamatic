@@ -94,9 +94,6 @@ class XNanoHolder:
     def holderRotateTo(self, targetAngle, amp_raw):
         self.lib.holderRotateTo(ctypes.c_double(targetAngle), amp_raw)
 
-    def holderGotoX(self, target):
-        self.lib.holderGotoX(ctypes.c_double(target))
-
     def compCoefLength(self):
         self.lib.compCoefLength()
 

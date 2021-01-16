@@ -12,7 +12,7 @@ from PIL import ImageTk
 
 from .base_module import BaseModule
 from instamatic import config
-from instamatic.utils.spinbox import Spinbox
+from instamatic.utils.widgets import Spinbox
 from .io_frame import module as io_module
 
 class ExperimentalFocusSeries(LabelFrame):

@@ -4,7 +4,7 @@ from tkinter import *
 from tkinter.ttk import *
 
 from instamatic import config
-from instamatic.utils.spinbox import Spinbox
+from instamatic.utils.widgets import Spinbox
 
 class ConfigFrame(LabelFrame):
     """GUI frame for common TEM configuration, ie: sample holder, camera configuration..."""

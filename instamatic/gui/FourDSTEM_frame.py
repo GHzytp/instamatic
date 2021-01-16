@@ -9,7 +9,7 @@ from PIL import ImageTk
 
 from .base_module import BaseModule
 from instamatic import config
-from instamatic.utils.spinbox import Spinbox
+from instamatic.utils.widgets import Spinbox
 from instamatic.image_utils import autoscale
 from instamatic.tools import find_beam_center
 

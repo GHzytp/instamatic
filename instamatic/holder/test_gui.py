@@ -6,8 +6,7 @@ from tkinter.ttk import *
 from numpy import pi
 
 from .holder import get_instance
-from instamatic.utils.spinbox import Spinbox
-from instamatic.utils.hoverbox import Hoverbox
+from instamatic.utils.widgets import Spinbox, Hoverbox
 
 class HolderGUI(LabelFrame):
     """GUI panel for holder function testing."""
@@ -37,7 +36,7 @@ class HolderGUI(LabelFrame):
         Label(frame, text='Distance:').grid(row=0, column=6, sticky='W', padx=5)
         self.lb_distance = Label(frame, width=5, text='0.0')
         self.lb_distance.grid(row=0, column=7, sticky='EW')
-        self.GetDistButton = Button(frame, text='Get Distance', command=get_instance, state=DISABLED)
+        self.GetDistButton = Button(frame, text='Get Distance', command=self.get_distance, state=DISABLED)
         self.GetDistButton.grid(row=0, column=8, sticky='EW', padx=5)
         Hoverbox(self.GetDistButton, 'Read current distance, unit is mm.')
 
@@ -63,14 +62,9 @@ class HolderGUI(LabelFrame):
         Hoverbox(self.e_amp, 'Voltage applied to drive the holder, unit is (150/32767V). '
                              'The largeest volage that the driver box can output is 115V. '
                              'When the value is negative, the holder will move to the opposite direction.')
-
-        Label(frame, text='Target:').grid(row=1, column=8, sticky='W')
-        self.e_target = Spinbox(frame, width=8, textvariable=self.var_target, from_=-2.0, to=2.0, increment=0.000001, state=DISABLED)
-        self.e_target.grid(row=1, column=9, sticky='EW', padx=5, pady=5)
-        Hoverbox(self.e_target, 'Target position, unit is mm')
-        Label(frame, text='Angle:').grid(row=1, column=10, sticky='W')
+        Label(frame, text='Angle:').grid(row=1, column=8, sticky='W')
         self.e_angle = Spinbox(frame, width=8, textvariable=self.var_angle, from_=-180.0, to=180.0, increment=0.01, state=DISABLED)
-        self.e_angle.grid(row=1, column=12, sticky='EW', padx=5, pady=5)
+        self.e_angle.grid(row=1, column=9, sticky='EW', padx=5, pady=5)
         Hoverbox(self.e_angle, 'Target angle, unit degree')
 
         self.CoarseMoveButton = Button(frame, text='Coarse Move', command=self.coarse_move, state=DISABLED)
@@ -84,9 +78,6 @@ class HolderGUI(LabelFrame):
         self.RotateToButton = Button(frame, text='Rotate To', command=self.rotate_to, state=DISABLED)
         self.RotateToButton.grid(row=2, column=6, columnspan=2, sticky='EW', padx=5)
         Hoverbox(self.RotateToButton, 'Holder rotation move. Need to fill in angle and amp.')
-        self.GoToXButton = Button(frame, text='Go To X', command=self.goto_x, state=DISABLED)
-        self.GoToXButton.grid(row=2, column=8, columnspan=2, sticky='EW')
-        Hoverbox(self.GoToXButton, 'Holder X direction move. Need to fill in target')
 
         self.RotateRecordButton = Button(frame, text='Rotate&Record', command=self.rotate_record, state=DISABLED)
         self.RotateRecordButton.grid(row=3, column=0, columnspan=2, sticky='EW')
@@ -212,7 +203,6 @@ class HolderGUI(LabelFrame):
         self.ctrl = None
         self.holder_id = IntVar(value=0)
         self.var_angle = DoubleVar(value=0.0)
-        self.var_target = DoubleVar(value=0.0)
         self.var_axis = IntVar(value=0)
         self.var_pulse = IntVar(value=0)
         self.var_speed = IntVar(value=0)
@@ -278,19 +268,19 @@ class HolderGUI(LabelFrame):
         self.ctrl.holderFine(self.var_axis.get(), self.var_amp.get())
 
     def rotate_to(self):
-        self.ctrl.holderRotateTo(self.var_angle.get(), self.var_amp.get())
+        self.ctrl.holderRotateTo(self.var_angle.get()*pi/180, self.var_amp.get())
 
     def rotate_record(self):
-        self.ctrl.holderRotateTo(self.var_angle.get(), self.var_amp.get())
+        self.ctrl.holderRotateTo(self.var_angle.get()*pi/180, self.var_amp.get())
         t_record_angle = threading.Thread(target=self.record_angle, args=(), daemon=True)
         t_record_angle.start()
 
     def record_angle(self):
-        current_angle = self.ctrl.getAngle()
-        target_angle = self.var_angle.get()
+        current_angle = self.ctrl.getAngle()*180/pi
+        target_angle = self.var_angle.get()*180/pi
         angle_list = []
         while round(current_angle, 2) != round(target_angle, 2) and not self.stopEvent.is_set():
-            current_angle = self.ctrl.getAngle()
+            current_angle = self.ctrl.getAngle()*180/pi
             angle_list.append(current_angle)
             time.sleep(0.001)
         print(angle_list)
@@ -298,9 +288,6 @@ class HolderGUI(LabelFrame):
 
     def stop_record(self):
         self.stopEvent.set()
-
-    def goto_x(self):
-        self.ctrl.holderGotoX(self.var_target.get())
 
     def get_comp_coeff(self):
         table = self.ctrl.getCompCoef()

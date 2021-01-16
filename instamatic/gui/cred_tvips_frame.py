@@ -6,7 +6,7 @@ from tkinter.ttk import *
 
 from .base_module import BaseModule
 from instamatic import config
-from instamatic.utils.spinbox import Spinbox
+from instamatic.utils.widgets import Spinbox
 
 barrier = threading.Barrier(2, timeout=60)
 

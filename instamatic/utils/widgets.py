@@ -1,5 +1,26 @@
-from tkinter import *
-import re
+from tkinter.ttk import Entry
+import tkinter as tk
+# https://github.com/alandmoore/cpython/blob/53046dcf91481f3e69ddbc97e5d8d0d921c1d09f/Lib/tkinter/ttk.py
+
+
+class Spinbox(Entry):
+    """Ttk Spinbox is an Entry with increment and decrement arrows It is
+    commonly used for number entry or to select from a list of string
+    values."""
+
+    def __init__(self, master=None, **kw):
+        """Construct a Ttk Spinbox widget with the parent master.
+
+        STANDARD OPTIONS: class, cursor, style, takefocus, validate,
+        validatecommand, xscrollcommand, invalidcommand
+
+        WIDGET-SPECIFIC OPTIONS: to, from_, increment, values, wrap, format, command
+        """
+        Entry.__init__(self, master, 'ttk::spinbox', **kw)
+
+    def set(self, value):
+        """Sets the value of the Spinbox to value."""
+        self.tk.call(self._w, 'set', value)
 
 class Hoverbox:
     """
@@ -39,11 +60,11 @@ class Hoverbox:
         x += self.widget.winfo_rootx() + 25
         y += self.widget.winfo_rooty() + 20
         # creates a toplevel window
-        self.tw = Toplevel(self.widget)
+        self.tw = tk.Toplevel(self.widget)
         # Leaves only the label and removes the app window
         self.tw.wm_overrideredirect(True)
         self.tw.wm_geometry("+%d+%d" % (x, y))
-        label = Label(self.tw, text=self.text, justify='left',
+        label = tk.Label(self.tw, text=self.text, justify='left',
                        background="#ffffff", relief='solid', borderwidth=1,
                        wraplength = self.wraplength)
         label.pack(ipadx=1)
