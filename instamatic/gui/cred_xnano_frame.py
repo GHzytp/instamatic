@@ -5,15 +5,20 @@ from tkinter import *
 from tkinter.ttk import *
 from numpy import pi
 
-from .holder import get_instance
+from .base_module import BaseModule
+from instamatic.holder.holder import get_instance
 from instamatic.utils.widgets import Spinbox, Hoverbox
+from instamatic import config
+from instamatic import TEMController
 
-class HolderGUI(LabelFrame):
+class ExperimentalcREDXnano(LabelFrame):
     """GUI panel for holder function testing."""
 
     def __init__(self, parent):
-        LabelFrame.__init__(self, parent, text='Holder testing graphical interface')
+        LabelFrame.__init__(self, parent, text='cRED data collection using XNano holder')
         self.parent = parent
+        self.tem_ctrl = TEMController.get_instance()
+        self.image_stream = self.tem_ctrl.image_stream
 
         self.init_vars()
 
@@ -66,6 +71,10 @@ class HolderGUI(LabelFrame):
         self.e_angle = Spinbox(frame, width=8, textvariable=self.var_angle, from_=-180.0, to=180.0, increment=0.01, state=DISABLED)
         self.e_angle.grid(row=1, column=9, sticky='EW', padx=5, pady=5)
         Hoverbox(self.e_angle, 'Target angle, unit degree')
+        Label(frame, text='Interval').grid(row=2, column=8, sticky='W')
+        self.e_interval = Spinbox(frame, width=8, textvariable=self.var_interval, from_=1, to=10000, increment=1, state=DISABLED)
+        self.e_interval.grid(row=2, column=9, sticky='EW', padx=5, pady=5)
+        Hoverbox(self.e_interval, 'Record time interval, unit: ms')
 
         self.CoarseMoveButton = Button(frame, text='Coarse Move', command=self.coarse_move, state=DISABLED)
         self.CoarseMoveButton.grid(row=2, column=0, columnspan=2, sticky='EW')
@@ -85,7 +94,10 @@ class HolderGUI(LabelFrame):
         self.StopRecordButton = Button(frame, text='Stop Record', command=self.stop_record, state=DISABLED)
         self.StopRecordButton.grid(row=3, column=2, columnspan=2, sticky='EW', padx=5)
         Hoverbox(self.StopRecordButton, 'Stop recording angles')
-
+        self.SaveImgButton = Button(frame, text='Save Img', command=self.save_img, state=DISABLED)
+        self.SaveImgButton.grid(row=3, column=4, columnspan=2, sticky='EW', padx=5)
+        Hoverbox(self.SaveImgButton, 'Save images in tiff file. The meta data was stored in the head file.')
+        
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
 
         frame = Frame(self)
@@ -193,16 +205,103 @@ class HolderGUI(LabelFrame):
         Hoverbox(self.coff_23, 'Compensation Coefficient 23')
 
         self.GetCompCoeffButton =  Button(frame, text='Get Compensation', command=self.get_comp_coeff, state=DISABLED)
-        self.GetCompCoeffButton.grid(row=4, column=1, columnspan=3, sticky='EW', padx=5)
+        self.GetCompCoeffButton.grid(row=4, column=0, columnspan=2, sticky='EW')
         self.SetCompCoeffButton =  Button(frame, text='Set Compensation', command=self.set_comp_coeff, state=DISABLED)
-        self.SetCompCoeffButton.grid(row=4, column=5, columnspan=3, sticky='EW', padx=5)
+        self.SetCompCoeffButton.grid(row=4, column=2, columnspan=2, sticky='EW', padx=5)
+        self.LoadCompCoeffButton =  Button(frame, text='Load', width=8, command=self.get_comp_coeff, state=DISABLED)
+        self.LoadCompCoeffButton.grid(row=4, column=4, sticky='EW')
+        self.SaveCompCoeffButton =  Button(frame, text='Save', width=8, command=self.set_comp_coeff, state=DISABLED)
+        self.SaveCompCoeffButton.grid(row=4, column=5, sticky='EW', padx=5)
+        self.FindCompCoeffButton =  Button(frame, text='Find', width=8, command=self.find_comp_coeff, state=DISABLED)
+        self.FindCompCoeffButton.grid(row=4, column=6, sticky='EW')
 
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
 
+        frame = Frame(self)
+
+        Separator(frame, orient=HORIZONTAL).grid(row=0, columnspan=10, sticky='ew', pady=5)
+
+        Label(frame, text='Exposure time (s):').grid(row=1, column=0, sticky='W')
+        exposure_time = Spinbox(frame, textvariable=self.var_exposure_time, width=10, from_=0.0, to=100.0, increment=0.01)
+        exposure_time.grid(row=1, column=1, sticky='W', padx=5)
+        if self.image_stream is not None:
+            self.ExposureButton = Button(frame, text='Confirm Exposure', command=self.confirm_exposure_time, state=NORMAL)
+            self.ExposureButton.grid(row=1, column=2, sticky='W')
+        Checkbutton(frame, text='Beam unblanker', variable=self.var_unblank_beam, command=self.toggle_unblankbeam).grid(row=1, column=3, sticky='W', padx=5)
+        Checkbutton(frame, text='Toggle screen', variable=self.var_toggle_screen, command=self.toggle_screen).grid(row=1, column=4, sticky='W')
+
+        frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
+
+        frame = Frame(self)
+
+        Label(frame, text='Image interval:').grid(row=5, column=0, sticky='W')
+        self.e_image_interval = Spinbox(frame, textvariable=self.var_image_interval, width=8, from_=1, to=9999, increment=1, state=DISABLED)
+        self.e_image_interval.grid(row=5, column=1, sticky='W', padx=5)
+        Label(frame, text='Diff defocus:').grid(row=5, column=2, sticky='W')
+        self.e_diff_defocus = Spinbox(frame, textvariable=self.var_diff_defocus, width=8, from_=-10000, to=10000, increment=100, state=DISABLED)
+        self.e_diff_defocus.grid(row=5, column=3, sticky='W', padx=5)
+        Checkbutton(frame, text='Enable img interval', variable=self.var_enable_image_interval, command=self.toggle_interval_buttons).grid(row=5, column=4, sticky='W')
+        self.RelaxButton = Button(frame, text='Relax beam', command=self.relax_beam, state=DISABLED)
+        self.RelaxButton.grid(row=5, column=5, sticky='EW', padx=5)
+
+        Label(frame, text='Img exposure (s):').grid(row=6, column=0, sticky='W')
+        if self.image_stream is not None:
+            self.e_image_exposure = Spinbox(frame, textvariable=self.var_exposure_time_image, width=8, from_=0.0, to=100.0, increment=self.image_stream.frametime, state=DISABLED)
+        else:
+            self.e_image_exposure = Spinbox(frame, textvariable=self.var_exposure_time_image, width=8, from_=0.0, to=100.0, increment=0.01, state=DISABLED)
+        self.e_image_exposure.grid(row=6, column=1, sticky='W', padx=5)
+
+        Label(frame, text='Start angle (±):').grid(row=6, column=2, sticky='W')
+        self.e_defocus_start_angle = Spinbox(frame, textvariable=self.var_defocus_start_angle, width=8, from_=-80.0, to=80.0, increment=1.0, state=DISABLED)
+        self.e_defocus_start_angle.grid(row=6, column=3, sticky='W', padx=5)
+        self.c_toggle_defocus = Checkbutton(frame, text='Toggle defocus', variable=self.var_toggle_diff_defocus, command=self.toggle_diff_defocus, state=DISABLED)
+        self.c_toggle_defocus.grid(row=6, column=4, sticky='W')
+        
+        Label(frame, text='Initial frames').grid(row=7, column=0, sticky='W')
+        self.e_start_frames = Spinbox(frame, textvariable=self.var_start_frames, width=8, from_=0, to=10, increment=1, state=DISABLED)
+        self.e_start_frames.grid(row=7, column=1, sticky='W', padx=5)
+        Label(frame, text='Initial interval').grid(row=7, column=2, sticky='W')
+        self.e_start_frames_interval = Spinbox(frame, textvariable=self.var_start_frames_interval, width=8, from_=2, to=10, increment=1, state=DISABLED)
+        self.e_start_frames_interval.grid(row=7, column=3, sticky='W', padx=5)
+
+        Label(frame, text='Low angle interval').grid(row=8, column=0, sticky='W')
+        self.e_low_angle_interval = Spinbox(frame, textvariable=self.var_low_angle_image_interval, width=8, from_=0, to=100, increment=1, state=DISABLED)
+        self.e_low_angle_interval.grid(row=8, column=1, sticky='W', padx=5)
+
+        frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
+
+        frame = Frame(self)
+        Label(frame, text='Select output formats:').grid(row=5, columnspan=2, sticky='EW')
+        Checkbutton(frame, text='TIFF (.tiff)', variable=self.var_save_tiff).grid(row=5, column=2, sticky='EW')
+        Checkbutton(frame, text='XDS (.smv)', variable=self.var_save_xds).grid(row=5, column=3, sticky='EW')
+        Checkbutton(frame, text='CBF (.cbf)', variable=self.var_save_cbf).grid(row=5, column=4, sticky='EW')
+        Checkbutton(frame, text='DIALS (.smv)', variable=self.var_save_dials).grid(row=6, column=2, sticky='EW')
+        Checkbutton(frame, text='REDp (.mrc)', variable=self.var_save_red).grid(row=6, column=3, sticky='EW')
+        frame.grid_columnconfigure(0, weight=1)
+        frame.grid_columnconfigure(1, weight=1)
+        frame.grid_columnconfigure(2, weight=1)
+        frame.grid_columnconfigure(3, weight=1)
+        frame.grid_columnconfigure(4, weight=1)
+
+        frame.pack(side='top', fill='x', padx=5, pady=5)
+
+        frame = Frame(self)
+        self.CollectionButton = Button(frame, text='Start Collection', command=self.start_collection)
+        self.CollectionButton.grid(row=1, column=0, sticky='EW')
+
+        self.CollectionStopButton = Button(frame, text='Stop Collection', command=self.stop_collection, state=DISABLED)
+        self.CollectionStopButton.grid(row=1, column=1, sticky='EW')
+
+        frame.columnconfigure(0, weight=1)
+        frame.columnconfigure(1, weight=1)
+        frame.pack(side='bottom', fill='x', padx=10, pady=10)
+        
+
     def init_vars(self):
-        self.ctrl = None
+        self.holder_ctrl = None
         self.holder_id = IntVar(value=0)
         self.var_angle = DoubleVar(value=0.0)
+        self.var_interval = IntVar(value=100)
         self.var_axis = IntVar(value=0)
         self.var_pulse = IntVar(value=0)
         self.var_speed = IntVar(value=0)
@@ -233,9 +332,62 @@ class HolderGUI(LabelFrame):
         self.var_coff_23 = DoubleVar(value=0.0)
         self.stopEvent = threading.Event()
 
+        self.var_exposure_time = DoubleVar(value=0.1)
+        self.var_unblank_beam = BooleanVar(value=False)
+        self.var_toggle_screen = BooleanVar(value=False)
+        self.var_image_interval = IntVar(value=10)
+        self.var_low_angle_image_interval = IntVar(value=30)
+        if self.tem_ctrl.tem.interface == "fei":
+            self.var_diff_defocus = IntVar(value=42000)
+        else:
+            self.var_diff_defocus = IntVar(value=1500)
+        self.var_enable_image_interval = BooleanVar(value=False)
+        self.var_toggle_diff_defocus = BooleanVar(value=False)
+        self.var_start_frames = IntVar(value=5)
+        self.var_start_frames_interval = IntVar(value=2)
+        self.var_defocus_start_angle = DoubleVar(value=0.0)
+        self.var_start_frames = IntVar(value=5)
+        self.var_start_frames_interval = IntVar(value=2)
+        self.var_defocus_start_angle = DoubleVar(value=0.0)
+
+        if self.image_stream is not None:
+            self.var_exposure_time_image = DoubleVar(value=self.image_stream.frametime)
+        else:
+            self.var_exposure_time_image = DoubleVar(value=0.01)
+
+        self.var_save_tiff = BooleanVar(value=True)
+        self.var_save_xds = BooleanVar(value=True)
+        self.var_save_dials = BooleanVar(value=True)
+        self.var_save_red = BooleanVar(value=True)
+        self.var_save_cbf = BooleanVar(value=True)
+
+    def toggle_unblankbeam(self):
+        pass
+
+    def toggle_screen(self):
+        pass
+
+    def confirm_exposure_time(self):
+        pass
+
+    def toggle_interval_buttons(self):
+        pass
+
+    def toggle_diff_defocus(self):
+        pass
+
+    def relax_beam(self):
+        pass
+
+    def start_collection(self):
+        pass
+
+    def stop_collection(self):
+        pass
+
     def connect(self):
-        self.ctrl = get_instance()
-        self.holder_id.set(self.ctrl.getHolderId())
+        self.holder_ctrl = get_instance()
+        self.holder_id.set(self.holder_ctrl.getHolderId())
         self.enable_operations()
         self.ConnectButton.config(state=DISABLED)
 
@@ -253,34 +405,34 @@ class HolderGUI(LabelFrame):
             return False
 
     def get_angle(self):
-        self.lb_angle.config(text=self.ctrl.getAngle()*180/pi) 
+        self.lb_angle.config(text=self.holder_ctrl.getAngle()*180/pi) 
 
     def get_distance(self):
-        self.lb_distance.config(text=self.ctrl.getDistance())
+        self.lb_distance.config(text=self.holder_ctrl.getDistance())
 
     def coarse_move(self):
-        self.ctrl.holderMove(self.var_axis.get(), self.var_pulse.get(), self.var_speed.get(), self.var_amp.get())
+        self.holder_ctrl.holderMove(self.var_axis.get(), self.var_pulse.get(), self.var_speed.get(), self.var_amp.get())
 
     def stop_coarse_move(self):
-        self.ctrl.holderStop()
+        self.holder_ctrl.holderStop()
 
     def fine_move(self):
-        self.ctrl.holderFine(self.var_axis.get(), self.var_amp.get())
+        self.holder_ctrl.holderFine(self.var_axis.get(), self.var_amp.get())
 
     def rotate_to(self):
-        self.ctrl.holderRotateTo(self.var_angle.get()*pi/180, self.var_amp.get())
+        self.holder_ctrl.holderRotateTo(self.var_angle.get()*pi/180, self.var_amp.get())
 
     def rotate_record(self):
-        self.ctrl.holderRotateTo(self.var_angle.get()*pi/180, self.var_amp.get())
+        self.holder_ctrl.holderRotateTo(self.var_angle.get()*pi/180, self.var_amp.get())
         t_record_angle = threading.Thread(target=self.record_angle, args=(), daemon=True)
         t_record_angle.start()
 
     def record_angle(self):
-        current_angle = self.ctrl.getAngle()*180/pi
+        current_angle = self.holder_ctrl.getAngle()*180/pi
         target_angle = self.var_angle.get()*180/pi
         angle_list = []
         while round(current_angle, 2) != round(target_angle, 2) and not self.stopEvent.is_set():
-            current_angle = self.ctrl.getAngle()*180/pi
+            current_angle = self.holder_ctrl.getAngle()*180/pi
             angle_list.append(current_angle)
             time.sleep(0.001)
         print(angle_list)
@@ -289,8 +441,11 @@ class HolderGUI(LabelFrame):
     def stop_record(self):
         self.stopEvent.set()
 
+    def save_img(self):
+        pass
+
     def get_comp_coeff(self):
-        table = self.ctrl.getCompCoef()
+        table = self.holder_ctrl.getCompCoef()
         self.var_coff_0.set(table[0])
         self.var_coff_1.set(table[1])
         self.var_coff_2.set(table[2])
@@ -317,7 +472,7 @@ class HolderGUI(LabelFrame):
         self.var_coff_23.set(table[23])
 
     def set_comp_coeff(self):
-        table = self.ctrl.getCompCoef()
+        table = self.holder_ctrl.getCompCoef()
         table[0] = self.var_coff_0.get()
         table[1] = self.var_coff_1.get()
         table[2] = self.var_coff_2.get()
@@ -342,7 +497,16 @@ class HolderGUI(LabelFrame):
         table[21] = self.var_coff_21.get()
         table[22] = self.var_coff_22.get()
         table[23] = self.var_coff_23.get()
-        self.ctrl.setCompCoef(table)
+        self.holder_ctrl.setCompCoef(table)
+
+    def load_comp_coeff(self):
+        pass
+
+    def save_comp_coeff(self):
+        pass
+
+    def find_comp_coeff(self):
+        pass
 
     def enable_operations(self):
         self.GetAngleButton.config(state=NORMAL)
@@ -352,12 +516,14 @@ class HolderGUI(LabelFrame):
         self.e_pulse.config(state=NORMAL)
         self.e_axis.config(state=NORMAL)
         self.e_angle.config(state=NORMAL)
+        self.e_interval.config(state=NORMAL)
         self.CoarseMoveButton.config(state=NORMAL)
         self.StopCoarseMoveButton.config(state=NORMAL)
         self.FineMoveButton.config(state=NORMAL)
         self.RotateToButton.config(state=NORMAL)
         self.RotateRecordButton.config(state=NORMAL)
         self.StopRecordButton.config(state=NORMAL)
+        self.SaveImgButton.config(state=NORMAL)
         self.coff_0.config(state=NORMAL)
         self.coff_1.config(state=NORMAL)
         self.coff_2.config(state=NORMAL)
@@ -384,9 +550,58 @@ class HolderGUI(LabelFrame):
         self.coff_23.config(state=NORMAL)
         self.SetCompCoeffButton.config(state=NORMAL)
         self.GetCompCoeffButton.config(state=NORMAL)
+        self.LoadCompCoeffButton.config(state=NORMAL)
+        self.SaveCompCoeffButton.config(state=NORMAL)
+        self.FindCompCoeffButton.config(state=NORMAL)
 
+    def set_trigger(self, trigger=None, q=None):
+        self.triggerEvent = trigger
+        self.q = q
+
+    def get_params(self):
+        params = {'exposure_time': self.var_exposure_time.get(),
+                  'exposure_time_image': self.var_exposure_time_image.get(),
+                  'unblank_beam': self.var_unblank_beam.get(),
+                  'enable_image_interval': self.var_enable_image_interval.get(),
+                  'image_interval': self.var_image_interval.get(),
+                  'low_angle_image_interval': self.var_low_angle_image_interval.get(),
+                  'diff_defocus': self.var_diff_defocus.get(),
+                  'start_frames': self.var_start_frames.get(),
+                  'start_frames_interval': self.var_start_frames_interval.get(),
+                  'defocus_start_angle': self.var_defocus_start_angle.get(),
+                  'rotation_speed': self.var_rotation_speed.get(),
+                  'write_tiff': self.var_save_tiff.get(),
+                  'write_xds': self.var_save_xds.get(),
+                  'write_dials': self.var_save_dials.get(),
+                  'write_red': self.var_save_red.get(),
+                  'stop_event': self.stopEvent}
+        return params
+
+
+def acquire_data_cRED_XNano(controller, **kwargs):
+    controller.log.info('Start cRED experiment using XNano holder')
+    from instamatic.experiments import cRED_XNano
+
+    expdir = controller.module_io.get_new_experiment_directory()
+    expdir.mkdir(exist_ok=True, parents=True)
+
+    cexp = cRED_XNano.Experiment(ctrl=controller.ctrl, path=expdir, flatfield=controller.module_io.get_flatfield(), log=controller.log, **kwargs)
+
+    success = cexp.start_collection()
+
+    if not success:
+        return
+
+    controller.log.info('Finish cRED experiment using XNano holder')
+
+    if controller.use_indexing_server:
+        controller.q.put(('autoindex', {'task': 'run', 'path': cexp.smv_path}))
+        controller.triggerEvent.set()
+
+module = BaseModule(name='cred_xnano', display_name='cRED_XNano', tk_frame=ExperimentalcREDXnano, location='bottom')
+commands = {'cred_xnano': acquire_data_cRED_XNano}
 
 if __name__ == '__main__':
     root = Tk()
-    HolderGUI(root).pack(side='top', fill='both', expand=True)
+    ExperimentalcREDXnano(root).pack(side='top', fill='both', expand=True)
     root.mainloop()

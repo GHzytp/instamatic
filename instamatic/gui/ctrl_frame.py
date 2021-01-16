@@ -377,8 +377,6 @@ class ExperimentalCtrl(LabelFrame):
             self.var_beamtilty = IntVar(value=self.ctrl.beamtilt.y)
             self.var_diffshiftx = IntVar(value=self.ctrl.diffshift.x)
             self.var_diffshifty = IntVar(value=self.ctrl.diffshift.y)
-            self.var_imgbeamtiltx = IntVar(value=self.ctrl.imgbeamtilt.x)
-            self.var_imgbeamtilty = IntVar(value=self.ctrl.imgbeamtilt.y)
 
         self.var_beamshiftx = IntVar(value=self.ctrl.beamshift.x)
         self.var_beamshifty = IntVar(value=self.ctrl.beamshift.y)

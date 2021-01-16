@@ -120,17 +120,20 @@ class ExperimentalcRED(LabelFrame):
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
 
         frame = Frame(self)
+
         Label(frame, text='Select output formats:').grid(row=5, columnspan=2, sticky='EW')
-        Checkbutton(frame, text='.tiff', variable=self.var_save_tiff).grid(row=5, column=2, sticky='EW')
+        Checkbutton(frame, text='TIFF (.tiff)', variable=self.var_save_tiff).grid(row=5, column=2, sticky='EW')
         Checkbutton(frame, text='XDS (.smv)', variable=self.var_save_xds).grid(row=5, column=3, sticky='EW')
+        Checkbutton(frame, text='CBF (.cbf)', variable=self.var_save_cbf).grid(row=5, column=4, sticky='EW')
         Checkbutton(frame, text='DIALS (.smv)', variable=self.var_save_dials).grid(row=6, column=2, sticky='EW')
         Checkbutton(frame, text='REDp (.mrc)', variable=self.var_save_red).grid(row=6, column=3, sticky='EW')
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_columnconfigure(1, weight=1)
         frame.grid_columnconfigure(2, weight=1)
         frame.grid_columnconfigure(3, weight=1)
+        frame.grid_columnconfigure(4, weight=1)
 
-        frame.pack(side='top', fill='x', padx=5, pady=5)
+        frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
 
         frame = Frame(self)
         self.CollectionButton = Button(frame, text='Start Collection', command=self.start_collection)
@@ -171,10 +174,12 @@ class ExperimentalcRED(LabelFrame):
         self.var_rotation_speed = DoubleVar(value=0.1)
         self.mode = 'regular'
 
-        self.var_save_tiff = BooleanVar(value=True)
+        self.var_save_tiff = BooleanVar(value=False)
         self.var_save_xds = BooleanVar(value=True)
+        self.var_save_cbf = BooleanVar(value=True)
         self.var_save_dials = BooleanVar(value=True)
         self.var_save_red = BooleanVar(value=True)
+        self.var_save_cbf = BooleanVar(value=True)
 
     def confirm_exposure_time(self):
         """Change the exposure time for Gatan camera. Need to stop and restart the data stream generation process. Need to have StreamBuffer object"""

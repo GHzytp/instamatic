@@ -22,7 +22,7 @@ class XNanoHolder:
         self.ip = config.holder.IP_Address
         self.lib = ctypes.cdll.LoadLibrary(str(libpath))
 
-        self.lib.getHolderId.restype = ctypes.c_ulong
+        self.lib.getHolderId.restype = ctypes.c_uint32
 
         self.lib.getAngle.restype = ctypes.c_double
         self.lib.getDistance.restype = ctypes.c_double

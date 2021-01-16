@@ -67,6 +67,8 @@ class SimuMicroscope:
         # self.FunctionMode_value = random.randint(0, 2)
         self.FunctionMode_value = 0
 
+        self.ObjFocus_value = random.randint(MIN, MAX)
+
         self.DiffractionFocus_value = random.randint(MIN, MAX)
         self.IntermediateLens1_value = random.randint(MIN, MAX)
 
@@ -238,6 +240,12 @@ class SimuMicroscope:
     @property
     def _is_moving(self) -> bool:
         return any(self._stage_dict[key]['is_moving'] for key in self._stage_dict.keys())
+
+    def getDefocus(self) -> float:
+        return self.ObjFocus_value
+
+    def setDefocus(self, value: int):
+        self.ObjFocus_value = value
 
     def getHTValue(self) -> float:
         return self._HT

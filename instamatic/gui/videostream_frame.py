@@ -39,7 +39,7 @@ class VideoStreamFrame(LabelFrame):
             self.frametime = self.stream.frametime / 2
         else:
             self.frame_delay = 50
-            self.frametime = 50
+            self.frametime = self.stream.frametime / 2
 
         self.panel = None
 
@@ -142,7 +142,7 @@ class VideoStreamFrame(LabelFrame):
 
         frame = Frame(master)
 
-        self.e_frametime = Spinbox(frame, width=ewidth, textvariable=self.var_frametime, from_=0.0, to=10.0, increment=0.01)
+        self.e_frametime = Spinbox(frame, width=ewidth, textvariable=self.var_frametime, from_=0.0, to=100.0, increment=0.1)
 
         Label(frame, width=lwidth, text='exposure (s)').grid(row=1, column=0)
         self.e_frametime.grid(row=1, column=1)

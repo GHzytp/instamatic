@@ -5,8 +5,8 @@ from instamatic import config
 
 all_modules = (
     'cred',
+    'cred_xnano',
     'cred_tvips',
-    'cred_fei',
     'sed',
     'autocred',
     'red',

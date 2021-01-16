@@ -129,9 +129,9 @@ class TEMController:
         self.beam = Beam(tem)
         self.screen = Screen(tem)
         self.mode = Mode(tem)
-        self.imgbeamtilt = ImageBeamTilt(tem)
 
         if self.tem.interface == 'fei':
+            self.imgbeamtilt = ImageBeamTilt(tem)
             if self.mode.state in ('D', 'LAD'):
                 self.in_diff_state()
             else:
