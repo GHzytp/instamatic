@@ -329,7 +329,7 @@ class ImgConversion:
 
         logger.debug(f'MRC files created in folder: {path}')
 
-    def threadpoolwriter(self, tiff_path: str = None, smv_path: str = None, mrc_path: str = None, workers: int = 8) -> None:
+    def threadpoolwriter(self, tiff_path: str = None, smv_path: str = None, mrc_path: str = None, cbf_path: str = None, workers: int = 8) -> None:
         """Efficiently write all data to the specified formats using a
         threadpool.
 
@@ -339,6 +339,7 @@ class ImgConversion:
         write_tiff = tiff_path is not None
         write_smv = smv_path is not None
         write_mrc = mrc_path is not None
+        write_cbf = cbf_path is not None
 
         if write_smv:
             smv_path = smv_path / self.smv_subdrc
@@ -353,6 +354,10 @@ class ImgConversion:
             mrc_path.mkdir(exist_ok=True, parents=True)
             logger.debug(f'MRC files saved in folder: {mrc_path}')
 
+        if write_cbf:
+            mrc_path.mkdir(exist_ok=True, parents=True)
+            logger.debug(f'CBF files saved in folder: {cbf_path}')
+
         import concurrent.futures
         with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
             futures = []
@@ -364,6 +369,8 @@ class ImgConversion:
                     futures.append(executor.submit(self.write_mrc, mrc_path, i))
                 if write_smv:
                     futures.append(executor.submit(self.write_smv, smv_path, i))
+                if write_cbf:
+                    futures.append(executor.submit(self.write_cbf, cbf_path, i))
 
             for future in futures:
                 ret = future.result()
@@ -417,6 +424,9 @@ class ImgConversion:
         fn = path / f'{i:05d}.tiff'
         write_tiff(fn, img, header=h)
         return fn
+
+    def write_cbf(self, path: str, i: int) -> str:
+        pass
 
     def write_smv(self, path: str, i: int) -> str:
         """Write the image+header with sequence number `i` to the directory

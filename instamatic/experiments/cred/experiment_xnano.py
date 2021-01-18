@@ -47,7 +47,7 @@ class Experiment:
         Image interval only - Defocus value to apply when defocused images are used for tracking
     exposure_time_image:
         Image interval only - Exposure time for defocused images
-    write_tiff, write_xds, write_dials, write_red:
+    write_tiff, write_xds, write_dials, write_red, write_cbf:
         Specify which data types/input files should be written
     stop_event:
         Instance of `threading.Event()` that signals the experiment to be terminated.
@@ -71,6 +71,7 @@ class Experiment:
                  write_xds: bool = True,
                  write_dials: bool = True,
                  write_red: bool = True,
+                 write_cbf: bool = True,
                  stop_event=None,
                  ):
         super().__init__()
@@ -93,6 +94,7 @@ class Experiment:
         self.write_xds = write_xds
         self.write_dials = write_dials
         self.write_red = write_red
+        self.write_cbf = write_cbf
         self.write_pets = write_tiff  # TODO
 
         self.image_interval_enabled = enable_image_interval
@@ -132,20 +134,11 @@ class Experiment:
 
     def log_end_status(self):
         """Log the experimental values, write file `cRED_log.txt`"""
-        start_xy = np.array(self.start_position[0:2])
-        end_xy = np.array(self.end_position[0:2])
 
         print_and_log(f'Rotated {self.total_angle:.2f} degrees from {self.start_angle:.2f} to {self.end_angle:.2f} in {self.nframes} frames (step: {self.osc_angle:.4f})', logger=self.logger)
 
-        def fmt(arr):
-            return f'[{arr[0]:.0f} {arr[1]:.0f}]'
-        print_and_log(f'Stage moved from {fmt(start_xy)} to {fmt(end_xy)}, drift: {fmt(start_xy - end_xy)}', logger=self.logger)
-        self.logger.info(f'Start stage position: {self.start_position}')
-        self.logger.info(f'End stage position: {self.end_position}')
         self.logger.info(f'Data collection camera length: {self.camera_length} mm')
         self.logger.info(f'Data collection spot size: {self.spotsize}')
-
-        self.logger.info(self.stage_positions)
 
         with open(self.path / 'cRED_XNano_log.txt', 'w') as f:
             print(f'Program: {instamatic.__long_title__}', file=f)
@@ -168,8 +161,6 @@ class Experiment:
             print(f'Rotation axis: {self.rotation_axis} radians', file=f)
             print(f'Oscillation angle: {self.osc_angle:.4f} degrees', file=f)
             print(f'Number of frames: {self.nframes_diff}', file=f)
-            print('Stage start: X {:6.0f} | Y {:6.0f} | Z {:6.0f} | A {:5.2f} | B {:5.2f}'.format(*self.start_position), file=f)
-            print('Stage end:   X {:6.0f} | Y {:6.0f} | Z {:6.0f} | A {:5.2f} | B {:5.2f}'.format(*self.end_position), file=f)
 
             if self.image_interval_enabled:
                 print(f'Image interval: every {self.image_interval} frames an image with defocus {self.diff_focus_defocused} (t={self.exposure_image} s).', file=f)
@@ -186,35 +177,7 @@ class Experiment:
         self.tiff_path = self.path / 'tiff' if self.write_tiff else None
         self.smv_path = self.path / 'SMV' if (self.write_xds or self.write_dials) else None
         self.mrc_path = self.path / 'RED' if self.write_red else None
-
-    def start_rotation(self) -> float:
-        """Controls the starting of the rotation of the experiment.
-
-        In the default mode, wait for rotation to start (i.e. controlled via the pedals)
-        In `footfree` mode, initialize rotation from current angle to target angle.
-        In `simulate` mode, simulate the start condition.
-
-        Returns the starting value for the rotation.
-        """
-        self.start_position = self.ctrl.stage.get()
-        self.stage_positions.append((0, self.start_position))
-        a = self.start_position[3]
-
-        print('Waiting for rotation to start...', end=' ')
-        a0 = a
-        while abs(a - a0) < ACTIVATION_THRESHOLD:
-            if self.stopEvent.is_set():
-                break
-            a = self.ctrl.stage.a
-
-        print('Data Recording started.')
-        start_angle = a
-
-        if self.unblank_beam:
-            print('Unblanking beam')
-            self.ctrl.beam.unblank()
-
-        return start_angle
+         self.cbf_path = self.path / 'CBF' if self.write_cbf else None
 
     def relax_beam(self, n_cycles: int = 5):
         """Relax the beam prior to the experiment by toggling between the
@@ -266,7 +229,10 @@ class Experiment:
         if self.relax_beam_before_experiment:
             self.relax_beam()
 
-        self.start_angle = self.start_rotation()
+        if self.unblank_beam:
+            print('Unblanking beam')
+            self.ctrl.beam.unblank()
+            
         self.current_angle = self.start_angle
         self.ctrl.cam.block()
 
@@ -315,17 +281,6 @@ class Experiment:
                 buffer.append((i, img, h))
                 # print(f"Angle: {self.ctrl.stage.a}")
 
-            if self.ctrl.tem.interface == "fei":
-                if self.start_angle < self.footfree_rotate_to:
-                    self.current_angle = self.current_angle + speed_table_fei[self.rotation_speed] * self.exposure
-                else:
-                    self.current_angle = self.current_angle - speed_table_fei[self.rotation_speed] * self.exposure
-            else:
-                if self.start_angle < self.footfree_rotate_to:
-                    self.current_angle = self.current_angle + speed_table_jeol[self.rotation_speed] * self.exposure
-                else:
-                    self.current_angle = self.current_angle - speed_table_jeol[self.rotation_speed] * self.exposure
-
             i += 1
 
             if self.ctrl.tem.interface == 'fei':
@@ -334,8 +289,6 @@ class Experiment:
 
         t1 = time.perf_counter()
 
-        if self.mode == 'footfree':
-            self.ctrl.stage.stop()
 
         self.ctrl.cam.unblock()
 
@@ -434,6 +387,7 @@ class Experiment:
         img_conv.threadpoolwriter(tiff_path=self.tiff_path,
                                   mrc_path=self.mrc_path,
                                   smv_path=self.smv_path,
+                                  cbf_path=self.cbf_path,
                                   workers=8)
 
         print('Writing input files...')

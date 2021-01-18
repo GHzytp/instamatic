@@ -19,6 +19,7 @@ class ExperimentalcREDXnano(LabelFrame):
         self.parent = parent
         self.tem_ctrl = TEMController.get_instance()
         self.image_stream = self.tem_ctrl.image_stream
+        self.rec_path = config.locations['work'] / 'rec'
 
         self.init_vars()
 
@@ -90,12 +91,12 @@ class ExperimentalcREDXnano(LabelFrame):
 
         self.RotateRecordButton = Button(frame, text='Rotate&Record', command=self.rotate_record, state=DISABLED)
         self.RotateRecordButton.grid(row=3, column=0, columnspan=2, sticky='EW')
-        Hoverbox(self.RotateRecordButton, 'Holder rotate and record angles. Need to fill in angle and amp.')
+        Hoverbox(self.RotateRecordButton, 'Holder rotate and record angles and corresponding images. Need to fill in interval, angle and amp.')
         self.StopRecordButton = Button(frame, text='Stop Record', command=self.stop_record, state=DISABLED)
         self.StopRecordButton.grid(row=3, column=2, columnspan=2, sticky='EW', padx=5)
         Hoverbox(self.StopRecordButton, 'Stop recording angles')
         self.SaveImgButton = Button(frame, text='Save Img', command=self.save_img, state=DISABLED)
-        self.SaveImgButton.grid(row=3, column=4, columnspan=2, sticky='EW', padx=5)
+        self.SaveImgButton.grid(row=3, column=4, columnspan=2, sticky='EW')
         Hoverbox(self.SaveImgButton, 'Save images in tiff file. The meta data was stored in the head file.')
         
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
@@ -330,7 +331,8 @@ class ExperimentalcREDXnano(LabelFrame):
         self.var_coff_21 = DoubleVar(value=0.0)
         self.var_coff_22 = DoubleVar(value=0.0)
         self.var_coff_23 = DoubleVar(value=0.0)
-        self.stopEvent = threading.Event()
+        self.stopRecEvent = threading.Event()
+        self.stopColEvent = threading.Event()
 
         self.var_exposure_time = DoubleVar(value=0.1)
         self.var_unblank_beam = BooleanVar(value=False)
@@ -362,28 +364,90 @@ class ExperimentalcREDXnano(LabelFrame):
         self.var_save_cbf = BooleanVar(value=True)
 
     def toggle_unblankbeam(self):
-        pass
+        toggle = self.var_unblank_beam.get()
+
+        if toggle:
+            self.tem_ctrl.beam.unblank()
+        else:
+            self.tem_ctrl.beam.blank()
 
     def toggle_screen(self):
-        pass
+        toggle = self.var_toggle_screen.get()
+
+        if toggle:
+            self.tem_ctrl.screen.up()
+        else:
+            self.tem_ctrl.screen.down()
 
     def confirm_exposure_time(self):
-        pass
+        if config.settings.buffer_stream_use_thread:
+            n = decimal.Decimal(str(self.var_exposure_time.get())) / decimal.Decimal(str(self.image_stream.frametime))
+            self.var_exposure_time.set(decimal.Decimal(str(self.image_stream.frametime)) * int(n))
+            # self.image_stream.exposure = self.var_exposure_time.get()
+        else:
+            self.image_stream.stop()
+            n = decimal.Decimal(str(self.var_exposure_time.get())) / decimal.Decimal(str(self.image_stream.frametime))
+            self.var_exposure_time.set(decimal.Decimal(str(self.image_stream.frametime)) * int(n))
+            #self.image_stream.exposure = self.var_exposure_time.get()
+            self.image_stream.start_loop()
 
     def toggle_interval_buttons(self):
-        pass
+        enable = self.var_enable_image_interval.get()
+        if enable:
+            self.e_image_interval.config(state=NORMAL)
+            self.e_image_exposure.config(state=NORMAL)
+            self.e_diff_defocus.config(state=NORMAL)
+            self.c_toggle_defocus.config(state=NORMAL)
+            self.RelaxButton.config(state=NORMAL)
+            self.e_defocus_start_angle.config(state=NORMAL)
+            self.e_start_frames.config(state=NORMAL)
+            self.e_start_frames_interval.config(state=NORMAL)
+            self.e_low_angle_interval.config(state=NORMAL)
+        else:
+            self.e_image_interval.config(state=DISABLED)
+            self.e_image_exposure.config(state=DISABLED)
+            self.e_diff_defocus.config(state=DISABLED)
+            self.c_toggle_defocus.config(state=DISABLED)
+            self.RelaxButton.config(state=DISABLED)
+            self.e_defocus_start_angle.config(state=DISABLED)
+            self.e_defocus_start_angle.set(0)
+            self.e_start_frames.config(state=DISABLED)
+            self.e_start_frames_interval.config(state=DISABLED)
+            self.e_low_angle_interval.config(state=DISABLED)
 
     def toggle_diff_defocus(self):
-        pass
+        toggle = self.var_toggle_diff_defocus.get()
+        difffocus = self.var_diff_defocus.get()
+
+        self.q.put(('toggle_difffocus', {'value': difffocus, 'toggle': toggle}))
+        self.triggerEvent.set()
 
     def relax_beam(self):
-        pass
+        difffocus = self.var_diff_defocus.get()
+
+        self.q.put(('relax_beam', {'value': difffocus}))
+        self.triggerEvent.set()
 
     def start_collection(self):
-        pass
+        if self.var_toggle_diff_defocus.get():
+            self.var_toggle_diff_defocus.set(False)
+            self.toggle_diff_defocus()
+
+        self.CollectionStopButton.config(state=NORMAL)
+        self.CollectionButton.config(state=DISABLED)
+
+        self.stopColEvent.clear()
+
+        params = self.get_params()
+        self.q.put(('cred', params))
+
+        self.triggerEvent.set()
 
     def stop_collection(self):
-        pass
+        self.stopColEvent.set()
+
+        self.CollectionStopButton.config(state=DISABLED)
+        self.CollectionButton.config(state=NORMAL)
 
     def connect(self):
         self.holder_ctrl = get_instance()
@@ -423,26 +487,55 @@ class ExperimentalcREDXnano(LabelFrame):
         self.holder_ctrl.holderRotateTo(self.var_angle.get()*pi/180, self.var_amp.get())
 
     def rotate_record(self):
+        num = 1
+        self.xnano_rec_path = self.rec_path / f'XNanoRec_{num}'
+        success = False
+        while not success:
+            try:
+                self.xnano_rec_path.mkdir(parents=True)
+                success = True
+            except OSError:
+                num += 1
+                self.xnano_rec_path = self.rec_path / f'XNanoRec_{num}'
+                self.xnano_rec_path.mkdir(parents=True)
+
         self.holder_ctrl.holderRotateTo(self.var_angle.get()*pi/180, self.var_amp.get())
         t_record_angle = threading.Thread(target=self.record_angle, args=(), daemon=True)
         t_record_angle.start()
 
     def record_angle(self):
+        num = 1
         current_angle = self.holder_ctrl.getAngle()*180/pi
         target_angle = self.var_angle.get()*180/pi
         angle_list = []
-        while round(current_angle, 2) != round(target_angle, 2) and not self.stopEvent.is_set():
+        if self.var_amp.get() > 0:
+            rotation_direction = 1
+        elif self.var_amp.get() < 0:
+            rotation_direction = -1
+        while round(current_angle, 1) != round(target_angle, 1) and rotation_direction * (current_angle - target_angle) < 0 and not self.stopRecEvent.is_set():
             current_angle = self.holder_ctrl.getAngle()*180/pi
+            outfile = self.xnano_rec_path / f'{num:05d}.tiff'
+            comment = f'Saved image with XNano holder: current angle = {current_angle:.2f}'
+            img, _ = self.tem_ctrl.get_image(exposure=self.var_exposure_time.get(), out=outfile, comment=comment)
             angle_list.append(current_angle)
-            time.sleep(0.001)
-        print(angle_list)
-        self.stopEvent.clear()
+            num += 1
+            time.sleep(self.var_interval.get()/1000)
+        self.stopRecEvent.clear()
 
     def stop_record(self):
-        self.stopEvent.set()
+        self.stopRecEvent.set()
 
     def save_img(self):
-        pass
+        num = 1
+        self.xnano_save_path = self.rec_path / f'XNanoSavedImg'
+        self.xnano_save_path.mkdir(parents=True, exist_ok=True)
+        outfile = self.xnano_save_path / f'{num:05d}.tiff'
+        while outfile.is_file():
+            num += 1
+            outfile = self.xnano_save_path / f'{num:05d}.tiff'
+        current_angle = self.holder_ctrl.getAngle()*180/pi
+        comment = f'Saved image with XNano holder: current angle = {current_angle:.2f}'
+        img, _ = self.tem_ctrl.get_image(exposure=self.var_exposure_time.get(), out=outfile, comment=comment)
 
     def get_comp_coeff(self):
         table = self.holder_ctrl.getCompCoef()
@@ -569,12 +662,11 @@ class ExperimentalcREDXnano(LabelFrame):
                   'start_frames': self.var_start_frames.get(),
                   'start_frames_interval': self.var_start_frames_interval.get(),
                   'defocus_start_angle': self.var_defocus_start_angle.get(),
-                  'rotation_speed': self.var_rotation_speed.get(),
                   'write_tiff': self.var_save_tiff.get(),
                   'write_xds': self.var_save_xds.get(),
                   'write_dials': self.var_save_dials.get(),
                   'write_red': self.var_save_red.get(),
-                  'stop_event': self.stopEvent}
+                  'stop_event': self.stopColEvent}
         return params
 
 

@@ -15,7 +15,7 @@ from .csvIO import write_csv
 from .csvIO import write_ycsv
 from .mrc import read_image as read_mrc
 from .mrc import write_image as write_mrc
-from .xdscbf import write as write_cbf
+from .cbfimage import CbfImage
 
 
 def read_image(fname: str) -> (np.array, dict):
@@ -123,3 +123,6 @@ def read_hdf5(fname: str) -> (np.array, dict):
 def read_cbf(fname: str):
     """CBF reader not implemented."""
     raise NotImplementedError('CBF reader not implemented.')
+
+def write_cbf(fname: str):
+    pass

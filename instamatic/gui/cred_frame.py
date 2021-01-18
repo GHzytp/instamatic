@@ -215,7 +215,6 @@ class ExperimentalcRED(LabelFrame):
         self.q = q
 
     def start_collection(self):
-        # TODO: make a pop up window with the STOP button?
         if self.var_toggle_diff_defocus.get():
             self.var_toggle_diff_defocus.set(False)
             self.toggle_diff_defocus()
