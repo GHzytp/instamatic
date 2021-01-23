@@ -121,8 +121,12 @@ def read_hdf5(fname: str) -> (np.array, dict):
 
 
 def read_cbf(fname: str):
-    """CBF reader not implemented."""
-    raise NotImplementedError('CBF reader not implemented.')
+    if not os.path.exists(fname):
+        raise FileNotFoundError(f"No such file: '{fname}'")
 
-def write_cbf(fname: str):
-    pass
+    cbf = CbfImage(fname=fname)
+    return cbf.data, cbf.header
+
+def write_cbf(fname: str, data, header: dict = None):
+    cbf = CbfImage(data=data, header=header)
+    cbf.write(fname=fname)

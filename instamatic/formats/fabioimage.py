@@ -49,6 +49,7 @@ import logging
 import sys
 import tempfile
 import weakref
+import json
 logger = logging.getLogger(__name__)
 import numpy
 from . import fabioutils
