@@ -177,7 +177,7 @@ class VideoStreamFrame(LabelFrame):
             image = ImageTk.PhotoImage(image)
             self.image = image
 
-            overflow = Image.new('RGBA', dimension, 'blue')
+            overflow = Image.new('RGBA', (dimension[1], dimension[0]), 'blue')
             self.alpha = alpha = Image.fromarray(np.zeros(dimension, dtype=np.uint8))
             overflow.putalpha(alpha)
             overflow_tk = ImageTk.PhotoImage(overflow)

@@ -87,7 +87,9 @@ class MicroscopeClient:
 
     def connect(self):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.s.settimeout(0.1)
+        if HOST != 'localhost' and HOST != '127.0.0.1':
+            # if Host is localhost, start temserver directly. No need to open a console again.
+            self.s.settimeout(0.1)
         self.s.connect((HOST, PORT))
         self.s.settimeout(None)
         print(f'Connected to TEM server ({HOST}:{PORT})')
