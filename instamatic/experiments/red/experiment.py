@@ -45,6 +45,7 @@ class Experiment:
         self.offset = 1
         self.current_angle = None
         self.buffer = []
+        self.binsize = config.camera.default_binsize
 
     def start_collection(self, exposure_time: float, tilt_range: float, stepsize: float):
         """Start or continue data collection for `tilt_range` degrees with
@@ -139,14 +140,25 @@ class Experiment:
         """
         self.logger.info(f'Data saving path: {self.path}')
         self.rotation_axis = config.camera.camera_rotation_vs_stage_xy
+        software_binsize = config.settings.software_binsize
 
         if self.ctrl.tem.interface == "fei":
             self.ctrl.tem.setProjectionMode('diffraction')
-            self.pixelsize = config.calibration[self.ctrl.mode.get()]['pixelsize'][self.camera_length]  # Angstrom^(-1)/pixel
+            if software_binsize is None:
+                self.pixelsize = config.calibration[self.ctrl.mode.get()]['pixelsize'][self.camera_length] * self.binsize  # Angstrom^(-1)/pixel
+                self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize  # mm
+            else:
+                self.pixelsize = config.calibration[self.ctrl.mode.get()]['pixelsize'][self.camera_length] * self.binsize * software_binsize  # Angstrom^(-1)/pixel
+                self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize * software_binsize  # mm
             self.ctrl.tem.setProjectionMode('imaging')
         else:
-            self.pixelsize = config.calibration['diff']['pixelsize'][self.camera_length]  # Angstrom^(-1)/pixel
-        self.physical_pixelsize = config.camera.physical_pixelsize  # mm
+            if software_binsize is None:
+                self.pixelsize = config.calibration['diff']['pixelsize'][self.camera_length] * self.binsize
+                self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize
+            else:
+                self.pixelsize = config.calibration['diff']['pixelsize'][self.camera_length] * self.binsize * software_binsize
+                self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize * software_binsize
+
         self.wavelength = config.microscope.wavelength  # angstrom
         self.stretch_azimuth = config.camera.stretch_azimuth
         self.stretch_amplitude = config.camera.stretch_amplitude

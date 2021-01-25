@@ -168,6 +168,7 @@ class Experiment:
         self.scan_area = scan_area
         self.auto_zheight = zheight
         self.mode = 0
+        self.binsize = config.camera.default_binsize
 
         self.diff_brightness = self.ctrl.brightness.value
         # self.autocenterDP = autocenterDP
@@ -858,8 +859,14 @@ class Experiment:
 
         rotation_angle = config.camera.camera_rotation_vs_stage_xy
 
-        self.pixelsize = config.calibration['diff']['pixelsize'][camera_length]  # Angstrom^(-1)/pixel
-        self.physical_pixelsize = config.camera.physical_pixelsize  # mm
+        software_binsize = config.settings.software_binsize
+        if software_binsize is None:
+            self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][self.camera_length] * self.binsize  # Angstrom^(-1)/pixel
+            self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize  # mm
+        else:
+            self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][self.camera_length] * self.binsize * software_binsize  # Angstrom^(-1)/pixel
+            self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize * software_binsize  # mm
+
         self.wavelength = config.microscope.wavelength  # angstrom
         self.stretch_azimuth = config.camera.stretch_azimuth
         self.stretch_amplitude = config.camera.stretch_amplitude

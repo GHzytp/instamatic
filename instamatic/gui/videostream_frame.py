@@ -189,8 +189,11 @@ class VideoStreamFrame(LabelFrame):
             self.panel = Canvas(master, width=dimension[1], height=dimension[0])
             self.image_on_panel = self.panel.create_image(0, 0, anchor=NW, image=image)
             self.overflow_on_panel = self.panel.create_image(0, 0, anchor=NW, image=overflow_tk)
-            self.center_panel = self.panel.create_oval(dimension[0]/2-5, dimension[0]/2-5, dimension[1]/2+5, dimension[1]/2+5, width=5, outline='green')
-            self.res_shell_panel = self.panel.create_oval(0, 0, dimension[0], dimension[1], outline='red')
+            self.center_panel = self.panel.create_oval(dimension[1]/2-5, dimension[0]/2-5, dimension[1]/2+5, dimension[0]/2+5, width=5, outline='green')
+            if dimension[0] > dimension[1]:
+                self.res_shell_panel = self.panel.create_oval(0, (dimension[0]-dimension[1])/2, dimension[1], (dimension[1]+dimension[0])/2, outline='red')
+            else:
+                self.res_shell_panel = self.panel.create_oval((dimension[1]-dimension[0])/2, 0, (dimension[1]+dimension[0])/2, dimension[0], outline='red')
             self.panel.pack(side='left', padx=5, pady=5)
 
     def show_center(self):
@@ -210,13 +213,20 @@ class VideoStreamFrame(LabelFrame):
         if mode in ('D', 'LAD', 'diff'):
             self.l_resolution.config(text='Resolution (A)')
             camera_length = self.ctrl.magnification.get()
-            pixelsize = config.calibration[mode]['pixelsize'][camera_length] * self.binsize
-            self.var_resolution.set(round(1 / (pixelsize * self.dimension[0] / 2), 2))
+            if config.settings.software_binsize is None:
+                pixelsize = config.calibration[mode]['pixelsize'][camera_length] * self.binsize
+            else:
+                pixelsize = config.calibration[mode]['pixelsize'][camera_length] * self.binsize * config.settings.software_binsize
+            self.var_resolution.set(round(1 / (pixelsize * min(self.dimension) / 2), 2))
         else:
             self.l_resolution.config(text='Resolution (nm)')
             mag = self.ctrl.magnification.get()
-            pixelsize = config.calibration[mode]['pixelsize'][mag] * self.binsize
-            self.var_resolution.set(round(pixelsize * self.dimension[0] / 2, 1))
+            software_binsize = config.settings.software_binsize
+            if config.settings.software_binsize is None:
+                pixelsize = config.calibration[mode]['pixelsize'][camera_length] * self.binsize
+            else:
+                pixelsize = config.calibration[mode]['pixelsize'][camera_length] * self.binsize * software_binsize
+            self.var_resolution.set(round(pixelsize * min(self.dimension) / 2, 1))
 
     def pause_stream(self):
         self.image_stream.pause_streaming()

@@ -326,9 +326,14 @@ class Experiment:
         self.total_angle = abs(self.end_angle - self.start_angle)
         self.rotation_axis = config.camera.camera_rotation_vs_stage_xy
 
-        self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][self.camera_length] * self.binsize  # Angstrom^(-1)/pixel
-
-        self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize  # mm
+        software_binsize = config.settings.software_binsize
+        if software_binsize is None:
+            self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][self.camera_length] * self.binsize  # Angstrom^(-1)/pixel
+            self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize  # mm
+        else:
+            self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][self.camera_length] * self.binsize * software_binsize  # Angstrom^(-1)/pixel
+            self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize * software_binsize  # mm
+            
         self.wavelength = config.microscope.wavelength  # angstrom
         self.stretch_azimuth = config.camera.stretch_azimuth  # deg
         self.stretch_amplitude = config.camera.stretch_amplitude  # %

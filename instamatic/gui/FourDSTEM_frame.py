@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 import time
 import threading
 from tkinter import *
@@ -33,7 +34,7 @@ class ExperimentalFourDSTEM(LabelFrame):
         self.binsize = self.ctrl.cam.default_binsize
 
         if self.cam_x != self.cam_y:
-            raise RuntimeWarning("It is recommended to use a camera with equal x and y length")
+            warnings.warn("It is recommended to use a camera with equal x and y length", RuntimeWarning)
             self.cam_x = min(self.cam_x, self.cam_y)
 
         self.panel = None

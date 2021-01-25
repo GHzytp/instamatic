@@ -51,7 +51,6 @@ class Experiment:
         self.img_ref = None
 
         self.rotation_axis = config.camera.camera_rotation_vs_stage_xy
-        self.physical_pixelsize = config.camera.physical_pixelsize  # mm
         self.wavelength = config.microscope.wavelength  # angstrom
 
     def start_collection(self, exposure_time: float, end_angle: float, stepsize: float):
@@ -77,7 +76,14 @@ class Experiment:
         if image_mode in ('D', 'LAD', 'diff'):
             raise RuntimeError("Please set the microscope to IMAGE mode")
 
-        self.pixelsize = config.calibration[image_mode]['pixelsize'][self.magnification]  # nm/pixel
+        software_binsize = config.settings.software_binsize
+        if software_binsize is None:
+            self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][self.camera_length] * self.binsize 
+            self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize 
+        else:
+            self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][self.camera_length] * self.binsize * software_binsize 
+            self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize * software_binsize 
+
         if self.current_angle is None:
             self.start_angle = start_angle = ctrl.stage.a
         else:
