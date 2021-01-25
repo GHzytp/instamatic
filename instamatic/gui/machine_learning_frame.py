@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from .base_module import BaseModule
-from .mpl_frame import ShowMatplotlibFig
+from instamatic.utils.widgets import ShowMatplotlibFig
 from instamatic.formats import read_image
 
 

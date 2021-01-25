@@ -2,6 +2,9 @@ from tkinter.ttk import Entry
 import tkinter as tk
 # https://github.com/alandmoore/cpython/blob/53046dcf91481f3e69ddbc97e5d8d0d921c1d09f/Lib/tkinter/ttk.py
 
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
 
 class Spinbox(Entry):
     """Ttk Spinbox is an Entry with increment and decrement arrows It is
@@ -74,3 +77,27 @@ class Hoverbox:
         self.tw= None
         if tw:
             tw.destroy()
+
+class ShowMatplotlibFig(tk.Toplevel):
+    """Simple class to load a matplotlib figure in a new top level panel."""
+
+    def __init__(self, parent, fig, title='figure'):
+        Toplevel.__init__(self, parent)
+        self.grab_set()
+        self.title(title)
+        button = Button(self, text='Dismiss', command=self.close)
+        button.pack(side=BOTTOM)
+        self.canvas = canvas = FigureCanvasTkAgg(fig, master=self)
+        canvas.show()
+        canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=True)
+        # canvas._tkcanvas.pack(side=self, fill=BOTH, expand=True)
+        self.wm_protocol('WM_DELETE_WINDOW', self.close)
+        self.focus_set()
+        self.wait_window(self)
+
+    def close(self, event=None):
+        self.canvas.get_tk_widget().destroy()
+        self.destroy()    # this is necessary on Windows to prevent
+        # Fatal Python Error: PyEval_RestoreThread: NULL tstate
+        plt.clf()
+        plt.close('all')
