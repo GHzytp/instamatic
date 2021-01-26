@@ -223,9 +223,9 @@ class VideoStreamFrame(LabelFrame):
             mag = self.ctrl.magnification.get()
             software_binsize = config.settings.software_binsize
             if config.settings.software_binsize is None:
-                pixelsize = config.calibration[mode]['pixelsize'][camera_length] * self.binsize
+                pixelsize = config.calibration[mode]['pixelsize'][mag] * self.binsize
             else:
-                pixelsize = config.calibration[mode]['pixelsize'][camera_length] * self.binsize * software_binsize
+                pixelsize = config.calibration[mode]['pixelsize'][mag] * self.binsize * software_binsize
             self.var_resolution.set(round(pixelsize * min(self.dimension) / 2, 1))
 
     def pause_stream(self):

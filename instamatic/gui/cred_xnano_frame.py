@@ -30,7 +30,7 @@ class ExperimentalcREDXnano(LabelFrame):
         Hoverbox(self.ConnectButton, 'Connect to a holder, enable all the operations. Close the GUI to disconnect.')
 
         Label(frame, text='Holder ID:').grid(row=0, column=1, sticky='W')
-        self.lb_holder_id = Label(frame, width=5, textvariable=self.holder_id)
+        self.lb_holder_id = Label(frame, width=10, textvariable=self.var_holder_id)
         self.lb_holder_id.grid(row=0, column=2, sticky='EW', padx=5)
 
         Label(frame, text='Angle:').grid(row=0, column=3, sticky='W')
@@ -300,7 +300,7 @@ class ExperimentalcREDXnano(LabelFrame):
 
     def init_vars(self):
         self.holder_ctrl = None
-        self.holder_id = IntVar(value=0)
+        self.var_holder_id = IntVar(value=0)
         self.var_angle = DoubleVar(value=0.0)
         self.var_interval = IntVar(value=100)
         self.var_axis = IntVar(value=0)
@@ -357,11 +357,11 @@ class ExperimentalcREDXnano(LabelFrame):
         else:
             self.var_exposure_time_image = DoubleVar(value=0.01)
 
-        self.var_save_tiff = BooleanVar(value=True)
+        self.var_save_tiff = BooleanVar(value=False)
         self.var_save_xds = BooleanVar(value=True)
         self.var_save_dials = BooleanVar(value=True)
         self.var_save_red = BooleanVar(value=True)
-        self.var_save_cbf = BooleanVar(value=True)
+        self.var_save_cbf = BooleanVar(value=False)
 
     def toggle_unblankbeam(self):
         toggle = self.var_unblank_beam.get()
@@ -450,10 +450,23 @@ class ExperimentalcREDXnano(LabelFrame):
         self.CollectionButton.config(state=NORMAL)
 
     def connect(self):
-        self.holder_ctrl = get_instance()
-        self.holder_id.set(self.holder_ctrl.getHolderId())
-        self.enable_operations()
+        t = threading.Thread(target=self.wait_holder, args=(), daemon=True)
+        t.start()
+        self.holder_ctrl = self.tem_ctrl.holder
+        
+    def wait_holder(self):
         self.ConnectButton.config(state=DISABLED)
+        for i in range(5):
+            time.sleep(0.5)
+            if self.holder_ctrl.getHolderId() != 0:
+                time.sleep(0.5)
+                self.enable_operations()
+                self.var_holder_id.set(hex(self.holder_ctrl.getHolderId()))
+                break
+            print("Wait for XNano holder...")
+        if i == 4:
+            print("Please connect to a XNano holder.")
+            self.ConnectButton.config(state=NORMAL)
 
     def validate(self, action, index, value_if_allowed, prior_value, text, validation_type, trigger_type, widget_name):
         if value_if_allowed:
@@ -497,13 +510,13 @@ class ExperimentalcREDXnano(LabelFrame):
             except OSError:
                 num += 1
                 self.xnano_rec_path = self.rec_path / f'XNanoRec_{num}'
-                self.xnano_rec_path.mkdir(parents=True)
 
         self.holder_ctrl.holderRotateTo(self.var_angle.get()*pi/180, self.var_amp.get())
         t_record_angle = threading.Thread(target=self.record_angle, args=(), daemon=True)
         t_record_angle.start()
 
     def record_angle(self):
+        self.stopRecEvent.clear()
         num = 1
         current_angle = self.holder_ctrl.getAngle()*180/pi
         target_angle = self.var_angle.get()*180/pi
@@ -512,6 +525,9 @@ class ExperimentalcREDXnano(LabelFrame):
             rotation_direction = 1
         elif self.var_amp.get() < 0:
             rotation_direction = -1
+        else:
+            raise RuntimeError('Amp value not set.')
+
         while round(current_angle, 1) != round(target_angle, 1) and rotation_direction * (current_angle - target_angle) < 0 and not self.stopRecEvent.is_set():
             current_angle = self.holder_ctrl.getAngle()*180/pi
             outfile = self.xnano_rec_path / f'{num:05d}.tiff'
@@ -520,6 +536,11 @@ class ExperimentalcREDXnano(LabelFrame):
             angle_list.append(current_angle)
             num += 1
             time.sleep(self.var_interval.get()/1000)
+
+        with open(self.xnano_rec_path / 'angle.tlt', 'w') as f:
+            for angle in angle_list:
+                f.write(f'{angle:.2f}\n')
+
         self.stopRecEvent.clear()
 
     def stop_record(self):
@@ -646,6 +667,50 @@ class ExperimentalcREDXnano(LabelFrame):
         self.LoadCompCoeffButton.config(state=NORMAL)
         self.SaveCompCoeffButton.config(state=NORMAL)
         self.FindCompCoeffButton.config(state=NORMAL)
+
+    def disable_operations(self):
+        self.GetAngleButton.config(state=DISABLED)
+        self.GetDistButton.config(state=DISABLED)
+        self.e_amp.config(state=DISABLED)
+        self.e_speed.config(state=DISABLED)
+        self.e_pulse.config(state=DISABLED)
+        self.e_axis.config(state=DISABLED)
+        self.e_angle.config(state=DISABLED)
+        self.CoarseMoveButton.config(state=DISABLED)
+        self.StopCoarseMoveButton.config(state=DISABLED)
+        self.FineMoveButton.config(state=DISABLED)
+        self.RotateToButton.config(state=DISABLED)
+        self.RotateRecordButton.config(state=DISABLED)
+        self.StopRecordButton.config(state=DISABLED)
+        self.coff_0.config(state=DISABLED)
+        self.coff_1.config(state=DISABLED)
+        self.coff_2.config(state=DISABLED)
+        self.coff_3.config(state=DISABLED)
+        self.coff_4.config(state=DISABLED)
+        self.coff_5.config(state=DISABLED)
+        self.coff_6.config(state=DISABLED)
+        self.coff_7.config(state=DISABLED)
+        self.coff_8.config(state=DISABLED)
+        self.coff_9.config(state=DISABLED)
+        self.coff_10.config(state=DISABLED)
+        self.coff_11.config(state=DISABLED)
+        self.coff_12.config(state=DISABLED)
+        self.coff_13.config(state=DISABLED)
+        self.coff_14.config(state=DISABLED)
+        self.coff_15.config(state=DISABLED)
+        self.coff_16.config(state=DISABLED)
+        self.coff_17.config(state=DISABLED)
+        self.coff_18.config(state=DISABLED)
+        self.coff_19.config(state=DISABLED)
+        self.coff_20.config(state=DISABLED)
+        self.coff_21.config(state=DISABLED)
+        self.coff_22.config(state=DISABLED)
+        self.coff_23.config(state=DISABLED)
+        self.SetCompCoeffButton.config(state=DISABLED)
+        self.GetCompCoeffButton.config(state=DISABLED)
+        self.LoadCompCoeffButton.config(state=DISABLED)
+        self.SaveCompCoeffButton.config(state=DISABLED)
+        self.FindCompCoeffButton.config(state=DISABLED)
 
     def set_trigger(self, trigger=None, q=None):
         self.triggerEvent = trigger

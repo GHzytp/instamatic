@@ -24,7 +24,7 @@ class HolderGUI(LabelFrame):
         Hoverbox(self.ConnectButton, 'Connect to a holder, enable all the operations. Close the GUI to disconnect.')
 
         Label(frame, text='Holder ID:').grid(row=0, column=1, sticky='W')
-        self.lb_holder_id = Label(frame, width=5, textvariable=self.holder_id)
+        self.lb_holder_id = Label(frame, width=10, textvariable=self.var_holder_id)
         self.lb_holder_id.grid(row=0, column=2, sticky='EW', padx=5)
 
         Label(frame, text='Angle:').grid(row=0, column=3, sticky='W')
@@ -201,7 +201,7 @@ class HolderGUI(LabelFrame):
 
     def init_vars(self):
         self.ctrl = None
-        self.holder_id = IntVar(value=0)
+        self.var_holder_id = StringVar(value=0)
         self.var_angle = DoubleVar(value=0.0)
         self.var_axis = IntVar(value=0)
         self.var_pulse = IntVar(value=0)
@@ -234,10 +234,23 @@ class HolderGUI(LabelFrame):
         self.stopEvent = threading.Event()
 
     def connect(self):
+        t = threading.Thread(target=self.wait_holder, args=(), daemon=True)
+        t.start()
         self.ctrl = get_instance()
-        self.holder_id.set(self.ctrl.getHolderId())
-        self.enable_operations()
+
+    def wait_holder(self):
         self.ConnectButton.config(state=DISABLED)
+        for i in range(5):
+            time.sleep(0.5)
+            if self.ctrl.getHolderId() != 0:
+                time.sleep(0.5)
+                self.enable_operations()
+                self.var_holder_id.set(hex(self.ctrl.getHolderId()))
+                break
+            print("Wait for XNano holder...")
+        if i == 4:
+            print("Please connect to a XNano holder.")
+            self.ConnectButton.config(state=NORMAL)
 
     def validate(self, action, index, value_if_allowed, prior_value, text, validation_type, trigger_type, widget_name):
         if value_if_allowed:
@@ -276,13 +289,14 @@ class HolderGUI(LabelFrame):
         t_record_angle.start()
 
     def record_angle(self):
+        self.stopEvent.clear()
         current_angle = self.ctrl.getAngle()*180/pi
         target_angle = self.var_angle.get()*180/pi
         angle_list = []
         while round(current_angle, 2) != round(target_angle, 2) and not self.stopEvent.is_set():
             current_angle = self.ctrl.getAngle()*180/pi
             angle_list.append(current_angle)
-            time.sleep(0.001)
+            time.sleep(0.01)
         print(angle_list)
         self.stopEvent.clear()
 

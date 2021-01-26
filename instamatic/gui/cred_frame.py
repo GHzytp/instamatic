@@ -176,10 +176,9 @@ class ExperimentalcRED(LabelFrame):
 
         self.var_save_tiff = BooleanVar(value=False)
         self.var_save_xds = BooleanVar(value=True)
-        self.var_save_cbf = BooleanVar(value=True)
         self.var_save_dials = BooleanVar(value=True)
         self.var_save_red = BooleanVar(value=True)
-        self.var_save_cbf = BooleanVar(value=True)
+        self.var_save_cbf = BooleanVar(value=False)
 
     def confirm_exposure_time(self):
         """Change the exposure time for Gatan camera. Need to stop and restart the data stream generation process. Need to have StreamBuffer object"""
