@@ -303,3 +303,5 @@ locations = {
     'settings': config_drc / _settings_yaml,
     'defaults': config_drc / _defaults_yaml,
 }
+
+locations['work'].mkdir(exist_ok=True)
