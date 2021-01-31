@@ -42,117 +42,20 @@ FUNCTION_MODES = {1: 'LM', 2: 'Mi', 3: 'SA', 4: 'Mh', 5: 'LAD', 6: 'D'}
 STEM_FOCUS_STRATEGY = {1: 'Intensity', 2: 'Objective', 3: 'StepSize', 4: 'Both'}
 
 # Need more checking
-MagnificationMapping = {
-    1: 45,
-    2: 58,
-    3: 73,
-    4: 89,
-    5: 115,
-    6: 145,
-    7: 185,
-    8: 235,
-    9: 300,
-    10: 380,
-    11: 470,
-    12: 600,
-    13: 760,
-    14: 950,
-    15: 1200,
-    16: 1550,
-    17: 3400,
-    18: 4400,
-    19: 5600,
-    20: 7200,
-    21: 8800,
-    22: 11500,
-    23: 14500,
-    24: 18500,
-    25: 24000,
-    26: 30000,
-    27: 38000,
-    28: 49000,
-    29: 61000,
-    30: 77000,
-    31: 100000,
-    32: 130000,
-    33: 165000,
-    34: 215000,
-    35: 265000,
-    36: 340000,
-    37: 430000,
-    38: 550000,
-    39: 700000,
-    40: 890000,
-    41: 1150000,
-    42: 1250000,
-    43: 960000,
-    44: 750000,
-    45: 600000,
-    46: 470000,
-    47: 360000,
-    48: 285000,
-    49: 225000,
-    50: 175000,
-    51: 145000,
-    52: 115000,
-    53: 89000,
-    54: 66000,
-    55: 52000,
-    56: 41000,
-    57: 32000,
-    58: 26000,
-    59: 21000,
-    60: 8300,
-    61: 6200,
-    62: 3100}
+MagnificationMapping = {}
+MagnificationRanges = config.microscope.ranges['LM']+ config.microscope.ranges['Mi'] + config.microscope.ranges['SA'] + config.microscope.ranges['Mh']
+for index, value in enumerate(MagnificationRanges, start=1):
+    MagnificationMapping[index] = value
 
 # Unit: mm
-CameraLengthMapping = {
-    1: 34,
-    2: 42,
-    3: 53,
-    4: 68,
-    5: 90,
-    6: 115,
-    7: 140,
-    8: 175,
-    9: 215,
-    10: 265,
-    11: 330,
-    12: 420,
-    13: 530,
-    14: 680,
-    15: 830,
-    16: 1050,
-    17: 1350,
-    18: 1700,
-    19: 2100,
-    20: 2700,
-    21: 3700}
+CameraLengthMapping = {}
+for index, value in enuemrate(config.microscope.ranges['D'], start=1):
+    CameraLengthMapping[idnex] = value
 
 # Unit: mm
-CameraLengthMapping_LAD = {
-    1: 34,
-    2: 42,
-    3: 53,
-    4: 68,
-    5: 90,
-    6: 115,
-    7: 140,
-    8: 175,
-    9: 215,
-    10: 265,
-    11: 330,
-    12: 420,
-    13: 530,
-    14: 680,
-    15: 830,
-    16: 1050,
-    17: 1350,
-    18: 1700,
-    19: 2100,
-    20: 2700,
-    21: 3700}
+CameraLengthMapping_LAD = {}
+for index, value in enuemrate(config.microscope.ranges['LAD'], start=1):
+    CameraLengthMapping[idnex] = value
 
 def move_stage(x=None, y=None, z=None, a=None, b=None, speed=1):
     """Rotate stage function. Mainly for start a new process and move the stage to achieve non-blocking stage manipulation"""
