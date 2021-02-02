@@ -109,12 +109,12 @@ class AcquireAtItems:
     def move_to_item(self, item):
         """Move the stage to the stage coordinates given by the NavItem."""
         try:
-            x = item.stage_x * 1000  # um -> nm
+            x = item.stage_x * 1000  # um -> nm, for pyserialem
             y = item.stage_y * 1000  # um -> nm
             z = item.stage_z * 1000  # um -> nm
         except AttributeError:
             if len(item) == 2:
-                x, y = item
+                x, y = item # for user generated positions, unit: nm
                 z = None
             elif len(item) == 3:
                 x, y, z = item

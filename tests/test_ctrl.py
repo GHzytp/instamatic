@@ -13,7 +13,7 @@ def test_other(ctrl):
     ctrl.spotsize = 1
     assert ctrl.spotsize == 1
 
-    stagematrix = ctrl.get_stagematrix()
+    scalematrix = ctrl.get_scalematrix()
     assert stagematrix.shape == (2, 2)
 
     ctrl.store('test1')

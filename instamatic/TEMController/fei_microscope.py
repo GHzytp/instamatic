@@ -379,7 +379,7 @@ class FEIMicroscope:
         return self.stage_tom.Speed
 
     def getStagePosition(self):
-        """return numbers in microns, angles in degs. 3ms per call"""
+        """return numbers in nm, angles in degs. 3ms per call"""
         pos = self.stage_tem.Position
         return pos.X * 1e9, pos.Y * 1e9, pos.Z * 1e9, pos.A / pi * 180, pos.B / pi * 180
     

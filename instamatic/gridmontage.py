@@ -74,7 +74,7 @@ class GridMontage:
 
         self.stagematrix = self.ctrl.get_stagematrix(binning=binning)
 
-        stage_center = np.dot(px_center, self.stagematrix) + stage_shift
+        stage_center = np.dot(px_center, self.stagematrix) - stage_shift
         stagepos = np.dot(px_coords, self.stagematrix)
 
         coords = (stagepos - stage_center).astype(int)
@@ -88,7 +88,10 @@ class GridMontage:
         self.abs_mag_index = self.ctrl.magnification.absolute_index
         self.spotsize = self.ctrl.spotsize
         self.binning = binning
-        self.pixelsize = config.calibration[mode]['pixelsize'][magnification]  # unbinned
+        if config.settings.software_binsize is None:
+            self.pixelsize = config.calibration[mode]['pixelsize'][magnification]  # unbinned
+        else:
+            self.pixelsize = config.calibration[mode]['pixelsize'][magnification] * config.settings.software_binsize
 
         print('Setting up gridscan.')
         print(f'  Mag: {self.magnification}x')
@@ -100,6 +103,8 @@ class GridMontage:
         print(f'  Pixel center: {px_center}')
         print(f'  Spot size: {self.spotsize}')
         print(f'  Binning: {self.binning}')
+
+        return coords
 
     def start(self):
         """Start the experiment."""

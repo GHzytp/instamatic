@@ -2,6 +2,7 @@ import numpy as np
 import time
 import threading
 import pickle
+import yaml
 from tkinter import *
 from tkinter.ttk import *
 from tqdm import tqdm
@@ -456,6 +457,17 @@ class CalibrationFrame(LabelFrame):
             with open(self.beamshift_calib_path / 'calib_beamshift.pickle', 'wb') as f:
                 pickle.dump([r, t, shifts, beampos_], f)
 
+            dct = {}
+            dct['shifts'] = shifts.tolist()
+            dct['beampos'] = beampos.tolist()
+            dct['rotation'] = r.tolist()
+            dct['translation'] = t.tolist()
+            dct['rotation_inv'] = r_i.tolist()
+            dct['pred_beampos'] = beampos_.tolist()
+
+            with open (self.beamshift_calib_path / 'calib_beamshift.yaml', 'w') as f:
+                yaml.dump(dct, f)
+
         except Exception as e:
             self.click = 0
             raise e
@@ -559,6 +571,17 @@ class CalibrationFrame(LabelFrame):
 
             with open(self.beamtilt_calib_path / 'calib_beamtilt.pickle', 'wb') as f:
                 pickle.dump([r, t, shifts, beampos_], f)
+
+            dct = {}
+            dct['shifts'] = shifts.tolist()
+            dct['beampos'] = beampos.tolist()
+            dct['rotation'] = r.tolist()
+            dct['translation'] = t.tolist()
+            dct['rotation_inv'] = r_i.tolist()
+            dct['pred_beampos'] = beampos_.tolist()
+
+            with open (self.beamtilt_calib_path / 'calib_beamtilt.yaml', 'w') as f:
+                yaml.dump(dct, f)
 
         except Exception as e:
             self.click = 0
@@ -664,6 +687,17 @@ class CalibrationFrame(LabelFrame):
             with open(self.IS1_calib_path / 'calib_IS1.pickle', 'wb') as f:
                 pickle.dump([r, t, shifts, beampos_], f)
 
+            dct = {}
+            dct['shifts'] = shifts.tolist()
+            dct['beampos'] = beampos.tolist()
+            dct['rotation'] = r.tolist()
+            dct['translation'] = t.tolist()
+            dct['rotation_inv'] = r_i.tolist()
+            dct['pred_beampos'] = beampos_.tolist()
+
+            with open (self.IS1_calib_path / 'calib_IS1.yaml', 'w') as f:
+                yaml.dump(dct, f)
+
         except Exception as e:
             self.click = 0
             raise e
@@ -767,6 +801,17 @@ class CalibrationFrame(LabelFrame):
 
             with open(self.IS2_calib_path / 'calib_IS2.pickle', 'wb') as f:
                 pickle.dump([r, t, shifts, beampos_], f)
+
+            dct = {}
+            dct['shifts'] = shifts.tolist()
+            dct['beampos'] = beampos.tolist()
+            dct['rotation'] = r.tolist()
+            dct['translation'] = t.tolist()
+            dct['rotation_inv'] = r_i.tolist()
+            dct['pred_beampos'] = beampos_.tolist()
+
+            with open (self.IS2_calib_path / 'calib_IS2.yaml', 'w') as f:
+                yaml.dump(dct, f)
 
         except Exception as e:
             self.click = 0
@@ -873,6 +918,17 @@ class CalibrationFrame(LabelFrame):
             with open(self.diffshift_calib_path / 'calib_diffshift.pickle', 'wb') as f:
                 pickle.dump([r, t, shifts, beampos_], f)
 
+            dct = {}
+            dct['shifts'] = shifts.tolist()
+            dct['beampos'] = beampos.tolist()
+            dct['rotation'] = r.tolist()
+            dct['translation'] = t.tolist()
+            dct['rotation_inv'] = r_i.tolist()
+            dct['pred_beampos'] = beampos_.tolist()
+
+            with open (self.diffshift_calib_path / 'calib_diffshift.yaml', 'w') as f:
+                yaml.dump(dct, f)
+
         except Exception as e:
             self.click = 0
             raise e
@@ -936,7 +992,7 @@ class CalibrationFrame(LabelFrame):
             print('Pixel: x={} | y={}'.format(*pixel_cent))
 
             shifts = []
-            beampos = []
+            stagepos = []
 
             n = (grid_size - 1) / 2  # number of points = n*(n+1)
             x_grid, y_grid = np.meshgrid(np.arange(-n, n + 1) * step_size, np.arange(-n, n + 1) * step_size)
@@ -956,7 +1012,7 @@ class CalibrationFrame(LabelFrame):
                     shift, error, phasediff = phase_cross_correlation(img_cent, img, upsample_factor=10)
 
                     stageshift = np.array(self.ctrl.stage.xy)
-                    beampos.append(stageshift)
+                    stagepos.append(stageshift)
                     shifts.append(shift)
                     pbar.update(100/tot)
                     i += 1
@@ -965,17 +1021,28 @@ class CalibrationFrame(LabelFrame):
             self.ctrl.stage.set_xy_with_backlash_correction(*stage_cent, step=2000) # reset beam to center
 
             shifts = np.array(shifts) * self.binsize / scale
-            beampos = np.array(beampos) - np.array(stage_cent)
+            stagepos = np.array(stagepos) - np.array(stage_cent)
 
-            fit_result = fit_affine_transformation(shifts, beampos, rotation=True, scaling=True, translation=True)
+            fit_result = fit_affine_transformation(shifts, stagepos, rotation=True, scaling=True, translation=True)
             r = fit_result.r
             t = fit_result.t
             r_i = np.linalg.inv(r)
-            beampos_ = np.dot(beampos-t, r_i)
+            stagepos_ = np.dot(stagepos-t, r_i)
             self.lb_coll0.config(text='Stage calibration finished. Please click Stage Calib again to plot.')
 
             with open(self.stage_calib_path / 'calib_stage.pickle', 'wb') as f:
-                pickle.dump([r, t, shifts, beampos_], f)
+                pickle.dump([r, t, shifts, stagepos_], f)
+
+            dct = {}
+            dct['shifts'] = shifts.tolist()
+            dct['stagepos'] = stagepos.tolist()
+            dct['rotation'] = r.tolist()
+            dct['translation'] = t.tolist()
+            dct['rotation_inv'] = r_i.tolist()
+            dct['pred_stagepos'] = stagepos_.tolist()
+
+            with open (self.stage_calib_path / 'calib_stage.yaml', 'w') as f:
+                yaml.dump(dct, f)
 
         except Exception as e:
             self.click = 0

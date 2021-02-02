@@ -2,7 +2,7 @@ import threading
 import time
 from pathlib import Path
 from datetime import datetime
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 from tkinter import *
 from tkinter.ttk import *
 from tqdm import tqdm
@@ -12,9 +12,12 @@ import pandas as pd
 
 from instamatic import config
 from instamatic import TEMController
+from instamatic.formats import write_tiff
 from instamatic.utils import suppress_stderr
 from instamatic.gui.grid_frame import GridFrame
 from instamatic.utils.widgets import MultiListbox, Hoverbox
+
+from pyserialem.navigation import sort_nav_items_by_shortest_path
 
 class CryoED(LabelFrame):
     """GUI panel for Cryo electron diffraction data collection protocol."""
@@ -23,13 +26,17 @@ class CryoED(LabelFrame):
         LabelFrame.__init__(self, parent, text='Cryo electron diffraction protocol')
         self.parent = parent
         self.crystal_list = None
-        self.df_grid = pd.DataFrame(columns=['grid', 'pos_x', 'pos_y'])
-        self.df_square = pd.DataFrame(columns=['grid', 'square', 'pos_x', 'pos_y', 'pos_z'])
+        self.df_grid = pd.DataFrame(columns=['grid', 'pos_x', 'pos_y', 'img_location'])
+        self.df_square = pd.DataFrame(columns=['grid', 'square', 'pos_x', 'pos_y', 'pos_z', 'img_location'])
         self.df_target = pd.DataFrame(columns=['grid', 'square', 'target', 'pos_x', 'pos_y', 'pos_z'])
         self.grid_dir = None
+        self.square_dir = None
         self.last_grid = None
         self.last_square = None
         self.ctrl = TEMController.get_instance()
+        self.dimension = self.ctrl.cam.dimension
+        self.binsize = self.ctrl.cam.default_binsize
+        self.software_binsize = config.settings.software_binsize
 
         self.init_vars()
 
@@ -44,40 +51,46 @@ class CryoED(LabelFrame):
         Label(frame, text='Exp Name:', anchor="center").grid(row=0, column=3, sticky='EW')
         self.e_name = Entry(frame, textvariable=self.var_name, width=8)
         self.e_name.grid(row=0, column=4, sticky='EW', padx=5)
-
+        
         self.CollectMapButton = Button(frame, text='Collect Map', width=11, command=self.collect_map, state=NORMAL)
         self.CollectMapButton.grid(row=1, column=0, sticky='EW')
+        Label(frame, text='Exposure:', anchor="center").grid(row=1, column=1, sticky='EW')
+        self.e_radius = Spinbox(frame, textvariable=self.var_exposure, width=8, from_=self.ctrl.cam.default_exposure*2, to=30, increment=self.ctrl.cam.default_exposure)
+        self.e_radius.grid(row=1, column=2, sticky='EW', padx=5)
+
+        self.RetakeImgButton = Button(frame, text='Retake Img', width=11, command=self.retake_image, state=NORMAL)
+        self.RetakeImgButton.grid(row=2, column=0, sticky='EW')
         self.OpenMapButton = Button(frame, text='Get Pos', width=11, command=self.get_pos, state=NORMAL)
-        self.OpenMapButton.grid(row=1, column=1, sticky='EW', padx=5)
+        self.OpenMapButton.grid(row=2, column=1, sticky='EW', padx=5)
         self.SaveGridButton = Button(frame, text='Change Grid', width=11, command=self.change_grid, state=NORMAL)
-        self.SaveGridButton.grid(row=1, column=2, sticky='EW')
+        self.SaveGridButton.grid(row=2, column=2, sticky='EW')
         self.SaveGridButton = Button(frame, text='Save Grid', width=11, command=self.save_grid, state=NORMAL)
-        self.SaveGridButton.grid(row=1, column=3, sticky='EW', padx=5)
+        self.SaveGridButton.grid(row=2, column=3, sticky='EW', padx=5)
         self.LoadGridButton = Button(frame, text='Load Grid', width=11, command=self.load_grid, state=NORMAL)
-        self.LoadGridButton.grid(row=1, column=4, sticky='EW')
+        self.LoadGridButton.grid(row=2, column=4, sticky='EW')
 
         self.lb_coll1 = Label(frame, text='')
-        self.lb_coll1.grid(row=2, column=0, columnspan=5, sticky='EW', pady=5)
+        self.lb_coll1.grid(row=3, column=0, columnspan=5, sticky='EW', pady=5)
         
 
         self.AddTargetButton = Button(frame, text='Add Target', width=11, command=self.add_target, state=NORMAL)
-        self.AddTargetButton.grid(row=3, column=0, sticky='EW')
+        self.AddTargetButton.grid(row=4, column=0, sticky='EW')
         self.DelTargetButton = Button(frame, text='Del Target', width=11, command=self.del_target, state=NORMAL)
-        self.DelTargetButton.grid(row=3, column=1, sticky='EW', padx=5)
+        self.DelTargetButton.grid(row=4, column=1, sticky='EW', padx=5)
         self.DelSquareButton = Button(frame, text='Del Square', width=11, command=self.del_square, state=NORMAL)
-        self.DelSquareButton.grid(row=3, column=2, sticky='EW')
+        self.DelSquareButton.grid(row=4, column=2, sticky='EW')
         self.DelGridButton = Button(frame, text='Del Grid', width=11, command=self.del_grid, state=NORMAL)
-        self.DelGridButton.grid(row=3, column=3, sticky='EW', padx=5)
+        self.DelGridButton.grid(row=4, column=3, sticky='EW', padx=5)
         
 
         self.UpdateZButton = Button(frame, text='Z Square', width=11, command=self.update_z_square, state=NORMAL)
-        self.UpdateZButton.grid(row=4, column=0, sticky='EW')
+        self.UpdateZButton.grid(row=5, column=0, sticky='EW')
         self.UpdateZButton = Button(frame, text='Z Target', width=11, command=self.update_z_target, state=NORMAL)
-        self.UpdateZButton.grid(row=4, column=1, sticky='EW', padx=5)
+        self.UpdateZButton.grid(row=5, column=1, sticky='EW', padx=5)
         self.GoXYButton = Button(frame, text='Go to XY', width=11, command=self.go_xy, state=NORMAL)
-        self.GoXYButton.grid(row=4, column=2, sticky='EW')
+        self.GoXYButton.grid(row=5, column=2, sticky='EW')
         self.GoXYZButton = Button(frame, text='Go to XYZ', width=11, command=self.go_xyz, state=NORMAL)
-        self.GoXYZButton.grid(row=4, column=3, sticky='EW', padx=5)
+        self.GoXYZButton.grid(row=5, column=3, sticky='EW', padx=5)
 
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
 
@@ -139,6 +152,7 @@ class CryoED(LabelFrame):
         self.var_radius = IntVar(value=200)
         self.var_name = StringVar(value="")
         self.var_level = StringVar(value='Whole')
+        self.var_exposure = DoubleVar(value=round(round(1.5/self.ctrl.cam.default_exposure)*self.ctrl.cam.default_exposure, 1))
 
     @suppress_stderr
     def show_progress(self, n):
@@ -152,6 +166,10 @@ class CryoED(LabelFrame):
             self.lb_coll1.config(text=str(pbar))
 
     def collect_map(self):
+        self.state = self.ctrl.mode.state
+        if self.state in ('D', 'LAD', 'diff'):
+            raise RuntimeError('Cannot collect map in diffraction mode')
+
         if self.grid_dir is None:
             num = 1
             self.grid_dir = config.locations['work'] / f'Grid_{num}'
@@ -164,28 +182,132 @@ class CryoED(LabelFrame):
                     num += 1
                     self.grid_dir = config.locations['work'] / f'Grid_{num}'
 
-        level = self.e_level.get()
+        level = self.var_level.get()
         if level == 'Whole':
-            if self.ctrl.tem.interface == "fei":
-                self.ctrl.magnification.index = 5
-            elif:
-                pass
+            if self.state not in ('LM', 'lowmag'):
+                print('Recommend in low mag mode to collect whole grid map')
+
+            confirm  = messagebox.askquestion('Collect whole grid map', 'Confirm proper conditions (low mag) were setted')
+            if confirm == 'yes':
+                self.mag = self.ctrl.magnification.get()
+                if self.software_binsize is None:
+                    image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize #nm->um
+                else:
+                    image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize * self.software_binsize
+                img_physical_area = self.dimension[0] * self.dimension[1] * image_scale**2 
+                num_img = min(max(int(self.var_radius.get()**2 / img_physical_area), 1), 5)
+                self.var_radius.set(num_img * image_scale * (self.dimension[0] + self.dimension[1]) / 2)
+                t = threading.Thread(target=self.collect_montage, args=(num_img,self.grid_dir/f'grid_{self.var_name.get()}.tiff'), daemon=True)
+                t.start()
+                
         elif level == 'Square':
-            if self.ctrl.tem.interface == "fei":
-                pass
-            elif:
-                pass
+            if self.grid_dir is None:
+                raise RuntimeError('Please first collect a whole grid map')
+
+            num = 1
+            self.square_dir = self.grid_dir / f'Sqaure_{num}'
+            success = False
+            while not success:
+                try:
+                    self.square_dir.mkdir(parents=True)
+                    success = True
+                except OSError:
+                    num += 1
+                    self.square_dir = self.grid_dir / f'Square_{num}'
+
+            if self.state not in ('SA', 'mag1', 'mag2', 'samag'):
+                print('Recommend to use intermediate maginifcation to collect grid square map')
+
+            confirm  = messagebox.askquestion('Collect grid square map', 'Confirm proper conditions (medium mag) were setted')
+            if confirm == 'yes':
+                self.mag = self.ctrl.magnification.get()
+                if self.software_binsize is None:
+                    image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize #nm->um
+                else:
+                    image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize * self.software_binsize
+                
+                t = threading.Thread(target=self.collect_image, args=(self.var_exposure.get(),level,self.square_dir/f'square_{self.var_name.get()}.tiff'), daemon=True)
+                t.start()
+                selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+                self.df_grid.loc[self.df_grid['grid']==selected_grid, 'img_location'] = self.square_dir
+
         elif level == 'Target':
-            if self.ctrl.tem.interface == "fei":
-                pass
-            elif:
-                pass
+            if self.square_dir is None:
+                raise RuntimeError('Please first collect a grid square map')
+
+            num = 1
+            self.target_dir = self.square_dir / f'Target_{num}'
+            success = False
+            while not success:
+                try:
+                    self.target_dir.mkdir(parents=True)
+                    success = True
+                except OSError:
+                    num += 1
+                    self.target_dir = self.square_dir / f'Target_{num}'
+
+            confirm  = messagebox.askquestion('Collect targets', 'Confirm proper conditions (high mag) were setted')
+            if confirm == 'yes':
+                self.mag = self.ctrl.magnification.get()
+                if self.software_binsize is None:
+                    image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize #nm->um
+                else:
+                    image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize * self.software_binsize
+                
+                t = threading.Thread(target=self.collect_image, args=(self.var_exposure.get(),level,self.target_dir/f'target_{self.var_name.get()}.tiff'), daemon=True)
+                t.start()
+                selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+                selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
+                self.df_square.loc[(self.df_square['grid']==selected_grid) & (self.df_square['square']==selected_square), 'img_location'] = self.target_dir
+
+    def retake_image(self):
+        level = self.var_level.get()
+        if level == 'Square':
+            if self.square_dir is None:
+                raise RuntimeError('Please first collect a grid square map')
+            t = threading.Thread(target=self.collect_image, args=(self.var_exposure.get(),level,self.square_dir/f'square_{self.var_name.get()}.tiff'), daemon=True)
+            t.start()
+        elif level == 'Target':
+            if self.target_dir is None:
+                raise RuntimeError('Please first collect a target map')
+            t = threading.Thread(target=self.collect_image, args=(self.var_exposure.get(),level,self.target_dir/f'target_{self.var_name.get()}.tiff'), daemon=True)
+            t.start()
+
+    def collect_montage(self, num_img, filepath):
+        ctrl = self.ctrl
+        gm = self.ctrl.grid_montage()
+        current_pos = self.ctrl.stage.xy
+        pos = gm.setup(nx=num_img, ny=num_img, stage_shift=current_pos)
+        self.lb_coll1.config(text='Collecting montage, please wait for a moment...')
+        gm.start()
+        m = gm.to_montage()
+        m.calculate_montage_coords()
+        stitched = m.stitch()
+        h = {}
+        h['center_pos'] = current_pos
+        h['mode'] = self.state
+        h['magnification'] = self.mag
+        h['stage_matrix'] = config.calibration[self.state]['stagematrix'][self.mag] #nm
+        write_tiff(filepath, stitched, header=h)
+        self.lb_coll1.config(text='Montage collection completed.')
+
+    def collect_image(self, exposure, level, filepath):
+        current_pos = self.ctrl.stage.xy
+        self.lb_coll1.config(text=f'Collecting {level} image, please wait for a moment...')
+        arr, h = self.ctrl.get_image(exposure=exposure)
+        h['center_pos'] = current_pos
+        h['mode'] = self.state
+        h['magnification'] = self.mag
+        h['stage_matrix'] = config.calibration[self.state]['stagematrix'][self.mag] #nm
+        write_tiff(filepath, arr, header=h)
+        self.lb_coll1.config(text=f'{level} image collection completed.')
 
     def get_pos(self):
         self.position_list = GridFrame(self).get_selected_positions()
         level = self.var_level.get()
 
         if len(self.position_list) != 0:
+            z = self.ctrl.stage.z
             if level == 'Whole':
                 last_num_grid = len(self.df_grid)
                 self.df_grid = self.df_grid.append(self.position_list, ignore_index=True)
@@ -211,7 +333,7 @@ class CryoED(LabelFrame):
                                         values=(self.position_list.loc[index,'pos_x'],self.position_list.loc[index,'pos_y'],0))
                         self.df_square.loc[last_num_square+index, 'grid'] = grid_num
                         self.df_square.loc[last_num_square+index, 'square'] = existing_num_square + index
-                        self.df_square.loc[last_num_square+index, 'pos_z'] = 0
+                        self.df_square.loc[last_num_square+index, 'pos_z'] = z
                     print(self.df_square)
 
             elif level == 'Target':
@@ -233,7 +355,7 @@ class CryoED(LabelFrame):
                         self.df_target.loc[last_num_target+index, 'grid'] = grid_num
                         self.df_target.loc[last_num_target+index, 'square'] = square_num
                         self.df_target.loc[last_num_target+index, 'target'] = existing_num_targets+index
-                        self.df_target.loc[last_num_target+index, 'pos_z'] = 0
+                        self.df_target.loc[last_num_target+index, 'pos_z'] = z
                     print(self.df_target)
 
     def change_grid(self):
@@ -268,16 +390,74 @@ class CryoED(LabelFrame):
                                         values=(selected_target_df.loc[index,'pos_x'],selected_target_df.loc[index,'pos_y'],0))
 
     def update_z_square(self):
-        pass
+        selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+        selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
+        z = self.ctrl.stage.z
+        self.df_square.loc[(self.df_square['grid']==selected_grid) & (self.df_square['square']==selected_square), 'pos_z'] = z
 
     def update_z_target(self):
-        pass
+        selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+        selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
+        selected_target = self.tv_target.get_children().index(self.tv_target.selection()[0])
+        z = self.ctrl.stage.z
+        self.df_target.loc[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square) & 
+                            (self.df_target['target']==selected_target), 'pos_z'] = z
 
     def go_xy(self):
-        pass
+        level = self.var_level.get()
+        if level == 'Whole':
+            try:
+                selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+                selected_df = self.df_grid[(self.df_grid['grid']==selected_grid)]
+                self.ctrl.stage.xy = (selected_df['pos_x'], selected_df['pos_y'])
+            except IndexError:
+                raise RuntimeError('Please select a grid position')
+        elif level == 'Square':
+            try:
+                selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+                selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
+                selected_df = self.df_square[(self.df_square['grid']==selected_grid) & (self.df_square['square']==selected_square)]
+                self.ctrl.stage.xy = (selected_df['pos_x'], selected_df['pos_y'])
+            except IndexError:
+                raise RuntimeError('Please select a grid and a square position')
+        elif level == 'Target':
+            try:
+                selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+                selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
+                selected_target = self.tv_target.get_children().index(self.tv_target.selection()[0])
+                selected_df = self.df_target[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square) & (self.df_target['target']==selected_target)]
+                self.ctrl.stage.xy =  (selected_df['pos_x'], selected_df['pos_y'])
+            except IndexError:
+                raise RuntimeError('Please select a grid, a square and a target position')
 
     def go_xyz(self):
-        pass
+        level = self.var_level.get()
+        if level == 'Whole':
+            try:
+                selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+                selected_df = self.df_grid[(self.df_grid['grid']==selected_grid)]
+                self.ctrl.stage.xy = (selected_df['pos_x'], selected_df['pos_y'])
+            except IndexError:
+                raise RuntimeError('Please select a grid position')
+        elif level == 'Square':
+            try:
+                selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+                selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
+                selected_df = self.df_square[(self.df_square['grid']==selected_grid) & (self.df_square['square']==selected_square)]
+                self.ctrl.stage.xy = (selected_df['pos_x'], selected_df['pos_y'])
+                self.ctrl.stage.z = selected_df['pos_z']
+            except IndexError:
+                raise RuntimeError('Please select a grid and a square position')
+        elif level == 'Target':
+            try:
+                selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+                selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
+                selected_target = self.tv_target.get_children().index(self.tv_target.selection()[0])
+                selected_df = self.df_target[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square) & (self.df_target['target']==selected_target)]
+                self.ctrl.stage.xy =  (selected_df['pos_x'], selected_df['pos_y'])
+                self.ctrl.stage.z = selected_df['pos_z']
+            except IndexError:
+                raise RuntimeError('Please select a grid, a square and a target position')
 
     def add_target(self):
         try:
