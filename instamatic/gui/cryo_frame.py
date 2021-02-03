@@ -25,7 +25,6 @@ class CryoED(LabelFrame):
     def __init__(self, parent):
         LabelFrame.__init__(self, parent, text='Cryo electron diffraction protocol')
         self.parent = parent
-        self.crystal_list = None
         self.df_grid = pd.DataFrame(columns=['grid', 'pos_x', 'pos_y', 'img_location'])
         self.df_square = pd.DataFrame(columns=['grid', 'square', 'pos_x', 'pos_y', 'pos_z', 'img_location'])
         self.df_target = pd.DataFrame(columns=['grid', 'square', 'target', 'pos_x', 'pos_y', 'pos_z'])
@@ -287,9 +286,10 @@ class CryoED(LabelFrame):
         h['center_pos'] = current_pos
         h['mode'] = self.state
         h['magnification'] = self.mag
+        h['ImageCameraDimension'] = stitched.shape
         h['stage_matrix'] = config.calibration[self.state]['stagematrix'][self.mag] #nm
         write_tiff(filepath, stitched, header=h)
-        self.lb_coll1.config(text='Montage collection completed.')
+        self.lb_coll1.config(text=f'Montage completed. Saved dir: {filepath.parent}')
 
     def collect_image(self, exposure, level, filepath):
         current_pos = self.ctrl.stage.xy
@@ -298,13 +298,14 @@ class CryoED(LabelFrame):
         h['center_pos'] = current_pos
         h['mode'] = self.state
         h['magnification'] = self.mag
+        h['ImageCameraDimension'] = arr.shape
         h['stage_matrix'] = config.calibration[self.state]['stagematrix'][self.mag] #nm
         write_tiff(filepath, arr, header=h)
-        self.lb_coll1.config(text=f'{level} image collection completed.')
+        self.lb_coll1.config(text=f'{level} completed. Saved dir: {filepath.parent}')
 
     def get_pos(self):
-        self.position_list = GridFrame(self).get_selected_positions()
         level = self.var_level.get()
+        self.position_list, path = GridFrame(self).get_selected_positions()
 
         if len(self.position_list) != 0:
             z = self.ctrl.stage.z
@@ -315,6 +316,7 @@ class CryoED(LabelFrame):
                     self.tv_whole_grid.insert("",'end', text="Item_"+str(last_num_grid+index), 
                                         values=(self.position_list.loc[index,'pos_x'],self.position_list.loc[index,'pos_y']))
                     self.df_grid.loc[last_num_grid+index, 'grid'] = last_num_grid + index
+                self.grid_dir = Path(path)
                 print(self.df_grid)
             elif level == 'Square':
                 if self.df_grid is None:
@@ -330,10 +332,12 @@ class CryoED(LabelFrame):
                     self.df_square = self.df_square.append(self.position_list, ignore_index=True)
                     for index in range(len(self.position_list)):
                         self.tv_grid_square.insert("",'end', text="Item_"+str(last_num_square+index), 
-                                        values=(self.position_list.loc[index,'pos_x'],self.position_list.loc[index,'pos_y'],0))
+                                        values=(self.position_list.loc[index,'pos_x'],self.position_list.loc[index,'pos_y'],z))
                         self.df_square.loc[last_num_square+index, 'grid'] = grid_num
                         self.df_square.loc[last_num_square+index, 'square'] = existing_num_square + index
                         self.df_square.loc[last_num_square+index, 'pos_z'] = z
+                    self.square_dir = Path(path)
+                    self.grid_dir = Path(path).parent
                     print(self.df_square)
 
             elif level == 'Target':
@@ -351,20 +355,25 @@ class CryoED(LabelFrame):
                     self.df_target = self.df_target.append(self.position_list, ignore_index=True)
                     for index in range(len(self.position_list)):
                         self.tv_target.insert("",'end', text="Item_"+str(last_num_target+index), 
-                                        values=(self.position_list.loc[index,'pos_x'],self.position_list.loc[index,'pos_y'],0))
+                                        values=(self.position_list.loc[index,'pos_x'],self.position_list.loc[index,'pos_y'],z))
                         self.df_target.loc[last_num_target+index, 'grid'] = grid_num
                         self.df_target.loc[last_num_target+index, 'square'] = square_num
                         self.df_target.loc[last_num_target+index, 'target'] = existing_num_targets+index
                         self.df_target.loc[last_num_target+index, 'pos_z'] = z
+                    self.square_dir = Path(path).parent
+                    self.target_dir = Path(path)
                     print(self.df_target)
 
     def change_grid(self):
-        self.df_grid = pd.DataFrame(columns=['grid', 'pos_x', 'pos_y'])
-        self.df_square = pd.DataFrame(columns=['grid', 'square', 'pos_x', 'pos_y', 'pos_z'])
+        self.df_grid = pd.DataFrame(columns=['grid', 'pos_x', 'pos_y', 'img_location'])
+        self.df_square = pd.DataFrame(columns=['grid', 'square', 'pos_x', 'pos_y', 'pos_z', 'img_location'])
         self.df_target = pd.DataFrame(columns=['grid', 'square', 'target', 'pos_x', 'pos_y', 'pos_z'])
         self.tv_whole_grid.delete(*self.tv_whole_grid.get_children())
         self.tv_grid_square.delete(*self.tv_grid_square.get_children())
         self.tv_target.delete(*self.tv_target.get_children())
+        self.grid_dir = None
+        self.target_dir = None
+        self.square_dir = None
 
     def update_grid(self, event):
         selected = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
@@ -375,7 +384,7 @@ class CryoED(LabelFrame):
             selected_square_df = self.df_square[self.df_square['grid'] == selected].reset_index().drop(['index'], axis=1)
             for index in range(len(selected_square_df)):
                 self.tv_grid_square.insert("",'end', text="Item_"+str(index), 
-                                        values=(selected_square_df.loc[index,'pos_x'],selected_square_df.loc[index,'pos_y'],0))
+                        values=(selected_square_df.loc[index,'pos_x'],selected_square_df.loc[index,'pos_y'],selected_square_df.loc[index,'pos_z']))
 
     def update_square(self, event):
         selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
@@ -387,7 +396,7 @@ class CryoED(LabelFrame):
             selected_target_df = self.df_target[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square)].reset_index().drop(['index'], axis=1)
             for index in range(len(selected_target_df)):
                 self.tv_target.insert("",'end', text="Item_"+str(index), 
-                                        values=(selected_target_df.loc[index,'pos_x'],selected_target_df.loc[index,'pos_y'],0))
+                        values=(selected_target_df.loc[index,'pos_x'],selected_target_df.loc[index,'pos_y'],selected_target_df.loc[index,'pos_z']))
 
     def update_z_square(self):
         selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
@@ -409,7 +418,7 @@ class CryoED(LabelFrame):
             try:
                 selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
                 selected_df = self.df_grid[(self.df_grid['grid']==selected_grid)]
-                self.ctrl.stage.xy = (selected_df['pos_x'], selected_df['pos_y'])
+                self.ctrl.stage.xy = (selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
             except IndexError:
                 raise RuntimeError('Please select a grid position')
         elif level == 'Square':
@@ -417,7 +426,7 @@ class CryoED(LabelFrame):
                 selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
                 selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
                 selected_df = self.df_square[(self.df_square['grid']==selected_grid) & (self.df_square['square']==selected_square)]
-                self.ctrl.stage.xy = (selected_df['pos_x'], selected_df['pos_y'])
+                self.ctrl.stage.xy = (selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
             except IndexError:
                 raise RuntimeError('Please select a grid and a square position')
         elif level == 'Target':
@@ -426,7 +435,7 @@ class CryoED(LabelFrame):
                 selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
                 selected_target = self.tv_target.get_children().index(self.tv_target.selection()[0])
                 selected_df = self.df_target[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square) & (self.df_target['target']==selected_target)]
-                self.ctrl.stage.xy =  (selected_df['pos_x'], selected_df['pos_y'])
+                self.ctrl.stage.xy =  (selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
             except IndexError:
                 raise RuntimeError('Please select a grid, a square and a target position')
 
@@ -436,7 +445,7 @@ class CryoED(LabelFrame):
             try:
                 selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
                 selected_df = self.df_grid[(self.df_grid['grid']==selected_grid)]
-                self.ctrl.stage.xy = (selected_df['pos_x'], selected_df['pos_y'])
+                self.ctrl.stage.xy = (selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
             except IndexError:
                 raise RuntimeError('Please select a grid position')
         elif level == 'Square':
@@ -444,8 +453,8 @@ class CryoED(LabelFrame):
                 selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
                 selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
                 selected_df = self.df_square[(self.df_square['grid']==selected_grid) & (self.df_square['square']==selected_square)]
-                self.ctrl.stage.xy = (selected_df['pos_x'], selected_df['pos_y'])
-                self.ctrl.stage.z = selected_df['pos_z']
+                self.ctrl.stage.xy = (selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
+                self.ctrl.stage.z = selected_df['pos_z'].values[0]
             except IndexError:
                 raise RuntimeError('Please select a grid and a square position')
         elif level == 'Target':
@@ -454,8 +463,8 @@ class CryoED(LabelFrame):
                 selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
                 selected_target = self.tv_target.get_children().index(self.tv_target.selection()[0])
                 selected_df = self.df_target[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square) & (self.df_target['target']==selected_target)]
-                self.ctrl.stage.xy =  (selected_df['pos_x'], selected_df['pos_y'])
-                self.ctrl.stage.z = selected_df['pos_z']
+                self.ctrl.stage.xy =  (selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
+                self.ctrl.stage.z = selected_df['pos_z'].values[0]
             except IndexError:
                 raise RuntimeError('Please select a grid, a square and a target position')
 
@@ -541,7 +550,7 @@ class CryoED(LabelFrame):
         # grid square s_x_sy 
         # square target t_x t_y
         if self.grid_dir is not None:
-            dir_name = Path(self.grid_dir)
+            dir_name = filedialog.askdirectory(initialdir=self.grid_dir, title='Save Whole Grid')
             sample_name = self.var_name.get()
             self.df_grid.to_csv(dir_name/f'grid_{sample_name}.csv', index=False)
             self.df_square.to_csv(dir_name/f'square_{sample_name}.csv', index=False)

@@ -157,6 +157,7 @@ class MainFrame:
         self.root.wm_protocol('WM_DELETE_WINDOW', self.close)
 
         self.root.bind('<Escape>', self.close)
+        self.counter = 0
         self.root.bind('<FocusOut>', self.focus_out)
 
     def close(self):
@@ -170,9 +171,10 @@ class MainFrame:
 
     def focus_out(self, event):
         if config.camera.interface == 'DM':
-            if event.widget == self.root:
+            if event.widget == self.root and self.counter < 3:
                 messagebox.showinfo("Reminder", 
                     f"Don't use digital micrograph to collect images when {instamatic.__long_title__} is running.")
+                self.counter += 1
 
 
 def start_gui(ctrl, log=None):

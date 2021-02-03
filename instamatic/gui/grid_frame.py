@@ -1,6 +1,7 @@
 import threading
 import time
 from datetime import datetime
+from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog
 from tkinter import *
@@ -21,14 +22,16 @@ from instamatic.utils.widgets import Hoverbox, Spinbox
 class GridFrame(Toplevel):
     """Load a GUi to show the grid map and label suitable crystals."""
 
-    def __init__(self, parent, title='Grid Map'):
+    def __init__(self, parent, init_dir=None, title='Grid Map'):
         Toplevel.__init__(self, parent)
         self.grab_set()
         self.title(title)
+        self.init_dir = init_dir
         self.canvas = None
         self.point_list = pd.DataFrame(columns=['pos_x', 'pos_y', 'cross_1', 'cross_2'])
         self.map = None
         self.map_info = None
+        self.map_path = None
         self.image = None
         self.image_scaled = None
         self.last_scale = 1
@@ -109,16 +112,28 @@ class GridFrame(Toplevel):
 
     def get_selected_positions(self):
         self.wait_window(self)
-        return self.point_list[['pos_x', 'pos_y']]
+        stage_pos = self.point_list[['pos_x', 'pos_y']].to_numpy()
+        pixel_center = np.array(self.map_info['ImageCameraDimension'])/2
+        stage_pos -= pixel_center
+        stage_matrix = np.array(self.map_info['stage_matrix']).reshape((2, 2))
+        stage_pos = stage_pos @ stage_matrix
+        stage_pos += np.array(self.map_info['center_pos'])
+        stage_pos = np.round(stage_pos)
+        stage_pos_df = pd.DataFrame({'pos_x':stage_pos[:,0], 'pos_y':stage_pos[:,1]})
+        return stage_pos_df, Path(self.map_path).parent
 
     def open_map(self):
-        filename = filedialog.askopenfilename(initialdir=config.locations['work'], title='Select an image', 
+        if self.init_dir is None:
+            self.map_path = filedialog.askopenfilename(initialdir=config.locations['work'], title='Select an image', 
                             filetypes=(('tiff files', '*.tiff'), ('tif files', '*.tif'), ('all files', '*.*')))
-        if filename != '':
-            self.lbl_open_map.config(text=filename.split("/")[-1])
-            appendix = filename.split('.')[-1]
-            if appendix in ('tiff', 'tif'):
-                self.map, self.map_info = read_tiff(filename)
+        else:
+            self.map_path = filedialog.askopenfilename(initialdir=self.init_dir, title='Select an image', 
+                            filetypes=(('tiff files', '*.tiff'), ('tif files', '*.tif'), ('all files', '*.*')))
+        if self.map_path != '':
+            self.lbl_open_map.config(text=self.map_path.split("/")[-1])
+            suffix = self.map_path.split('.')[-1]
+            if suffix in ('tiff', 'tif'):
+                self.map, self.map_info = read_tiff(self.map_path)
             if self.map is not None:
                 tmp = self.map - np.min(self.map[::8, ::8])
                 tmp = self.map * (256.0 / (1 + np.percentile(self.map[::8, ::8], 99.5))) 
