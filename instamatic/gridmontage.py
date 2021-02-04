@@ -57,9 +57,9 @@ class GridMontage:
         self.overlap = overlap
 
         if not binning:
-            binning = self.ctrl.cam.getBinning()
+            binning = self.ctrl.cam.default_binsize
 
-        res_x, res_y = self.ctrl.cam.getImageDimensions()
+        res_x, res_y = self.ctrl.cam.dimension
 
         overlap_x = int(res_x * overlap)
         overlap_y = int(res_y * overlap)

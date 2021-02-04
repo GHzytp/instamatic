@@ -211,7 +211,7 @@ class VideoStreamFrame(LabelFrame):
     def check_tem_state(self):
         mode = self.ctrl.mode.state
         if mode in ('D', 'LAD', 'diff'):
-            self.l_resolution.config(text='Resolution (A)')
+            self.l_resolution.config(text='Resolution (Å)')
             camera_length = self.ctrl.magnification.get()
             if config.settings.software_binsize is None:
                 pixelsize = config.calibration[mode]['pixelsize'][camera_length] * self.binsize

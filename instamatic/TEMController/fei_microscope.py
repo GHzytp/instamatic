@@ -41,21 +41,21 @@ D      Diffraction mode as entered from higher magnification imaging modes
 FUNCTION_MODES = {1: 'LM', 2: 'Mi', 3: 'SA', 4: 'Mh', 5: 'LAD', 6: 'D'}
 STEM_FOCUS_STRATEGY = {1: 'Intensity', 2: 'Objective', 3: 'StepSize', 4: 'Both'}
 
-# Need more checking
+# Unit: nm/pixelg
 MagnificationMapping = {}
 MagnificationRanges = config.microscope.ranges['LM']+ config.microscope.ranges['Mi'] + config.microscope.ranges['SA'] + config.microscope.ranges['Mh']
 for index, value in enumerate(MagnificationRanges, start=1):
     MagnificationMapping[index] = value
 
-# Unit: mm
+# Unit: Å-1/pixel
 CameraLengthMapping = {}
-for index, value in enuemrate(config.microscope.ranges['D'], start=1):
-    CameraLengthMapping[idnex] = value
+for index, value in enumerate(config.microscope.ranges['D'], start=1):
+    CameraLengthMapping[index] = value
 
-# Unit: mm
+# Unit: unknown
 CameraLengthMapping_LAD = {}
-for index, value in enuemrate(config.microscope.ranges['LAD'], start=1):
-    CameraLengthMapping[idnex] = value
+for index, value in enumerate(config.microscope.ranges['LAD'], start=1):
+    CameraLengthMapping_LAD[index] = value
 
 def move_stage(x=None, y=None, z=None, a=None, b=None, speed=1):
     """Rotate stage function. Mainly for start a new process and move the stage to achieve non-blocking stage manipulation"""
@@ -1005,7 +1005,7 @@ class FEIMicroscope:
         else:
             self.illu_tem.SpotsizeIndex = value
 
-    def getMagnificationIndex(self):
+    def getMagnificationIndex(self) -> int:
         """"""
         if USETOM:
             if self.getProjectionMode() == 'imaging':
@@ -1023,7 +1023,7 @@ class FEIMicroscope:
                 return ind
 
     def getMagnificationAbsoluteIndex(self) -> int:
-        raise NotImplementedError
+        return self.getMagnificationIndex()
 
     def setMagnificationIndex(self, index):
         if USETOM:
