@@ -257,7 +257,7 @@ class Experiment:
         # self.sample_rotation_angles = (-5, 5)
         self.sample_rotation_angles = ()
 
-        self.camera_rotation_angle = config.camera.camera_rotation_vs_stage_xy
+        self.camera_rotation_angle = config.calibration.camera_rotation_vs_stage_xy
 
         # Make negative to reflect config change 2019-07-03 to make omega more in line with other software
         self.camera_rotation_angle = -self.camera_rotation_angle

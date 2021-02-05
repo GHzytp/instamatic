@@ -214,6 +214,7 @@ It establishes a connection to the microscope and reads out the camera lengths a
     calibration_drc = config.locations['calibration']
     settings_yaml = config.locations['settings']
 
+    print()
     print('Next step:')
     print(f'1. Wrote files config files:')
     print(f'    Copy {tem_config_fn} -> `{microscope_drc}`')
@@ -230,6 +231,7 @@ It establishes a connection to the microscope and reads out the camera lengths a
     print(f'3. Todo: Check and update the pixelsizes in `{calib_config_fn}`')
     print('    In real space, pixelsize in nm/pixel')
     print('    In reciprocal space, pixelsize in Angstrom^(-1)/pixel')
+    print()
 
 
 if __name__ == '__main__':

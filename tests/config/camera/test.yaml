@@ -1,4 +1,3 @@
-camera_rotation_vs_stage_xy: -2.24
 default_binsize: 1
 default_exposure: 0.001
 possible_binsizes: [1, 2, 4]

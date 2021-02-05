@@ -50,7 +50,7 @@ class Experiment:
 
         self.img_ref = None
 
-        self.rotation_axis = config.camera.camera_rotation_vs_stage_xy
+        self.rotation_axis = config.calibration.camera_rotation_vs_stage_xy
         self.wavelength = config.microscope.wavelength  # angstrom
 
     def start_collection(self, exposure_time: float, end_angle: float, stepsize: float):

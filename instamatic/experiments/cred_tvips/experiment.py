@@ -407,7 +407,7 @@ class Experiment:
 
         # acquisition_time = total_time / nframes
         self.total_angle = abs(end_angle - start_angle)
-        self.rotation_axis = config.camera.camera_rotation_vs_stage_xy
+        self.rotation_axis = config.calibration.camera_rotation_vs_stage_xy
         self.camera_length = int(self.ctrl.magnification.get())
         self.spotsize = self.ctrl.spotsize
         self.rotation_speed = (end_angle - start_angle) / self.total_time

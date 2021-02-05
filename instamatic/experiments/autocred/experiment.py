@@ -857,7 +857,7 @@ class Experiment:
         self.logger.info(f'Oscillation angle: {osangle}')
         self.logger.info('Pixel size and actual camera length updated in SMV file headers for DIALS processing.')
 
-        rotation_angle = config.camera.camera_rotation_vs_stage_xy
+        rotation_angle = config.calibration.camera_rotation_vs_stage_xy
 
         software_binsize = config.settings.software_binsize
         if software_binsize is None:
@@ -1004,7 +1004,7 @@ class Experiment:
         box_x, box_y = self.pixelsize_mag1 * xdim, self.pixelsize_mag1 * ydim
 
         # Make negative to reflect config change 2019-07-03 to make omega more in line with other software
-        rot_axis = -config.camera.camera_rotation_vs_stage_xy
+        rot_axis = -config.calibration.camera_rotation_vs_stage_xy
 
         offsets = get_offsets_in_scan_area(box_x, box_y, self.scan_area, angle=rot_axis)
         self.offsets = offsets * 1000

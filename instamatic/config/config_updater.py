@@ -8,7 +8,7 @@ from instamatic.config.utils import yaml
 def is_oldstyle(dct: dict, kind: str):
     """Check if the config format has been deprecated."""
     oldstyle = False
-    if kind in ('microscope', 'calibration'):
+    if kind in ('microscope'):
         oldstyle = any('_' in key for key in dct.mapping.keys())
     if kind in ('microscope', 'camera'):
         oldstyle = oldstyle or any('name' in key for key in dct.mapping.keys())

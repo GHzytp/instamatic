@@ -324,7 +324,7 @@ class Experiment:
         self.total_time = t1 - t0
         self.acquisition_time = self.total_time / self.nframes
         self.total_angle = abs(self.end_angle - self.start_angle)
-        self.rotation_axis = config.camera.camera_rotation_vs_stage_xy
+        self.rotation_axis = config.calibration.camera_rotation_vs_stage_xy
 
         software_binsize = config.settings.software_binsize
         if software_binsize is None:

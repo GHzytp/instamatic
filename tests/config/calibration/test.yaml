@@ -1,4 +1,5 @@
 name: simulate
+camera_rotation_vs_stage_xy: -2.24
 diff:
   pixelsize:
     150: 0.00838

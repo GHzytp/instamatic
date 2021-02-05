@@ -139,7 +139,7 @@ class Experiment:
         Write data in `self.buffer` to path given by `self.path`.
         """
         self.logger.info(f'Data saving path: {self.path}')
-        self.rotation_axis = config.camera.camera_rotation_vs_stage_xy
+        self.rotation_axis = config.calibration.camera_rotation_vs_stage_xy
         software_binsize = config.settings.software_binsize
 
         if self.ctrl.tem.interface == "fei":
