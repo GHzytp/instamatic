@@ -271,8 +271,8 @@ calibration_drc = config_drc / _calibration
 camera_drc = config_drc / _camera
 holder_drc = config_drc / _holder
 
-scripts_drc.mkdir(exist_ok=True)
-logs_drc.mkdir(exist_ok=True)
+scripts_drc.mkdir(exist_ok=True, parents=True)
+logs_drc.mkdir(exist_ok=True, parents=True)
 
 print(f'Config directory: {config_drc}')
 
@@ -304,4 +304,4 @@ locations = {
     'defaults': config_drc / _defaults_yaml,
 }
 
-locations['work'].mkdir(exist_ok=True)
+locations['work'].mkdir(exist_ok=True, parents=True)

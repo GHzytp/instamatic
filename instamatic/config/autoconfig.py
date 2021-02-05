@@ -150,26 +150,28 @@ It establishes a connection to the microscope and reads out the camera lengths a
         tem_config['neutral']['objective']['mag1'] = neutral_obj_ranges
     elif tem_interface_name == 'fei':
         holder_name = input('Holder name: ')
-        x_limit = input('Stage limit x: ')
-        x = [int(x_limit.split(' ')[0]), int(x_limit.split(' ')[-1])]
-        y_limit = input('Stage limit y: ')
-        y = [int(y_limit.split(' ')[0]), int(y_limit.split(' ')[-1])]
-        z_limit = input('Stage limit z: ')
-        z = [int(z_limit.split(' ')[0]), int(z_limit.split(' ')[-1])]
-        a_limit = input('Stage limit a: ')
-        a = [int(a_limit.split(' ')[0]), int(a_limit.split(' ')[-1])]
-        b_limit = input('Stage limit b: ')
-        if len(b_limit) != 0:
-            b = [int(b_limit.split(' ')[0]), int(b_limit.split(' ')[-1])]
-        else:
-            b = None
-        tem_config[holder_name] = {}
-        tem_config[holder_name]['stageLimit'] = {}
-        tem_config[holder_name]['stageLimit']['x'] = x
-        tem_config[holder_name]['stageLimit']['y'] = y
-        tem_config[holder_name]['stageLimit']['z'] = z
-        tem_config[holder_name]['stageLimit']['a'] = a
-        tem_config[holder_name]['stageLimit']['b'] = b
+        if holder_name != '':
+            x_limit = input('Stage limit x (xmin xmax): ')
+            x = [int(x_limit.split(' ')[0]), int(x_limit.split(' ')[-1])]
+            y_limit = input('Stage limit y (ymin ymax): ')
+            y = [int(y_limit.split(' ')[0]), int(y_limit.split(' ')[-1])]
+            z_limit = input('Stage limit z (zmin zmax): ')
+            z = [int(z_limit.split(' ')[0]), int(z_limit.split(' ')[-1])]
+            a_limit = input('Stage limit a (amin amax): ')
+            a = [int(a_limit.split(' ')[0]), int(a_limit.split(' ')[-1])]
+            b_limit = input('Stage limit b (bmin bmax): ')
+            if len(b_limit) != 0:
+                b = [int(b_limit.split(' ')[0]), int(b_limit.split(' ')[-1])]
+            else:
+                b = None
+            tem_config['holder'] = holder_name
+            tem_config[holder_name] = {}
+            tem_config[holder_name]['stageLimit'] = {}
+            tem_config[holder_name]['stageLimit']['x'] = x
+            tem_config[holder_name]['stageLimit']['y'] = y
+            tem_config[holder_name]['stageLimit']['z'] = z
+            tem_config[holder_name]['stageLimit']['a'] = a
+            tem_config[holder_name]['stageLimit']['b'] = b
 
     for mode, rng in ranges.items():
         try:
@@ -212,20 +214,20 @@ It establishes a connection to the microscope and reads out the camera lengths a
     calibration_drc = config.locations['calibration']
     settings_yaml = config.locations['settings']
 
-    print()
-    print(f'Wrote files config files:')
-    print(f'    Copy {tem_config_fn} -> `{microscope_drc / tem_config_fn}`')
-    print(f'    Copy {calib_config_fn} -> `{calibration_drc / calib_config_fn}`')
+    print('Next step:')
+    print(f'1. Wrote files config files:')
+    print(f'    Copy {tem_config_fn} -> `{microscope_drc}`')
+    print(f'    Copy {calib_config_fn} -> `{calibration_drc}`')
     if cam_config:
-        print(f'    Copy {cam_config_fn} -> `{camera_drc / cam_config_fn}`')
+        print(f'    Copy {cam_config_fn} -> `{camera_drc}`')
     print()
-    print(f'In `{settings_yaml}`:')
+    print(f'2. In `{settings_yaml}`, change:')
     print(f'    microscope: {tem_name}_tem')
     print(f'    calibration: {tem_name}_calib')
     if cam_config:
         print(f'    camera: {cam_name}_cam')
     print()
-    print(f'Todo: Check and update the pixelsizes in `{calib_config_fn}`')
+    print(f'3. Todo: Check and update the pixelsizes in `{calib_config_fn}`')
     print('    In real space, pixelsize in nm/pixel')
     print('    In reciprocal space, pixelsize in Angstrom^(-1)/pixel')
 
