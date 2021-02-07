@@ -37,6 +37,7 @@ class CalibrationFrame(LabelFrame):
         self.click = 0
         self.counter = 0
         self.binsize = self.ctrl.cam.default_binsize
+        self.software_binsize = config.settings.software_binsize
 
         self.cam_buffer = []
 
@@ -857,6 +858,10 @@ class CalibrationFrame(LabelFrame):
     @suppress_stderr
     def diffshift_calib(self):
         try:
+            state = self.ctrl.mode.state
+            if state not in ('D', 'diff', 'LAD'):
+                raise RuntimeError('Must in diffraction mode to do diffraction shift calibration')
+
             exposure = self.var_exposure_time.get()
             grid_size = self.var_grid_size.get()
             step_size = self.var_step_size.get()
@@ -872,7 +877,10 @@ class CalibrationFrame(LabelFrame):
             self.lb_coll0.config(text=f'Diff Shift calibration started. Gridsize: {grid_size} | Stepsize: {step_size:.2f}')
             img_cent, scale = autoscale(img_cent)
 
-            pixel_cent = find_beam_center(img_cent) * self.binsize / scale
+            if self.software_binsize is None:
+                pixel_cent = find_beam_center(img_cent) * self.binsize / scale
+            else:
+                pixel_cent = find_beam_center(img_cent) * self.binsize * self.software_binsize / scale
             print('Diffshift: x={} | y={}'.format(*diffshift_cent))
             print('Pixel: x={} | y={}'.format(*pixel_cent))
 
@@ -905,7 +913,10 @@ class CalibrationFrame(LabelFrame):
 
             self.ctrl.diffshift.set(*diffshift_cent) # reset beam to center
 
-            shifts = np.array(shifts) * self.binsize / scale
+            if self.software_binsize is None:
+                shifts = np.array(shifts) * self.binsize / scale
+            else:
+                shifts = np.array(shifts) * self.binsize * self.software_binsize / scale
             beampos = np.array(beampos) - np.array(diffshift_cent)
 
             fit_result = fit_affine_transformation(shifts, beampos, rotation=True, scaling=True, translation=True)
@@ -916,7 +927,7 @@ class CalibrationFrame(LabelFrame):
             self.lb_coll0.config(text='Diff Shift calibration finished. Please click Diff Shift Calib again to plot.')
 
             with open(self.diffshift_calib_path / 'calib_diffshift.pickle', 'wb') as f:
-                pickle.dump([r, t, shifts, beampos_], f)
+                pickle.dump([r, t, shifts, beampos_, pixel_cent], f)
 
             dct = {}
             dct['shifts'] = shifts.tolist()
@@ -925,6 +936,7 @@ class CalibrationFrame(LabelFrame):
             dct['translation'] = t.tolist()
             dct['rotation_inv'] = r_i.tolist()
             dct['pred_beampos'] = beampos_.tolist()
+            dct['reference_pixel'] = pixel_cent.tolist()
 
             with open (self.diffshift_calib_path / 'calib_diffshift.yaml', 'w') as f:
                 yaml.dump(dct, f)
@@ -972,24 +984,32 @@ class CalibrationFrame(LabelFrame):
     @suppress_stderr
     def stage_calib(self):
         try:
+            state = self.ctrl.mode.state
+            if state in ('D', 'diff', 'LAD'):
+                raise RuntimeError('Must in imaging mode to do stage calibration')
+
             exposure = self.var_exposure_time.get()
             grid_size = self.var_grid_size.get()
             step_size = self.var_step_size.get()
 
             outfile = self.stage_calib_path / 'calib_stage_center'
 
-            img_cent, h_cent = self.ctrl.get_image(exposure=exposure, out=outfile, comment='Object in center of image')
             x_cent, y_cent = stage_cent = np.array(self.ctrl.stage.xy)
+            self.ctrl.stage.set_xy_with_backlash_correction(*stage_cent, step=5000, settle_delay=0.32)
+            img_cent, h_cent = self.ctrl.get_image(exposure=exposure, out=outfile, comment='Object in center of image')
 
             magnification = self.ctrl.magnification.get()
             #step_size = 2500.0 / magnification * step_size
 
+            if self.software_binsize is None:
+                    pixelsize = config.calibration[state]['pixelsize'][magnification] * self.binsize #nm->um
+                else:
+                    pixelsize = config.calibration[state]['pixelsize'][magnification] * self.binsize * self.software_binsize
+
             self.lb_coll0.config(text=f'Stage calibration started. Gridsize: {grid_size} | Stepsize: {step_size:.2f}')
             img_cent, scale = autoscale(img_cent)
 
-            pixel_cent = find_beam_center(img_cent) * self.binsize / scale
             print('Stage: x={} | y={}'.format(*stage_cent))
-            print('Pixel: x={} | y={}'.format(*pixel_cent))
 
             shifts = []
             stagepos = []
@@ -1001,7 +1021,7 @@ class CalibrationFrame(LabelFrame):
             i = 0
             with tqdm(total=100, ncols=60, bar_format='{l_bar}{bar}') as pbar:
                 for dx, dy in np.stack([x_grid, y_grid]).reshape(2, -1).T:
-                    self.ctrl.stage.set_xy_with_backlash_correction(x=x_cent+dx, y=y_cent+dy, step=2000)
+                    self.ctrl.stage.set_xy_with_backlash_correction(x=x_cent+dx, y=y_cent+dy, step=5000, settle_delay=0.32)
                     self.lb_coll1.config(text=str(pbar))
                     outfile = self.stage_calib_path / f'calib_beamshift_{i:04d}'
 
@@ -1018,12 +1038,12 @@ class CalibrationFrame(LabelFrame):
                     i += 1
                 self.lb_coll1.config(text=str(pbar))
 
-            self.ctrl.stage.set_xy_with_backlash_correction(*stage_cent, step=2000) # reset beam to center
+            self.ctrl.stage.xy = *stage_cent # reset beam to center
 
             shifts = np.array(shifts) * self.binsize / scale
-            stagepos = np.array(stagepos) - np.array(stage_cent)
+            stagepos = (np.array(stagepos) - np.array(stage_cent)) / pixelsize # transform from nm to pixel
 
-            fit_result = fit_affine_transformation(shifts, stagepos, rotation=True, scaling=True, translation=True)
+            fit_result = fit_affine_transformation(shifts, stagepos, rotation=True, scaling=False, translation=True)
             r = fit_result.r
             t = fit_result.t
             r_i = np.linalg.inv(r)

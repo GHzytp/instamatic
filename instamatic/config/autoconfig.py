@@ -182,7 +182,7 @@ It establishes a connection to the microscope and reads out the camera lengths a
 
     calib_config = {}
     calib_config['name'] = f'{tem_name}_{cam_name}'
-
+    calib_config['camera_rotation_vs_stage_xy'] = 0
     # Find magnification ranges
 
     for mode, rng in ranges.items():

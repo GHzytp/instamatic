@@ -1,10 +1,7 @@
 # TEM Image Analysis (TIA) software controller interface using TIA API from Pascal Hogan (pascal.hogan@gmail.com)
 
-import time
 import numpy as np
 import re
-
-import comtypes.client
 
 from .microscope import Software
 
