@@ -19,7 +19,7 @@ data_drc = config.locations['data']
 
 
 def stagematrix_to_pixelsize(stagematrix: np.array) -> float:
-    """Calculate approximate pixelsize from the stagematrix."""
+    """Calculate approximate pixelsize from the stagematrix. There will be some distortions in low mag"""
     return np.mean(np.linalg.norm(stagematrix, axis=1))
 
 

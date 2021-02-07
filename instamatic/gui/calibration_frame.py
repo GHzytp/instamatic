@@ -995,16 +995,16 @@ class CalibrationFrame(LabelFrame):
             outfile = self.stage_calib_path / 'calib_stage_center'
 
             x_cent, y_cent = stage_cent = np.array(self.ctrl.stage.xy)
-            self.ctrl.stage.set_xy_with_backlash_correction(*stage_cent, step=5000, settle_delay=0.32)
+            self.ctrl.stage.set_xy_with_backlash_correction(*stage_cent, step=5000)
             img_cent, h_cent = self.ctrl.get_image(exposure=exposure, out=outfile, comment='Object in center of image')
 
             magnification = self.ctrl.magnification.get()
             #step_size = 2500.0 / magnification * step_size
 
             if self.software_binsize is None:
-                    pixelsize = config.calibration[state]['pixelsize'][magnification] * self.binsize #nm->um
-                else:
-                    pixelsize = config.calibration[state]['pixelsize'][magnification] * self.binsize * self.software_binsize
+                pixelsize = config.calibration[state]['pixelsize'][magnification] * self.binsize #nm->um
+            else:
+                pixelsize = config.calibration[state]['pixelsize'][magnification] * self.binsize * self.software_binsize
 
             self.lb_coll0.config(text=f'Stage calibration started. Gridsize: {grid_size} | Stepsize: {step_size:.2f}')
             img_cent, scale = autoscale(img_cent)
@@ -1021,7 +1021,7 @@ class CalibrationFrame(LabelFrame):
             i = 0
             with tqdm(total=100, ncols=60, bar_format='{l_bar}{bar}') as pbar:
                 for dx, dy in np.stack([x_grid, y_grid]).reshape(2, -1).T:
-                    self.ctrl.stage.set_xy_with_backlash_correction(x=x_cent+dx, y=y_cent+dy, step=5000, settle_delay=0.32)
+                    self.ctrl.stage.set_xy_with_backlash_correction(x=x_cent+dx, y=y_cent+dy, step=5000)
                     self.lb_coll1.config(text=str(pbar))
                     outfile = self.stage_calib_path / f'calib_beamshift_{i:04d}'
 
@@ -1029,7 +1029,7 @@ class CalibrationFrame(LabelFrame):
                     img, h = self.ctrl.get_image(exposure=exposure, out=outfile, comment=comment, header_keys='StagePosition')
                     img = imgscale(img, scale)
 
-                    shift, error, phasediff = phase_cross_correlation(img_cent, img, upsample_factor=10)
+                    shift, error, phasediff = phase_cross_correlation(img_cent, img, upsample_factor=10) # strange variation occurr when using different area of the grid, need to check
 
                     stageshift = np.array(self.ctrl.stage.xy)
                     stagepos.append(stageshift)
@@ -1038,20 +1038,22 @@ class CalibrationFrame(LabelFrame):
                     i += 1
                 self.lb_coll1.config(text=str(pbar))
 
-            self.ctrl.stage.xy = *stage_cent # reset beam to center
+            self.ctrl.stage.xy = stage_cent # reset beam to center
 
             shifts = np.array(shifts) * self.binsize / scale
-            stagepos = (np.array(stagepos) - np.array(stage_cent)) / pixelsize # transform from nm to pixel
+            stagepos = (np.array(stagepos) - np.array(stage_cent)) / pixelsize # transform from nm to pixel, coordinate: up and right bigger, different from image coordinate (down and right bigger)
 
-            fit_result = fit_affine_transformation(shifts, stagepos, rotation=True, scaling=False, translation=True)
+            fit_result = fit_affine_transformation(shifts, stagepos, rotation=True, scaling=True, translation=False)
             r = fit_result.r
             t = fit_result.t
             r_i = np.linalg.inv(r)
-            stagepos_ = np.dot(stagepos-t, r_i)
+            shifts_ = np.dot(stagepos-t, r_i)
             self.lb_coll0.config(text='Stage calibration finished. Please click Stage Calib again to plot.')
 
             with open(self.stage_calib_path / 'calib_stage.pickle', 'wb') as f:
-                pickle.dump([r, t, shifts, stagepos_], f)
+                pickle.dump([r, t, shifts, shifts_], f)
+
+            stage_matrix = r * pixelsize
 
             dct = {}
             dct['shifts'] = shifts.tolist()
@@ -1059,7 +1061,8 @@ class CalibrationFrame(LabelFrame):
             dct['rotation'] = r.tolist()
             dct['translation'] = t.tolist()
             dct['rotation_inv'] = r_i.tolist()
-            dct['pred_stagepos'] = stagepos_.tolist()
+            dct['pred_shifts'] = shifts_.tolist()
+            dct['stage_matrix'] = stage_matrix.tolist()
 
             with open (self.stage_calib_path / 'calib_stage.yaml', 'w') as f:
                 yaml.dump(dct, f)
@@ -1090,9 +1093,9 @@ class CalibrationFrame(LabelFrame):
                 self.click = 2
             elif self.click == 2:
                 with open(self.stage_calib_path / 'calib_stage.pickle', 'rb') as f:
-                    r, t, shifts, beampos = pickle.load(f)
-                self.ax.scatter(*shifts.T, marker='>', label='Observed')
-                self.ax.scatter(*beampos.T, marker='<', label='Theoretical')
+                    r, t, shifts, predicted_shifts = pickle.load(f)
+                self.ax.scatter(*shifts.T, marker='>', label='Observed Shifts')
+                self.ax.scatter(*predicted_shifts.T, marker='<', label='Theoretical Shifts')
                 self.ax.legend()
                 self.canvas.draw()
                 self.enable_widgets([])

@@ -115,11 +115,11 @@ class ExperimentalautocRED(LabelFrame):
         self.CollectionStopButton = Button(frame, text='Stop Collection', command=self.stop_collection, state=DISABLED)
         self.CollectionStopButton.grid(row=1, column=1, sticky='EW')
 
-        self.ShowCalibBeamshift = Button(frame, text='Stop Rotation', command=self.stop_collection_acred, state=NORMAL)
-        self.ShowCalibBeamshift.grid(row=3, column=0, sticky='EW')
+        self.StopRotationButton = Button(frame, text='Stop Rotation', command=self.stop_collection_acred, state=NORMAL)
+        self.StopRotationButton.grid(row=3, column=0, sticky='EW')
 
-        self.ShowCalibBeamshift = Button(frame, text='Show calib_beamshift', command=self.show_calib_beamshift, state=NORMAL)
-        self.ShowCalibBeamshift.grid(row=2, column=1, sticky='EW')
+        self.ShowCalibBeamshiftButton = Button(frame, text='Show calib_beamshift', command=self.show_calib_beamshift, state=NORMAL)
+        self.ShowCalibBeamshiftButton.grid(row=2, column=1, sticky='EW')
 
         self.acquireTEMStatusButton = Button(frame, text='Show calib_is', command=self.show_calib_is, state=NORMAL)
         self.acquireTEMStatusButton.grid(row=2, column=0, sticky='EW')

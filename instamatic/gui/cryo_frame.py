@@ -190,12 +190,12 @@ class CryoED(LabelFrame):
             if confirm == 'yes':
                 self.mag = self.ctrl.magnification.get()
                 if self.software_binsize is None:
-                    image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize #nm->um
+                    self.image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize #nm->um
                 else:
-                    image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize * self.software_binsize
-                img_physical_area = self.dimension[0] * self.dimension[1] * image_scale**2 
+                    self.image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize * self.software_binsize
+                img_physical_area = self.dimension[0] * self.dimension[1] * self.image_scale**2 
                 num_img = min(max(int(self.var_radius.get()**2 / img_physical_area), 1), 5)
-                self.var_radius.set(num_img * image_scale * (self.dimension[0] + self.dimension[1]) / 2)
+                self.var_radius.set(num_img * self.image_scale * (self.dimension[0] + self.dimension[1]) / 2)
                 t = threading.Thread(target=self.collect_montage, args=(num_img,self.grid_dir/f'grid_{self.var_name.get()}.tiff'), daemon=True)
                 t.start()
                 
@@ -221,10 +221,11 @@ class CryoED(LabelFrame):
             if confirm == 'yes':
                 self.mag = self.ctrl.magnification.get()
                 if self.software_binsize is None:
-                    image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize #nm->um
+                    self.image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize #nm->um
                 else:
-                    image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize * self.software_binsize
+                    self.image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize * self.software_binsize
                 
+                self.var_radius.set(self.image_scale * (self.dimension[0] + self.dimension[1]) / 2)
                 t = threading.Thread(target=self.collect_image, args=(self.var_exposure.get(),level,self.square_dir/f'square_{self.var_name.get()}.tiff'), daemon=True)
                 t.start()
                 selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
@@ -249,10 +250,11 @@ class CryoED(LabelFrame):
             if confirm == 'yes':
                 self.mag = self.ctrl.magnification.get()
                 if self.software_binsize is None:
-                    image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize #nm->um
+                    self.image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize #nm->um
                 else:
-                    image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize * self.software_binsize
+                    self.image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize * self.software_binsize
                 
+                self.var_radius.set(self.image_scale * (self.dimension[0] + self.dimension[1]) / 2)
                 t = threading.Thread(target=self.collect_image, args=(self.var_exposure.get(),level,self.target_dir/f'target_{self.var_name.get()}.tiff'), daemon=True)
                 t.start()
                 selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
@@ -286,9 +288,11 @@ class CryoED(LabelFrame):
         h['center_pos'] = current_pos
         h['mode'] = self.state
         h['magnification'] = self.mag
-        h['ImageCameraDimension'] = stitched.shape
+        h['ImageResolution'] = stitched.shape
         h['stage_matrix'] = config.calibration[self.state]['stagematrix'][self.mag] #nm
+        h['pixelsize'] = self.image_scale * 1000
         write_tiff(filepath, stitched, header=h)
+        self.ctrl.stage.xy = current_pos
         self.lb_coll1.config(text=f'Montage completed. Saved dir: {filepath.parent}')
 
     def collect_image(self, exposure, level, filepath):
@@ -298,9 +302,11 @@ class CryoED(LabelFrame):
         h['center_pos'] = current_pos
         h['mode'] = self.state
         h['magnification'] = self.mag
-        h['ImageCameraDimension'] = arr.shape
+        h['ImageResolution'] = arr.shape
         h['stage_matrix'] = config.calibration[self.state]['stagematrix'][self.mag] #nm
+        h['pixelsize'] = self.image_scale * 1000
         write_tiff(filepath, arr, header=h)
+        self.ctrl.stage.xy = current_pos
         self.lb_coll1.config(text=f'{level} completed. Saved dir: {filepath.parent}')
 
     def get_pos(self):
