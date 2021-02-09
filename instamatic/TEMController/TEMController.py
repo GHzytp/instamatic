@@ -322,9 +322,15 @@ class TEMController:
             mag = self.magnification.value
         if not binning:
             binning = self.cam.getBinning()
+        software_binsize = config.settings.software_binsize
 
+        if software_binsize is None:
+            pixelsize = config.calibration[mode]['pixelsize'][mag] * binning
+        else:
+            pixelsize = config.calibration[mode]['pixelsize'][mag] * binning * software_binsize
+            
         stagematrix = config.calibration[mode]['stagematrix'][mag]
-        stagematrix = np.array(stagematrix).reshape(2, 2) * binning  # um -> nm
+        stagematrix = np.array(stagematrix).reshape(2, 2) * pixelsize
 
         return stagematrix
 
@@ -520,7 +526,10 @@ class TEMController:
 
         for key in keys:
             try:
-                dct[key] = funcs[key]()
+                if key is 'StagePosition':
+                    dct[key] = dict(funcs[key]()._asdict())
+                else:
+                    dct[key] = funcs[key]()
             except TypeError:
                 # print(f"No such key: `{key}`")
                 pass

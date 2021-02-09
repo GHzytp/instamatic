@@ -128,6 +128,9 @@ class CameraDM:
             print('Queue not empty!')
             queue.get()
 
+    def getBinning(self) -> int:
+        return self.default_binsize
+
     def getCameraDimensions(self) -> (int, int):
         return self.dimensions
 

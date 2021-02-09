@@ -72,7 +72,7 @@ class GridMontage:
 
         px_center = vect * ((np.array(grid.shape) / 2) - 0.5)
 
-        self.stagematrix = self.ctrl.get_stagematrix(binning=binning)
+        self.stagematrix = self.ctrl.get_stagematrix(binning=binning) # stage matrix here considered pixelsize, camera binning and software binning
 
         stage_center = np.dot(px_center, self.stagematrix) - stage_shift
         stagepos = np.dot(px_coords, self.stagematrix)
@@ -88,10 +88,11 @@ class GridMontage:
         self.abs_mag_index = self.ctrl.magnification.absolute_index
         self.spotsize = self.ctrl.spotsize
         self.binning = binning
-        if config.settings.software_binsize is None:
-            self.pixelsize = config.calibration[mode]['pixelsize'][magnification]  # unbinned
+        self.software_binsize = config.settings.software_binsize
+        if self.software_binsize is None:
+            self.pixelsize = config.calibration[mode]['pixelsize'][magnification] * binning  # unbinned
         else:
-            self.pixelsize = config.calibration[mode]['pixelsize'][magnification] * config.settings.software_binsize
+            self.pixelsize = config.calibration[mode]['pixelsize'][magnification] * binning * self.software_binsize
 
         print('Setting up gridscan.')
         print(f'  Mag: {self.magnification}x')
@@ -104,7 +105,7 @@ class GridMontage:
         print(f'  Spot size: {self.spotsize}')
         print(f'  Binning: {self.binning}')
 
-        return coords
+        return coords, px_center, stage_center
 
     def start(self):
         """Start the experiment."""
@@ -135,6 +136,8 @@ class GridMontage:
     def to_montage(self):
         """Convert the experimental data to a `Montage` object."""
         images = [im for im, h in self.buffer]
+        # Use pyserialem, in serialEM the definition of stagematrix is different from instamatic
+        # stagematrix in instamatic doesn't include pixelsize, while serialEM does
         m = Montage(images=images,
                     gridspec=self.gridspec,
                     overlap=self.overlap,

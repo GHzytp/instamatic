@@ -10,6 +10,7 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 
+from .base_module import BaseModule
 from instamatic import config
 from instamatic import TEMController
 from instamatic.formats import write_tiff
@@ -45,31 +46,24 @@ class CryoED(LabelFrame):
         self.e_level.config(width=7)
         self.e_level.grid(row=0, column=0, sticky='EW')
         Label(frame, text='Area(um):', anchor="center").grid(row=0, column=1, sticky='EW')
-        self.e_radius = Spinbox(frame, textvariable=self.var_radius, width=8, from_=0.0, to=500.0, increment=1)
+        self.e_radius = Spinbox(frame, textvariable=self.var_radius, width=6, from_=0.0, to=500.0, increment=1)
         self.e_radius.grid(row=0, column=2, sticky='EW', padx=5)
         Label(frame, text='Exp Name:', anchor="center").grid(row=0, column=3, sticky='EW')
         self.e_name = Entry(frame, textvariable=self.var_name, width=8)
         self.e_name.grid(row=0, column=4, sticky='EW', padx=5)
+        Label(frame, text='Exposure:', anchor="center").grid(row=0, column=5, sticky='EW')
+        self.e_radius = Spinbox(frame, textvariable=self.var_exposure, width=6, from_=self.ctrl.cam.default_exposure*2, to=30, increment=self.ctrl.cam.default_exposure)
+        self.e_radius.grid(row=0, column=6, sticky='EW', padx=5)
         
-        self.CollectMapButton = Button(frame, text='Collect Map', width=11, command=self.collect_map, state=NORMAL)
-        self.CollectMapButton.grid(row=1, column=0, sticky='EW')
-        Label(frame, text='Exposure:', anchor="center").grid(row=1, column=1, sticky='EW')
-        self.e_radius = Spinbox(frame, textvariable=self.var_exposure, width=8, from_=self.ctrl.cam.default_exposure*2, to=30, increment=self.ctrl.cam.default_exposure)
-        self.e_radius.grid(row=1, column=2, sticky='EW', padx=5)
-
-        self.RetakeImgButton = Button(frame, text='Retake Img', width=11, command=self.retake_image, state=NORMAL)
-        self.RetakeImgButton.grid(row=2, column=0, sticky='EW')
-        self.OpenMapButton = Button(frame, text='Get Pos', width=11, command=self.get_pos, state=NORMAL)
-        self.OpenMapButton.grid(row=2, column=1, sticky='EW', padx=5)
-        self.SaveGridButton = Button(frame, text='Change Grid', width=11, command=self.change_grid, state=NORMAL)
-        self.SaveGridButton.grid(row=2, column=2, sticky='EW')
-        self.SaveGridButton = Button(frame, text='Save Grid', width=11, command=self.save_grid, state=NORMAL)
-        self.SaveGridButton.grid(row=2, column=3, sticky='EW', padx=5)
-        self.LoadGridButton = Button(frame, text='Load Grid', width=11, command=self.load_grid, state=NORMAL)
-        self.LoadGridButton.grid(row=2, column=4, sticky='EW')
+        self.CollectMapButton = Button(frame, text='Collect Montage or Image', width=11, command=self.collect_map, state=NORMAL)
+        self.CollectMapButton.grid(row=1, column=0, columnspan=2, sticky='EW')
+        self.OpenMapButton = Button(frame, text='Get Stage Positions', width=11, command=self.get_pos, state=NORMAL)
+        self.OpenMapButton.grid(row=1, column=2, columnspan=2, sticky='EW', padx=5)
+        self.RetakeImgButton = Button(frame, text='Retake Image', width=11, command=self.retake_image, state=NORMAL)
+        self.RetakeImgButton.grid(row=1, column=4, columnspan=2, sticky='EW')
 
         self.lb_coll1 = Label(frame, text='')
-        self.lb_coll1.grid(row=3, column=0, columnspan=5, sticky='EW', pady=5)
+        self.lb_coll1.grid(row=3, column=0, columnspan=7, sticky='EW', pady=5)
         
 
         self.AddTargetButton = Button(frame, text='Add Target', width=11, command=self.add_target, state=NORMAL)
@@ -80,6 +74,12 @@ class CryoED(LabelFrame):
         self.DelSquareButton.grid(row=4, column=2, sticky='EW')
         self.DelGridButton = Button(frame, text='Del Grid', width=11, command=self.del_grid, state=NORMAL)
         self.DelGridButton.grid(row=4, column=3, sticky='EW', padx=5)
+        self.SaveGridButton = Button(frame, text='Change Grid', width=11, command=self.change_grid, state=NORMAL)
+        self.SaveGridButton.grid(row=4, column=4, sticky='EW')
+        self.SaveGridButton = Button(frame, text='Save Grid', width=11, command=self.save_grid, state=NORMAL)
+        self.SaveGridButton.grid(row=4, column=5, sticky='EW', padx=5)
+        self.LoadGridButton = Button(frame, text='Load Grid', width=11, command=self.load_grid, state=NORMAL)
+        self.LoadGridButton.grid(row=4, column=6, sticky='EW')
         
 
         self.UpdateZButton = Button(frame, text='Z Square', width=11, command=self.update_z_square, state=NORMAL)
@@ -95,17 +95,19 @@ class CryoED(LabelFrame):
 
         frame = Frame(self)
 
-        Label(frame, width=16, text='Whole Grid Level', anchor="center").grid(row=0, column=0, sticky='EW')
-        Label(frame, width=24, text='Grid Square Level', anchor="center").grid(row=0, column=2, sticky='EW')
-        Label(frame, width=24, text='Individual target Level', anchor="center").grid(row=0, column=4, sticky='EW')
+        Label(frame, width=20, text='Whole Grid Level', anchor="center").grid(row=0, column=0, sticky='EW')
+        Label(frame, width=28, text='Grid Square Level', anchor="center").grid(row=0, column=2, sticky='EW')
+        Label(frame, width=28, text='Individual target Level', anchor="center").grid(row=0, column=4, sticky='EW')
 
         self.tv_whole_grid = Treeview(frame, height=12, selectmode='browse')
-        self.tv_whole_grid["columns"] = ("1", "2")
+        self.tv_whole_grid["columns"] = ("1", "2", "3")
         self.tv_whole_grid['show'] = 'headings'
-        self.tv_whole_grid.column("1", width=12, anchor='c')
+        self.tv_whole_grid.column("1", width=8, anchor='c')
         self.tv_whole_grid.column("2", width=12, anchor='c')
-        self.tv_whole_grid.heading("1", text="Pos_x")
-        self.tv_whole_grid.heading("2", text="Pos_y")
+        self.tv_whole_grid.column("3", width=12, anchor='c')
+        self.tv_whole_grid.heading("1", text="IDX")
+        self.tv_whole_grid.heading("2", text="Pos_x")
+        self.tv_whole_grid.heading("3", text="Pos_y")
         self.tv_whole_grid.grid(row=1, column=0, sticky='EW')
         self.tv_whole_grid.bind("<Double-1>", self.update_grid)
         self.tv_whole_grid.bind("<Button-2>", self.update_grid)
@@ -115,14 +117,16 @@ class CryoED(LabelFrame):
         self.tv_whole_grid.configure(yscrollcommand=self.scroll_tv_grid.set)
 
         self.tv_grid_square = Treeview(frame, height=12, selectmode='browse')
-        self.tv_grid_square["columns"] = ("1", "2", "3")
+        self.tv_grid_square["columns"] = ("1", "2", "3", "4")
         self.tv_grid_square['show'] = 'headings'
-        self.tv_grid_square.column("1", width=12, anchor='c')
+        self.tv_grid_square.column("1", width=8, anchor='c')
         self.tv_grid_square.column("2", width=12, anchor='c')
         self.tv_grid_square.column("3", width=12, anchor='c')
-        self.tv_grid_square.heading("1", text="Pos_x")
-        self.tv_grid_square.heading("2", text="Pos_y")
-        self.tv_grid_square.heading("3", text="Pos_z")
+        self.tv_grid_square.column("4", width=12, anchor='c')
+        self.tv_grid_square.heading("1", text="IDX")
+        self.tv_grid_square.heading("2", text="Pos_x")
+        self.tv_grid_square.heading("3", text="Pos_y")
+        self.tv_grid_square.heading("4", text="Pos_z")
         self.tv_grid_square.grid(row=1, column=2, sticky='EW')
         self.tv_grid_square.bind("<Double-1>", self.update_square)
         self.tv_grid_square.bind("<Button-2>", self.update_square)
@@ -132,14 +136,16 @@ class CryoED(LabelFrame):
         self.tv_grid_square.configure(yscrollcommand=self.scroll_tv_square.set)
 
         self.tv_target = Treeview(frame, height=12, selectmode='browse')
-        self.tv_target["columns"] = ("1", "2", "3")
+        self.tv_target["columns"] = ("1", "2", "3", "4")
         self.tv_target['show'] = 'headings'
-        self.tv_target.column("1", width=12, anchor='c')
+        self.tv_target.column("1", width=8, anchor='c')
         self.tv_target.column("2", width=12, anchor='c')
         self.tv_target.column("3", width=12, anchor='c')
-        self.tv_target.heading("1", text="Pos_x")
-        self.tv_target.heading("2", text="Pos_y")
-        self.tv_target.heading("3", text="Pos_z")
+        self.tv_target.column("4", width=12, anchor='c')
+        self.tv_target.heading("1", text="IDX")
+        self.tv_target.heading("2", text="Pos_x")
+        self.tv_target.heading("3", text="Pos_y")
+        self.tv_target.heading("4", text="Pos_z")
         self.tv_target.grid(row=1, column=4, sticky='EW')
         self.scroll_tv_target = ttk.Scrollbar(frame, orient="vertical", command=self.tv_target.yview)
         self.scroll_tv_target.grid(row=1, column=5, sticky='NS')
@@ -278,19 +284,20 @@ class CryoED(LabelFrame):
         ctrl = self.ctrl
         gm = self.ctrl.grid_montage()
         current_pos = self.ctrl.stage.xy
-        pos = gm.setup(nx=num_img, ny=num_img, stage_shift=current_pos)
+        pos, px_center, stage_center = gm.setup(nx=num_img, ny=num_img, stage_shift=current_pos)
         self.lb_coll1.config(text='Collecting montage, please wait for a moment...')
         gm.start()
         m = gm.to_montage()
         m.calculate_montage_coords()
+        #m.optimize_montage_coords()
         stitched = m.stitch()
         h = {}
         h['center_pos'] = current_pos
         h['mode'] = self.state
         h['magnification'] = self.mag
         h['ImageResolution'] = stitched.shape
-        h['stage_matrix'] = config.calibration[self.state]['stagematrix'][self.mag] #nm
-        h['pixelsize'] = self.image_scale * 1000
+        h['stage_matrix'] = self.ctrl.get_stagematrix() #nm
+        h['pixelsize'] = self.image_scale * 1000 # um -> nm
         write_tiff(filepath, stitched, header=h)
         self.ctrl.stage.xy = current_pos
         self.lb_coll1.config(text=f'Montage completed. Saved dir: {filepath.parent}')
@@ -303,8 +310,8 @@ class CryoED(LabelFrame):
         h['mode'] = self.state
         h['magnification'] = self.mag
         h['ImageResolution'] = arr.shape
-        h['stage_matrix'] = config.calibration[self.state]['stagematrix'][self.mag] #nm
-        h['pixelsize'] = self.image_scale * 1000
+        h['stage_matrix'] = self.ctrl.get_stagematrix() #nm
+        h['pixelsize'] = self.image_scale * 1000 # um -> nm
         write_tiff(filepath, arr, header=h)
         self.ctrl.stage.xy = current_pos
         self.lb_coll1.config(text=f'{level} completed. Saved dir: {filepath.parent}')
@@ -313,14 +320,14 @@ class CryoED(LabelFrame):
         level = self.var_level.get()
         self.position_list, path = GridFrame(self).get_selected_positions()
 
-        if len(self.position_list) != 0:
+        if self.position_list is not None:
             z = self.ctrl.stage.z
             if level == 'Whole':
                 last_num_grid = len(self.df_grid)
                 self.df_grid = self.df_grid.append(self.position_list, ignore_index=True)
                 for index in range(len(self.position_list)):
                     self.tv_whole_grid.insert("",'end', text="Item_"+str(last_num_grid+index), 
-                                        values=(self.position_list.loc[index,'pos_x'],self.position_list.loc[index,'pos_y']))
+                                        values=(last_num_square+index, self.position_list.loc[index,'pos_x'],self.position_list.loc[index,'pos_y']))
                     self.df_grid.loc[last_num_grid+index, 'grid'] = last_num_grid + index
                 self.grid_dir = Path(path)
                 print(self.df_grid)
@@ -338,7 +345,7 @@ class CryoED(LabelFrame):
                     self.df_square = self.df_square.append(self.position_list, ignore_index=True)
                     for index in range(len(self.position_list)):
                         self.tv_grid_square.insert("",'end', text="Item_"+str(last_num_square+index), 
-                                        values=(self.position_list.loc[index,'pos_x'],self.position_list.loc[index,'pos_y'],z))
+                                        values=(last_num_square+index, self.position_list.loc[index,'pos_x'],self.position_list.loc[index,'pos_y'],z))
                         self.df_square.loc[last_num_square+index, 'grid'] = grid_num
                         self.df_square.loc[last_num_square+index, 'square'] = existing_num_square + index
                         self.df_square.loc[last_num_square+index, 'pos_z'] = z
@@ -361,7 +368,7 @@ class CryoED(LabelFrame):
                     self.df_target = self.df_target.append(self.position_list, ignore_index=True)
                     for index in range(len(self.position_list)):
                         self.tv_target.insert("",'end', text="Item_"+str(last_num_target+index), 
-                                        values=(self.position_list.loc[index,'pos_x'],self.position_list.loc[index,'pos_y'],z))
+                                        values=(last_num_target+index, self.position_list.loc[index,'pos_x'],self.position_list.loc[index,'pos_y'],z))
                         self.df_target.loc[last_num_target+index, 'grid'] = grid_num
                         self.df_target.loc[last_num_target+index, 'square'] = square_num
                         self.df_target.loc[last_num_target+index, 'target'] = existing_num_targets+index
@@ -390,7 +397,7 @@ class CryoED(LabelFrame):
             selected_square_df = self.df_square[self.df_square['grid'] == selected].reset_index().drop(['index'], axis=1)
             for index in range(len(selected_square_df)):
                 self.tv_grid_square.insert("",'end', text="Item_"+str(index), 
-                        values=(selected_square_df.loc[index,'pos_x'],selected_square_df.loc[index,'pos_y'],selected_square_df.loc[index,'pos_z']))
+                        values=(index, selected_square_df.loc[index,'pos_x'],selected_square_df.loc[index,'pos_y'],selected_square_df.loc[index,'pos_z']))
 
     def update_square(self, event):
         selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
@@ -402,7 +409,7 @@ class CryoED(LabelFrame):
             selected_target_df = self.df_target[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square)].reset_index().drop(['index'], axis=1)
             for index in range(len(selected_target_df)):
                 self.tv_target.insert("",'end', text="Item_"+str(index), 
-                        values=(selected_target_df.loc[index,'pos_x'],selected_target_df.loc[index,'pos_y'],selected_target_df.loc[index,'pos_z']))
+                        values=(index, selected_target_df.loc[index,'pos_x'],selected_target_df.loc[index,'pos_y'],selected_target_df.loc[index,'pos_z']))
 
     def update_z_square(self):
         selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
@@ -574,6 +581,9 @@ class CryoED(LabelFrame):
             elif 'target' in file:
                 self.df_target = pd.read_csv(file)
                              
+
+module = BaseModule(name='cryo', display_name='CryoED', tk_frame=CryoED, location='left')
+commands = {}
 
 if __name__ == '__main__':
     root = Tk()

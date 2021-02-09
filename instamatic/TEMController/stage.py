@@ -111,7 +111,7 @@ class Stage:
 
     def move_in_projection(self, delta_x: int, delta_y: int) -> None:
         r"""y and z are always perpendicular to the sample stage. To achieve the movement
-        in the projection, x and yshould be broken down into the components z' and y'.
+        in the projection, x and y should be broken down into the components z' and y'.
 
         y = y' * cos(a)
         z = y' * sin(a)

@@ -65,7 +65,7 @@ class CameraGatan2:
     def getBinning(self) -> int:
         """Returns the binning corresponding to the currently selected camera
         config."""
-        raise NotImplementedError
+        return self.default_binsize
 
     def getCameraName(self) -> str:
         """Get the name reported by the camera."""

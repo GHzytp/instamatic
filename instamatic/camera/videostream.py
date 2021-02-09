@@ -162,6 +162,9 @@ class VideoStream:
         atexit.register(grabber.stop)
         return grabber
 
+    def getBinning(self) -> int:
+        return self.default_binsize
+
     def getImage(self, exposure=None, binsize=None):
         current_frametime = self.grabber.frametime
 

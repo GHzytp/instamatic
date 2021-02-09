@@ -299,6 +299,9 @@ class CameraTPX:
     def getCameraDimensions(self) -> (int, int):
         return self.dimensions
 
+    def getBinning(self) -> int:
+        return self.default_binsize
+
     def load_defaults(self):
         if self.name != config.settings.camera:
             config.load_camera_config(camera_name=self.name)

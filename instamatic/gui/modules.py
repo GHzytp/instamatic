@@ -14,6 +14,7 @@ all_modules = (
     'FourDSTEM',
     'machine_learning',
     'ctrl',
+    'cryo',
     'console',
     'debug',
     'about',

@@ -112,16 +112,19 @@ class GridFrame(Toplevel):
 
     def get_selected_positions(self):
         self.wait_window(self)
-        stage_pos = self.point_list[['pos_x', 'pos_y']].to_numpy()
-        pixel_center = np.array(self.map_info['ImageResolution'])/2
-        stage_pos -= pixel_center
-        stage_matrix = np.array(self.map_info['stage_matrix']).reshape((2, 2)) * self.map_info['pixelsize']
-        stage_matrix = stage_matrix[::-1]
-        stage_pos = stage_pos @ stage_matrix
-        stage_pos += np.array(self.map_info['center_pos'])
-        stage_pos = np.round(stage_pos)
-        stage_pos_df = pd.DataFrame({'pos_x':stage_pos[:,0], 'pos_y':stage_pos[:,1]})
-        return stage_pos_df, Path(self.map_path).parent
+        if self.map_info is not None:
+            stage_pos = self.point_list[['pos_x', 'pos_y']].to_numpy()
+            pixel_center = np.array(self.map_info['ImageResolution'])/2
+            stage_pos -= pixel_center
+            stage_matrix = np.array(self.map_info['stage_matrix']).reshape((2, 2))
+            stage_matrix = stage_matrix[::-1]
+            stage_pos = stage_pos @ stage_matrix
+            stage_pos += np.array(self.map_info['center_pos'])
+            stage_pos = np.round(stage_pos)
+            stage_pos_df = pd.DataFrame({'pos_x':stage_pos[:,0], 'pos_y':stage_pos[:,1]})
+            return stage_pos_df, Path(self.map_path).parent
+        else:
+            return None, None
 
     def open_map(self):
         if self.init_dir is None:

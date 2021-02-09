@@ -572,16 +572,6 @@ class CCDServer:
             return dico['Binning']
         else:
             return self.handle.getCCDServer()['Binning']
-    
-    def setBinning(self,binning):
-        self.setCCDServer({'Binning':binning})
-        self.binning = binning
-    
-    def getBinning(self, dico = None):
-        if dico:
-            return dico['Binning']
-        else:
-            return self.handle.getCCDServer()['Binning']
         
     def setDriftRateXY(self,rateX=None,rateY=None):
         if rateX:
