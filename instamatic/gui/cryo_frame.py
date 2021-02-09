@@ -292,12 +292,14 @@ class CryoED(LabelFrame):
         #m.optimize_montage_coords()
         stitched = m.stitch()
         h = {}
-        h['center_pos'] = current_pos
+        h['is_montage'] = True
+        h['center_pos'] = stage_center
         h['mode'] = self.state
         h['magnification'] = self.mag
         h['ImageResolution'] = stitched.shape
         h['stage_matrix'] = self.ctrl.get_stagematrix() #nm
         h['pixelsize'] = self.image_scale * 1000 # um -> nm
+        h['px_center'] = px_center
         write_tiff(filepath, stitched, header=h)
         self.ctrl.stage.xy = current_pos
         self.lb_coll1.config(text=f'Montage completed. Saved dir: {filepath.parent}')
@@ -306,6 +308,7 @@ class CryoED(LabelFrame):
         current_pos = self.ctrl.stage.xy
         self.lb_coll1.config(text=f'Collecting {level} image, please wait for a moment...')
         arr, h = self.ctrl.get_image(exposure=exposure)
+        h['is_montage'] = False
         h['center_pos'] = current_pos
         h['mode'] = self.state
         h['magnification'] = self.mag
@@ -327,7 +330,7 @@ class CryoED(LabelFrame):
                 self.df_grid = self.df_grid.append(self.position_list, ignore_index=True)
                 for index in range(len(self.position_list)):
                     self.tv_whole_grid.insert("",'end', text="Item_"+str(last_num_grid+index), 
-                                        values=(last_num_square+index, self.position_list.loc[index,'pos_x'],self.position_list.loc[index,'pos_y']))
+                                        values=(last_num_grid+index, self.position_list.loc[index,'pos_x'],self.position_list.loc[index,'pos_y']))
                     self.df_grid.loc[last_num_grid+index, 'grid'] = last_num_grid + index
                 self.grid_dir = Path(path)
                 print(self.df_grid)

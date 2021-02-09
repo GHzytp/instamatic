@@ -102,6 +102,7 @@ class GridMontage:
         print()
         print(f'  Image shape: {res_x} x {res_y}')
         print(f'  Pixel center: {px_center}')
+        print(f'  Stage center: {stage_center}')
         print(f'  Spot size: {self.spotsize}')
         print(f'  Binning: {self.binning}')
 
