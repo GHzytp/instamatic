@@ -14,18 +14,18 @@ from PIL import Image
 from PIL import ImageEnhance
 from PIL import ImageTk
 
-from .base_module import BaseModule
-from .modules import MODULES
 from instamatic import config
 from instamatic.formats import read_tiff
 from instamatic.formats import write_tiff
 from instamatic.utils.widgets import Hoverbox, Spinbox
 
-class GridFrame(LabelFrame):
+class GridWindow(Toplevel):
     """Load a GUi to show the grid map and label suitable crystals."""
 
-    def __init__(self, parent, init_dir=None):
-        LabelFrame.__init__(self, parent, text='Grid Map')
+    def __init__(self, parent, init_dir=None, title='Grid Map'):
+        Toplevel.__init__(self, parent)
+        self.grab_set()
+        self.title(title)
         self.init_dir = init_dir
         self.canvas = None
         self.point_list = pd.DataFrame(columns=['pos_x', 'pos_y', 'cross_1', 'cross_2'])
@@ -38,92 +38,93 @@ class GridFrame(LabelFrame):
         self.counter = 0
         self._drag_data = {"x": 0, "y": 0}
         self.saved_tv_items = None
-        self.cryo_frame = [module for module in MODULES if module.name == 'cryo'][0].frame
 
         self.init_vars()
         
         frame = Frame(self)
 
+        self.canvas = Canvas(frame, width=800, height=800)
+        self.canvas.grid(row=0, rowspan=20, column=0)
+        self.scroll_x = tk.Scrollbar(frame, orient="horizontal", command=self.canvas.xview)
+        self.scroll_x.grid(row=21, column=0, sticky="ew")
+        self.scroll_y = tk.Scrollbar(frame, orient="vertical", command=self.canvas.yview)
+        self.scroll_y.grid(row=0, column=1, rowspan=20, sticky="ns")
+        self.canvas.configure(yscrollcommand=self.scroll_y.set, xscrollcommand=self.scroll_x.set)
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
         self.OpenMapButton = Button(frame, text='Open Map', width=13, command=self.open_map, state=NORMAL)
-        self.OpenMapButton.grid(row=0, column=0, sticky='EW')
+        self.OpenMapButton.grid(row=0, column=2, sticky='EW')
         self.lbl_open_map = Label(frame, text="", width=13)
-        self.lbl_open_map.grid(row=0, column=1, columnspan=2, sticky='EW', padx=5)
+        self.lbl_open_map.grid(row=0, column=3, sticky='EW', padx=5)
+        Separator(frame, orient=HORIZONTAL).grid(row=1, column=2, columnspan=2, sticky='ew')
 
         self.AddPosButton = Button(frame, text='Add Position', width=13, command=self.add_position, state=NORMAL)
-        self.AddPosButton.grid(row=1, column=0, sticky='EW')
+        self.AddPosButton.grid(row=2, column=2, sticky='EW')
         self.DeletePosButton = Button(frame, text='Delete Position', width=13, command=self.delete_position, state=NORMAL)
-        self.DeletePosButton.grid(row=1, column=1, sticky='EW', padx=5)
+        self.DeletePosButton.grid(row=2, column=3, sticky='EW', padx=5)
         self.MoveMapButton = Button(frame, text='Move Map', width=13, command=self.move_map, state=NORMAL)
-        self.MoveMapButton.grid(row=1, column=2, sticky='EW')
+        self.MoveMapButton.grid(row=3, column=2, sticky='EW')
         self.UnbindAllButton = Button(frame, text='Unbind All', width=13, command=self.unbind_all, state=NORMAL)
-        self.UnbindAllButton.grid(row=1, column=3, sticky='EW', padx=5)
-
+        self.UnbindAllButton.grid(row=3, column=3, sticky='EW', padx=5)
         self.SavePosButton = Button(frame, text='Save Positions', width=13, command=self.save_positions, state=NORMAL)
-        self.SavePosButton.grid(row=2, column=0, sticky='EW')
+        self.SavePosButton.grid(row=4, column=2, sticky='EW')
         self.LoadPosButton = Button(frame, text='Load Positions', width=13, command=self.load_positions, state=NORMAL)
-        self.LoadPosButton.grid(row=2, column=1, sticky='EW', padx=5)
-        Label(frame, text="Set Zoom Level").grid(row=2, column=2, stick='W')
+        self.LoadPosButton.grid(row=4, column=3, sticky='EW', padx=5)
+        Separator(frame, orient=HORIZONTAL).grid(row=5, column=2, columnspan=2, sticky='ew')
+        
+        Label(frame, text="Set Zoom Level").grid(row=6, column=2, columnspan=2, stick='W')
         self.e_zoom_level = Spinbox(frame, width=10, textvariable=self.var_zoom, from_=0.02, to=1, increment=0.01)
-        self.e_zoom_level.grid(row=2, column=3, stick='EW', padx=5)
-
+        self.e_zoom_level.grid(row=6, column=3, stick='EW', padx=5)
         self.zoom_slider = tk.Scale(frame, variable=self.var_zoom, from_=0.02, to=1, resolution=0.01, showvalue=1, orient=HORIZONTAL, command=self.set_zoom)
-        self.zoom_slider.grid(row=3, column=0, columnspan=3, sticky='EW', padx=5)
-        self.ZoomButton = Button(frame, text='Set Zoom', command=self.set_zoom, state=NORMAL)
-        self.ZoomButton.grid(row=3, column=3, sticky='EW', padx=5)
+        self.zoom_slider.grid(row=7, column=2, columnspan=2, sticky='EW')
+        self.ZoomButton = Button(frame, text='Set Zoom Level', command=self.set_zoom, state=NORMAL)
+        self.ZoomButton.grid(row=8, column=2, columnspan=2, sticky='EW')
+        Separator(frame, orient=HORIZONTAL).grid(row=9, column=2, columnspan=2, sticky='ew')
 
-        self.ClearAllButton = Button(frame, text='Clear All', width=13, command=self.clear_all, state=NORMAL)
-        self.ClearAllButton.grid(row=0, column=3, sticky='EW', padx=5)
-        self.DeleteItemButton = Button(frame, text='Delete', width=11, command=self.delete_item, state=NORMAL)
-        self.DeleteItemButton.grid(row=0, column=4, sticky='EW')
-        self.SendItemsButton = Button(frame, text='Send', width=11, command=self.send_items, state=NORMAL)
-        self.SendItemsButton.grid(row=0, column=5, sticky='EW')
-        self.tv_positions = Treeview(frame, height=3, selectmode='browse')
+        Label(frame, text="Selected Pos").grid(row=10, column=2, sticky='W')
+        self.DeleteItemButton = Button(frame, text='Delete', width=13, command=self.delete_item, state=NORMAL)
+        self.DeleteItemButton.grid(row=10, column=3, sticky='EW')
+        self.CloseButton = Button(frame, text='Close and Save', command=self.close, state=NORMAL)
+        self.CloseButton.grid(row=11, column=2, columnspan=2, sticky='EW')
+        self.tv_positions = Treeview(frame, height=25, selectmode='browse')
         self.tv_positions["columns"] = ("1", "2")
         self.tv_positions['show'] = 'headings'
         self.tv_positions.column("1", width=13, anchor='c')
         self.tv_positions.column("2", width=13, anchor='c')
         self.tv_positions.heading("1", text="Pos_x")
         self.tv_positions.heading("2", text="Pos_y")
-        self.tv_positions.grid(row=1, column=4, rowspan=5, columnspan=2, sticky='EW')
+        self.tv_positions.grid(row=12, column=2, rowspan=9, columnspan=2, sticky='EW')
         self.scroll_tv = ttk.Scrollbar(frame, orient="vertical", command=self.tv_positions.yview)
-        self.scroll_tv.grid(row=1, column=6, rowspan=5, sticky='NS')
+        self.scroll_tv.grid(row=12, column=4, rowspan=9, sticky='NS')
         self.tv_positions.configure(yscrollcommand=self.scroll_tv.set)
 
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
 
-        frame = Frame(self)
-
-        canvas_shape = np.array(config.camera.dimensions) * 0.9
-        self.canvas = Canvas(frame, width=canvas_shape[1], height=canvas_shape[0])
-        self.canvas.grid(row=0, column=0)
-        self.scroll_x = tk.Scrollbar(frame, orient="horizontal", command=self.canvas.xview)
-        self.scroll_x.grid(row=1, column=0, sticky="ew")
-        self.scroll_y = tk.Scrollbar(frame, orient="vertical", command=self.canvas.yview)
-        self.scroll_y.grid(row=0, column=1, sticky="ns")
-        self.canvas.configure(yscrollcommand=self.scroll_y.set, xscrollcommand=self.scroll_x.set)
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-
-        frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
+        self.wm_protocol('WM_DELETE_WINDOW', self.close)
+        self.focus_set()
         
+
+    def close(self, event=None):
+        self.destroy()
+
     def init_vars(self):
         self.var_zoom = DoubleVar(value=1.0)
 
     def get_selected_positions(self):
         self.wait_window(self)
-        return self._generate_stage_position()
-    def clear_all(self):
-        self.canvas.delete('all')
-        self.tv_positions.delete(*self.tv_positions.get_children())
-        self.point_list = pd.DataFrame(columns=['pos_x', 'pos_y', 'cross_1', 'cross_2'])
-        self.map = None
-        self.map_info = None
-        self.image = None
-        self.image_scaled = None
-        self.last_scale = 1
-        self.counter = 0
-        self.saved_tv_items = None
-        self.var_zoom.set(1.0)
-        self.lbl_open_map.config(text="")
+        if self.map_info is not None:
+            pixel_center = np.array(self.map_info['ImageResolution'])/2
+            stage_pos = self.point_list[['pos_x', 'pos_y']].to_numpy()
+            stage_pos -= pixel_center
+            stage_matrix = np.array(self.map_info['stage_matrix']).reshape((2, 2))
+            stage_matrix = stage_matrix[::-1]
+            stage_pos = stage_pos @ stage_matrix
+            stage_pos += np.array(self.map_info['center_pos'])
+            stage_pos = np.round(stage_pos)
+            stage_pos_df = pd.DataFrame({'pos_x':stage_pos[:,0], 'pos_y':stage_pos[:,1]})
+            return stage_pos_df, Path(self.map_path).parent
+        else:
+            return None, None
 
     def open_map(self):
         if self.init_dir is None:
@@ -133,7 +134,6 @@ class GridFrame(LabelFrame):
             self.map_path = filedialog.askopenfilename(initialdir=self.init_dir, title='Select an image', 
                             filetypes=(('tiff files', '*.tiff'), ('tif files', '*.tif'), ('all files', '*.*')))
         if self.map_path != '':
-            self.clear_all()
             self.lbl_open_map.config(text=self.map_path.split("/")[-1])
             suffix = self.map_path.split('.')[-1]
             if suffix in ('tiff', 'tif'):
@@ -276,6 +276,7 @@ class GridFrame(LabelFrame):
             delete_condition = [False] * len(self.saved_tv_items)
             delete_condition[index] = True
             delete_condition = pd.Series(delete_condition)
+            print(delete_condition)
             for index, condition in delete_condition.iteritems():
                 if condition == True:
                     self.canvas.delete(int(self.point_list.loc[index, 'cross_1']))
@@ -283,86 +284,7 @@ class GridFrame(LabelFrame):
             self.tv_positions.delete(selected_item)
             self.point_list = self.point_list[-delete_condition]
 
-    def _generate_stage_position(self):
-        if self.map_info is not None:
-            pixel_center = np.array(self.map_info['ImageResolution'])/2
-            stage_pos = self.point_list[['pos_x', 'pos_y']].to_numpy()
-            stage_pos -= pixel_center
-            stage_matrix = np.array(self.map_info['stage_matrix']).reshape((2, 2))
-            stage_matrix = stage_matrix[::-1]
-            stage_pos = stage_pos @ stage_matrix
-            stage_pos += np.array(self.map_info['center_pos'])
-            stage_pos = np.round(stage_pos)
-            stage_pos_df = pd.DataFrame({'pos_x':stage_pos[:,0], 'pos_y':stage_pos[:,1]})
-            path = Path(self.map_path).parent
-            return stage_pos_df, path
-        else:
-            return None, None
-
-    def send_items(self):
-        stage_pos_df, path = self._generate_stage_position()
-
-        level = self.cryo_frame.var_level.get()
-        if stage_pos_df is not None:
-            z = self.cryo_frame.ctrl.stage.z
-            if level == 'Whole':
-                last_num_grid = len(self.cryo_frame.df_grid)
-                self.cryo_frame.df_grid = self.cryo_frame.df_grid.append(stage_pos_df, ignore_index=True)
-                for index in range(len(stage_pos_df)):
-                    self.cryo_frame.tv_whole_grid.insert("",'end', text="Item_"+str(last_num_grid+index), 
-                                        values=(last_num_grid+index, stage_pos_df.loc[index,'pos_x'],stage_pos_df.loc[index,'pos_y']))
-                    self.cryo_frame.df_grid.loc[last_num_grid+index, 'grid'] = last_num_grid + index
-                self.cryo_frame.grid_dir = Path(path)
-                print(self.cryo_frame.df_grid)
-            elif level == 'Square':
-                if self.cryo_frame.df_grid is None:
-                    raise RuntimeError('Please collect whole grid map first!')
-                else:
-                    try:
-                        grid_num = self.cryo_frame.tv_whole_grid.get_children().index(self.cryo_frame.tv_whole_grid.selection()[0])
-                    except IndexError: 
-                        raise RuntimeError('Please select a grid position before get positions in square level')
-
-                    last_num_square = len(self.cryo_frame.df_square)
-                    existing_num_square = len(self.cryo_frame.df_square[self.cryo_frame.df_square['grid'] == grid_num])
-                    self.cryo_frame.df_square = self.cryo_frame.df_square.append(stage_pos_df, ignore_index=True)
-                    for index in range(len(stage_pos_df)):
-                        self.cryo_frame.tv_grid_square.insert("",'end', text="Item_"+str(last_num_square+index), 
-                                        values=(last_num_square+index, stage_pos_df.loc[index,'pos_x'],stage_pos_df.loc[index,'pos_y'],z))
-                        self.cryo_frame.df_square.loc[last_num_square+index, 'grid'] = grid_num
-                        self.cryo_frame.df_square.loc[last_num_square+index, 'square'] = existing_num_square + index
-                        self.cryo_frame.df_square.loc[last_num_square+index, 'pos_z'] = z
-                    self.cryo_frame.square_dir = Path(path)
-                    self.cryo_frame.grid_dir = Path(path).parent
-                    print(self.cryo_frame.df_square)
-            elif level == 'Target':
-                if self.cryo_frame.df_square is None:
-                    raise RuntimeError('Please collect grid square map first!')
-                else:
-                    try:
-                        grid_num = self.cryo_frame.tv_whole_grid.get_children().index(self.cryo_frame.tv_whole_grid.selection()[0])
-                        square_num = self.cryo_frame.tv_grid_square.get_children().index(self.cryo_frame.tv_grid_square.selection()[0])
-                    except IndexError:
-                        raise RuntimeError('Please select a grid and square before get positions in target level')
-
-                    last_num_target = len(self.cryo_frame.df_target)
-                    existing_num_targets = len(self.cryo_frame.df_target[(self.cryo_frame.df_target['grid'] == grid_num) & (self.cryo_frame.df_target['square'] == square_num)])
-                    self.cryo_frame.df_target = self.cryo_frame.df_target.append(stage_pos_df, ignore_index=True)
-                    for index in range(len(stage_pos_df)):
-                        self.cryo_frame.tv_target.insert("",'end', text="Item_"+str(last_num_target+index), 
-                                        values=(last_num_target+index, stage_pos_df.loc[index,'pos_x'],stage_pos_df.loc[index,'pos_y'],z))
-                        self.cryo_frame.df_target.loc[last_num_target+index, 'grid'] = grid_num
-                        self.cryo_frame.df_target.loc[last_num_target+index, 'square'] = square_num
-                        self.cryo_frame.df_target.loc[last_num_target+index, 'target'] = existing_num_targets+index
-                        self.cryo_frame.df_target.loc[last_num_target+index, 'pos_z'] = z
-                    self.cryo_frame.square_dir = Path(path).parent
-                    self.cryo_frame.target_dir = Path(path)
-                    print(self.cryo_frame.df_target)
-
-module = BaseModule(name='grid', display_name='GridMap', tk_frame=GridFrame, location='left')
-commands = {}
-
 if __name__ == '__main__':
     root = Tk()
-    GridFrame(root).pack(side='top', fill='both', expand=True)
+    GridWindow(root)
     root.mainloop()

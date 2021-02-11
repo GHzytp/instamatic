@@ -83,16 +83,16 @@ class XNanoHolder:
         return self.lib.getDistance()
 
     def holderMove(self, axis, pulses, speed_hz, amp_raw):
-        self.lib.holderMove(axis, pulses, speed_hz, amp_raw)
+        self.lib.holderMove(ctypes.c_int(axis), ctypes.c_uint(pulses), ctypes.c_int(speed_hz), ctypes.c_int(amp_raw))
 
     def holderStop(self):
         self.lib.holderStop()
 
     def holderFine(self, axis, position):
-        self.lib.holderFine(axis, position)
+        self.lib.holderFine(ctypes.c_int(axis), ctypes.c_int(position))
 
     def holderRotateTo(self, targetAngle, amp_raw):
-        self.lib.holderRotateTo(ctypes.c_double(targetAngle), amp_raw)
+        self.lib.holderRotateTo(ctypes.c_double(targetAngle), ctypes.c_int(amp_raw))
 
     def compCoefLength(self):
         self.lib.compCoefLength()
