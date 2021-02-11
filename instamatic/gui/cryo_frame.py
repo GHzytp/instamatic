@@ -200,7 +200,7 @@ class CryoED(LabelFrame):
                 else:
                     self.image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize * self.software_binsize
                 img_physical_area = self.dimension[0] * self.dimension[1] * self.image_scale**2 
-                num_img = min(max(int(self.var_radius.get()**2 / img_physical_area), 1), 5)
+                num_img = min(max(int(np.sqrt(self.var_radius.get()**2 / img_physical_area)), 1), 5)
                 self.var_radius.set(num_img * self.image_scale * (self.dimension[0] + self.dimension[1]) / 2)
                 t = threading.Thread(target=self.collect_montage, args=(num_img,self.grid_dir/f'grid_{self.var_name.get()}.tiff'), daemon=True)
                 t.start()
@@ -293,13 +293,12 @@ class CryoED(LabelFrame):
         stitched = m.stitch()
         h = {}
         h['is_montage'] = True
-        h['center_pos'] = stage_center
+        h['center_pos'] = current_pos
         h['mode'] = self.state
         h['magnification'] = self.mag
         h['ImageResolution'] = stitched.shape
         h['stage_matrix'] = self.ctrl.get_stagematrix() #nm
         h['pixelsize'] = self.image_scale * 1000 # um -> nm
-        h['px_center'] = px_center
         write_tiff(filepath, stitched, header=h)
         self.ctrl.stage.xy = current_pos
         self.lb_coll1.config(text=f'Montage completed. Saved dir: {filepath.parent}')

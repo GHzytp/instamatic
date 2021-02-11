@@ -15,6 +15,7 @@ all_modules = (
     'machine_learning',
     'ctrl',
     'cryo',
+    'calibration',
     'console',
     'debug',
     'about',

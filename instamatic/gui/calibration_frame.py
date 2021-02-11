@@ -995,7 +995,7 @@ class CalibrationFrame(LabelFrame):
             outfile = self.stage_calib_path / 'calib_stage_center'
 
             x_cent, y_cent = stage_cent = np.array(self.ctrl.stage.xy)
-            self.ctrl.stage.set_xy_with_backlash_correction(*stage_cent, step=5000)
+            self.backlash_correction(stage_cent)
             img_cent, h_cent = self.ctrl.get_image(exposure=exposure, out=outfile, comment='Object in center of image')
 
             magnification = self.ctrl.magnification.get()
@@ -1021,7 +1021,7 @@ class CalibrationFrame(LabelFrame):
             i = 0
             with tqdm(total=100, ncols=60, bar_format='{l_bar}{bar}') as pbar:
                 for dx, dy in np.stack([x_grid, y_grid]).reshape(2, -1).T:
-                    self.ctrl.stage.set_xy_with_backlash_correction(x=x_cent+dx, y=y_cent+dy, step=5000)
+                    self.backlash_correction((x_cent+dx, y_cent+dy))
                     self.lb_coll1.config(text=str(pbar))
                     outfile = self.stage_calib_path / f'calib_beamshift_{i:04d}'
 
@@ -1041,7 +1041,7 @@ class CalibrationFrame(LabelFrame):
             self.ctrl.stage.xy = stage_cent # reset beam to center
 
             shifts = np.array(shifts) * self.binsize / scale
-            stagepos = (np.array(stagepos) - np.array(stage_cent)) / pixelsize # transform from nm to pixel, coordinate: up and right bigger, different from image coordinate (down and right bigger)
+            stagepos = (np.array(stagepos) - stage_cent) / pixelsize # transform from nm to pixel, coordinate: up and right bigger, different from image coordinate (down and right bigger)
 
             fit_result = fit_affine_transformation(shifts, stagepos, rotation=True, scaling=True, translation=False)
             r = fit_result.r
@@ -1071,6 +1071,12 @@ class CalibrationFrame(LabelFrame):
             self.click = 0
             raise e
 
+    def backlash_correction(self, stage_cent):
+        if self.var_step_size.get() < 1000:
+            self.ctrl.stage.set_xy_with_backlash_correction(*stage_cent, step=7500, settle_delay=0.64)
+        else:
+            self.ctrl.stage.set_xy_with_backlash_correction(*stage_cent, step=10000, settle_delay=0.64)
+
     def start_stage_calib(self):
         try:
             if self.click == 0:
@@ -1082,6 +1088,9 @@ class CalibrationFrame(LabelFrame):
                     self.stage_calib_path = self.calib_path / 'StageCalib'
                 self.stage_calib_path.mkdir(parents=True, exist_ok=True)
                 self.disable_widgets([self.StageCalibButton])
+                stage_cent = self.ctrl.stage.xy
+                t = threading.Thread(target=self.backlash_correction, args=(stage_cent,), daemon=True)
+                t.start()
                 self.click = 1
             elif self.click == 1:
                 self.ax.cla()
@@ -1106,7 +1115,7 @@ class CalibrationFrame(LabelFrame):
             raise e
 
 
-module = BaseModule(name='Calibration', display_name='Calib', tk_frame=CalibrationFrame, location='bottom')
+module = BaseModule(name='calibration', display_name='Calib', tk_frame=CalibrationFrame, location='bottom')
 commands = {}
 
 def run(ctrl, trigger, q):

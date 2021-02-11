@@ -234,7 +234,7 @@ class Stage:
         wait = True
         self.set(x=x-step, y=y-step, wait=wait)
         if settle_delay:
-            time.sleep(settle_delay)
+            time.sleep(0.05)
 
         self.set(x=x, y=y, wait=wait)
         if settle_delay:

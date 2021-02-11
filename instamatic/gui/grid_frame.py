@@ -113,11 +113,7 @@ class GridFrame(Toplevel):
     def get_selected_positions(self):
         self.wait_window(self)
         if self.map_info is not None:
-            if self.map_info['is_montage']:
-                pixel_center = np.array(self.map_info['px_center'])
-            else:
-                pixel_center = np.array(self.map_info['ImageResolution'])/2
-                
+            pixel_center = np.array(self.map_info['ImageResolution'])/2
             stage_pos = self.point_list[['pos_x', 'pos_y']].to_numpy()
             stage_pos -= pixel_center
             stage_matrix = np.array(self.map_info['stage_matrix']).reshape((2, 2))
