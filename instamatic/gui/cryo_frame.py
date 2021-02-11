@@ -501,12 +501,14 @@ class CryoEDFrame(LabelFrame):
             raise RuntimeError('Please select grid, square and target level.')
 
         self.tv_target.delete(existing_targets[selected_target])
+        existing_targets = self.tv_target.get_children()
         self.df_target = self.df_target[(self.df_target['grid']!=selected_grid) | 
                                         (self.df_target['square']!=selected_square) |
                                          self.df_target['target']!=selected_target].reset_index().drop(['index'], axis=1)
         num = 0
         for index, _ in self.df_target[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square)].iterrows():
             self.df_target.loc[index, 'target'] = num
+            self.tv_target.set(existing_targets[index], 0, value=num)
             num += 1
         print(self.df_target)
 
@@ -520,6 +522,7 @@ class CryoEDFrame(LabelFrame):
 
         self.tv_target.delete(*self.tv_target.get_children())
         self.tv_grid_square.delete(existing_square[selected_square])
+        existing_square = self.tv_grid_square.get_children()
         self.df_square_org_index = self.df_square[(self.df_square['grid']==selected_grid) & (self.df_square['square']!=selected_square)]
         self.df_square = self.df_square[(self.df_square['grid']!=selected_grid) | (self.df_square['square']!=selected_square)].reset_index().drop(['index'], axis=1)
         self.df_target = self.df_target[(self.df_target['grid']!=selected_grid) | (self.df_target['square']!=selected_square)].reset_index().drop(['index'], axis=1)
@@ -527,11 +530,13 @@ class CryoEDFrame(LabelFrame):
         num = 0
         for index, _ in self.df_square[self.df_square['grid']==selected_grid].iterrows():
             self.df_square.loc[index, 'square'] = num
+            self.tv_grid_square.set(existing_square[index], 0, value=num)
             num+=1
 
         num = 0
         for index, _ in self.df_square_org_index.iterrows():
             self.df_target.loc[self.df_target['square']==index, 'square'] = num
+            self.tv_grid_square.set(existing_grid[index], 0, value=num)
             num+=1
         print(self.df_square)
 
@@ -545,6 +550,7 @@ class CryoEDFrame(LabelFrame):
         self.tv_grid_square.delete(*self.tv_grid_square.get_children())
         self.tv_target.delete(*self.tv_target.get_children())
         self.tv_whole_grid.delete(existing_grid[selected_grid])
+        existing_grid = self.tv_whole_grid.get_children()
         self.df_grid_org_index = self.df_grid[(self.df_grid['grid']!=selected_grid)]
         self.df_grid = self.df_grid[(self.df_grid['grid']!=selected_grid)].reset_index().drop(['index'], axis=1)
         self.df_square = self.df_square[(self.df_square['grid']!=selected_grid)].reset_index().drop(['index'], axis=1)
@@ -553,8 +559,9 @@ class CryoEDFrame(LabelFrame):
         num = 0
         for index, _ in self.df_grid.iterrows():
             self.df_grid.loc[index, 'grid'] = num
+            self.tv_whole_grid.set(existing_grid[index], 0, value=num)
             num += 1
-        
+
         num = 0
         for index, _ in self.df_grid_org_index.iterrows():
             self.df_square.loc[self.df_square['grid']==index, 'grid'] = num
