@@ -107,7 +107,7 @@ class AppLoader:
                 if location in panels:
                     nb = panels[location]
                 else:
-                    nb = Notebook(master, padding=10)
+                    nb = Notebook(master, padding=5)
                     nb.pack(side=location, fill='both', expand='yes')
                     panels[location] = nb
 
@@ -120,7 +120,7 @@ class AppLoader:
                     parent = master
 
                 module_frame = module.initialize(parent)
-                module_frame.pack(side=location, fill='both', expand='yes', padx=10, pady=10)
+                module_frame.pack(side=location, fill='both', expand='yes', padx=5, pady=5)
                 self.modules[module.name] = module_frame
 
     def get_module(self, module):
@@ -136,6 +136,7 @@ class MainFrame:
 
     Modules are loaded as defined through the `modules` variable.
     """
+    frames = {} # class instance container for CryoEDFrame and GridFrame
 
     def __init__(self, root, cam, modules: list = []):
         # the stream window is a special case, because it needs access

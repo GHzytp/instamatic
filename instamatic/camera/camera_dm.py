@@ -24,7 +24,7 @@ class CameraDM:
 
     def __init__(self, name, frametime=config.settings.default_frame_time, numImg=1):
 
-        if name not in ('DMK2', 'DMfaux', 'DMorius200D', 'DMorius1000', 'DMoneview', 'DMUS1000'):
+        if name not in ('DMK2', 'DMfaux', 'DMorius200D', 'DMorius1000', 'DMoneview', 'DMUS1000', 'DMorius600'):
             raise InvalidNameError(f"Please input a valid camera name!")
 
         libdrc = Path(__file__).parent

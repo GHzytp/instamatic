@@ -16,11 +16,12 @@ from instamatic import TEMController
 from instamatic.formats import write_tiff
 from instamatic.utils import suppress_stderr
 from instamatic.gui.grid_frame import GridFrame
+from instamatic.gui.grid_window import GridWindow
 from instamatic.utils.widgets import MultiListbox, Hoverbox
 
 from pyserialem.navigation import sort_nav_items_by_shortest_path
 
-class CryoED(LabelFrame):
+class CryoEDFrame(LabelFrame):
     """GUI panel for Cryo electron diffraction data collection protocol."""
 
     def __init__(self, parent):
@@ -293,13 +294,12 @@ class CryoED(LabelFrame):
         stitched = m.stitch()
         h = {}
         h['is_montage'] = True
-        h['center_pos'] = stage_center
+        h['center_pos'] = current_pos
         h['mode'] = self.state
         h['magnification'] = self.mag
         h['ImageResolution'] = stitched.shape
         h['stage_matrix'] = self.ctrl.get_stagematrix() #nm
         h['pixelsize'] = self.image_scale * 1000 # um -> nm
-        h['px_center'] = px_center
         write_tiff(filepath, stitched, header=h)
         self.ctrl.stage.xy = current_pos
         self.lb_coll1.config(text=f'Montage completed. Saved dir: {filepath.parent}')
@@ -321,7 +321,7 @@ class CryoED(LabelFrame):
 
     def get_pos(self):
         level = self.var_level.get()
-        self.position_list, path = GridFrame(self).get_selected_positions()
+        self.position_list, path = GridWindow(self).get_selected_positions()
 
         if self.position_list is not None:
             z = self.ctrl.stage.z
@@ -585,10 +585,10 @@ class CryoED(LabelFrame):
                 self.df_target = pd.read_csv(file)
                              
 
-module = BaseModule(name='cryo', display_name='CryoED', tk_frame=CryoED, location='left')
+module = BaseModule(name='cryo', display_name='CryoED', tk_frame=CryoEDFrame, location='left')
 commands = {}
 
 if __name__ == '__main__':
     root = Tk()
-    CryoED(root).pack(side='top', fill='both', expand=True)
+    CryoEDFrame(root).pack(side='top', fill='both', expand=True)
     root.mainloop()
