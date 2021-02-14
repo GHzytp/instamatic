@@ -8,8 +8,8 @@ from skimage import morphology
 from collections import namedtuple
 from collections import OrderedDict
 
-from .stretch_correction import affine_transform_ellipse_to_circle, apply_transform_to_image
-from .tools import find_beam_center
+from instamatic.processing.stretch_correction import affine_transform_ellipse_to_circle, apply_transform_to_image
+from instamatic.tools import find_beam_center
 from .get_score_cy import get_score, get_score_mod, get_score_shape, get_score_shape_lst
 from .projector import Projector
 
@@ -428,7 +428,7 @@ class Indexer(object):
                                   scale=round(scale, 4),
                                   phase=phase) for (score, n, gamma) in heap]
 
-        return np.array(results, dtype=IndexingResultDType)
+        return results
     
     def plot_all(self, img, results, **kwargs):
         """
@@ -594,7 +594,7 @@ class Indexer(object):
                                  scale=scale,
                                  phase=result.phase)
         
-        return np.array(refined, dtype=IndexingResultDType).view(np.recarray)
+        return refined
 
     def probability_distribution(self, img, result, projector=None, verbose=True, vary_center=False, vary_scale=True):
         """https://lmfit.github.io/lmfit-py/fitting.html#lmfit.minimizer.Minimizer.emcee

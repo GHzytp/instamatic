@@ -119,6 +119,11 @@ class ImgConversion:
                  rotation_axis: float,           # radians, specifies the position of the rotation axis
                  acquisition_time: float,        # seconds, acquisition time (exposure time + overhead)
                  flatfield: str = 'flatfield.tiff',
+                 pixelsize: float,               # px / Angstrom
+                 physical_pixelsize: float,      # mm
+                 wavelength: float,              # angstrom
+                 stretch_amplitude: float = 0,
+                 stretch_azimuth: float = 0,
                  ):
         if flatfield is not None:
             flatfield, h = read_tiff(flatfield)
@@ -146,19 +151,14 @@ class ImgConversion:
         self.missing_range = self.observed_range ^ self.complete_range
 
         self.data_shape = img.shape
-        try:
-            self.pixelsize = config.calibration['diff']['pixelsize'][camera_length]  # px / Angstrom
-        except KeyError:
-            self.pixelsize = 1
-            print(f'No calibrated pixelsize for camera length={camera_length}. Setting pixelsize to 1.')
-            logger.warning(f'No calibrated pixelsize for camera length={camera_length}. Setting pixelsize to 1.')
+        self.pixelsize = pixelsize 
 
-        self.physical_pixelsize = config.camera.physical_pixelsize  # mm
-        self.wavelength = config.microscope.wavelength  # angstrom
+        self.physical_pixelsize = physical_pixelsize  
+        self.wavelength = wavelength  
         # NOTE: Stretch correction - not sure if the azimuth and amplitude are correct anymore.
         self.do_stretch_correction = True
-        self.stretch_azimuth = config.camera.stretch_azimuth
-        self.stretch_amplitude = config.camera.stretch_amplitude
+        self.stretch_azimuth = stretch_azimuth
+        self.stretch_amplitude = stretch_amplitude
 
         self.distance = (1 / self.wavelength) * (self.physical_pixelsize / self.pixelsize)
         self.osc_angle = osc_angle

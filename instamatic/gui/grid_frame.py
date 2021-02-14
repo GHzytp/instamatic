@@ -10,15 +10,12 @@ from tkinter.ttk import *
 import numpy as np
 import pandas as pd
 
-from PIL import Image
-from PIL import ImageEnhance
-from PIL import ImageTk
+from PIL import Image, ImageEnhance, ImageTk
 
 from .base_module import BaseModule
 from .modules import MODULES
 from instamatic import config
-from instamatic.formats import read_tiff
-from instamatic.formats import write_tiff
+from instamatic.formats import read_tiff, write_tiff
 from instamatic.utils.widgets import Hoverbox, Spinbox
 
 class GridFrame(LabelFrame):

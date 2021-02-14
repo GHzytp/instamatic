@@ -160,8 +160,8 @@ class Experiment:
                 self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize * software_binsize
 
         self.wavelength = config.microscope.wavelength  # angstrom
-        self.stretch_azimuth = config.camera.stretch_azimuth
-        self.stretch_amplitude = config.camera.stretch_amplitude
+        self.stretch_azimuth = config.calibration.stretch_azimuth
+        self.stretch_amplitude = config.calibration.stretch_amplitude
 
         with open(self.path / 'summary.txt', 'a') as f:
             print(f'Rotation range: {self.end_angle-self.start_angle:.2f} degrees', file=f)
