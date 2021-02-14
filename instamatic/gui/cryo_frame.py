@@ -57,11 +57,11 @@ class CryoEDFrame(LabelFrame):
         self.e_radius.grid(row=0, column=6, sticky='EW', padx=5)
         
         self.CollectMapButton = Button(frame, text='Collect Montage or Image', width=11, command=self.collect_map, state=NORMAL)
-        self.CollectMapButton.grid(row=1, column=0, columnspan=2, sticky='EW')
+        self.CollectMapButton.grid(row=1, column=1, columnspan=2, sticky='EW')
         self.OpenMapButton = Button(frame, text='Get Stage Positions', width=11, command=self.get_pos, state=NORMAL)
-        self.OpenMapButton.grid(row=1, column=2, columnspan=2, sticky='EW', padx=5)
+        self.OpenMapButton.grid(row=1, column=3, columnspan=2, sticky='EW', padx=5)
         self.RetakeImgButton = Button(frame, text='Retake Image', width=11, command=self.retake_image, state=NORMAL)
-        self.RetakeImgButton.grid(row=1, column=4, columnspan=2, sticky='EW')
+        self.RetakeImgButton.grid(row=1, column=5, columnspan=2, sticky='EW')
 
         self.lb_coll1 = Label(frame, text='')
         self.lb_coll1.grid(row=3, column=0, columnspan=7, sticky='EW', pady=5)

@@ -3,7 +3,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 from tkinter import *
 from tkinter.ttk import *
 
@@ -305,7 +305,11 @@ class GridFrame(LabelFrame):
         level = self.cryo_frame.var_level.get()
         if stage_pos_df is not None:
             z = self.cryo_frame.ctrl.stage.z
+            name = self.map_path.name
             if level == 'Whole':
+                if name.split('_')[0] != 'grid':
+                    messagebox.showerror(title='Error', message='Please use grid level image!')
+                    return
                 last_num_grid = len(self.cryo_frame.df_grid)
                 self.cryo_frame.df_grid = self.cryo_frame.df_grid.append(stage_pos_df, ignore_index=True)
                 for index in range(len(stage_pos_df)):
@@ -322,6 +326,10 @@ class GridFrame(LabelFrame):
                         grid_num = self.cryo_frame.tv_whole_grid.get_children().index(self.cryo_frame.tv_whole_grid.selection()[0])
                     except IndexError: 
                         raise RuntimeError('Please select a grid position before get positions in square level')
+
+                    if name.split('_')[0] != 'square':
+                        messagebox.showerror(title='Error', message='Please use square level image!')
+                        return
 
                     last_num_square = len(self.cryo_frame.df_square)
                     existing_num_square = len(self.cryo_frame.df_square[self.cryo_frame.df_square['grid'] == grid_num])
@@ -345,6 +353,9 @@ class GridFrame(LabelFrame):
                     except IndexError:
                         raise RuntimeError('Please select a grid and square before get positions in target level')
 
+                    if name.split('_')[0] != 'target':
+                        messagebox.showerror(title='Error', message='Please use target level image!')
+                        return
                     last_num_target = len(self.cryo_frame.df_target)
                     existing_num_targets = len(self.cryo_frame.df_target[(self.cryo_frame.df_target['grid'] == grid_num) & (self.cryo_frame.df_target['square'] == square_num)])
                     self.cryo_frame.df_target = self.cryo_frame.df_target.append(stage_pos_df, ignore_index=True)

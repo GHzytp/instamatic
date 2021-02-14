@@ -16,6 +16,37 @@ readme_path = os.path.join(here, 'readme.rst')
 if os.path.exists(readme_path):
     with open(readme_path, 'rb') as stream:
         readme = stream.read().decode('utf8')
+        
+from setuptools import setup, find_packages, Extension
+from os import path
+import sys
+from Cython.Build import cythonize
+import numpy as np
+
+if sys.platform == "win32":
+    extensions = [
+        Extension('instamatic.utils.radialprofile', ['instamatic/utils/acc/radialprofile_cy.pyx'], include_dirs=[np.get_include()]),
+        Extension('instamatic.utils.get_score_cy', ['instamatic/utils/acc/get_score_cy.pyx'], include_dirs=[np.get_include()]),
+        Extension('instamatic.formats.ext.cf_io', ['instamatic/formats/ext/cf_io.pyx', 'instamatic/formats/ext/src/columnfile.c'], include_dirs=['instamatic/formats/ext/include', np.get_include()]),
+        Extension('instamatic.formats.ext.byte_offset', ['instamatic/formats/ext/byte_offset.pyx',], include_dirs=[np.get_include()]),
+        Extension('instamatic.formats.ext.mar345_IO', ['instamatic/formats/ext/mar345_IO.pyx', 'instamatic/formats/ext/src/ccp4_pack.c'], include_dirs=['instamatic/formats/ext/include', np.get_include()]),
+        Extension('instamatic.formats.ext._cif', ['instamatic/formats/ext/_cif.pyx',]),
+        Extension('instamatic.formats.ext._agi_bitfield', ['instamatic/formats/ext/_agi_bitfield.pyx',]),
+        Extension('instamatic.formats.ext.dense', ['instamatic/formats/ext/dense.pyx',], include_dirs=[np.get_include()]),
+        ]
+else:
+    extensions = [
+        Extension('instamatic.utils.radialprofile', ['instamatic/utils/acc/radialprofile_cy.pyx'], include_dirs=[np.get_include()]),
+        Extension('instamatic.utils.get_score_cy', ['instamatic/utils/acc/get_score_cy.pyx'], include_dirs=[np.get_include()]),
+        Extension('instamatic.formats.ext.cf_io', ['instamatic/formats/ext/cf_io.pyx', 'instamatic/formats/ext/src/columnfile.c'], include_dirs=['instamatic/formats/ext/include', np.get_include()]),
+        Extension('instamatic.formats.ext.byte_offset', ['instamatic/formats/ext/byte_offset.pyx',], include_dirs=[np.get_include()]),
+        Extension('instamatic.formats.ext.mar345_IO', ['instamatic/formats/ext/mar345_IO.pyx', 'instamatic/formats/ext/src/ccp4_pack.c'], include_dirs=['instamatic/formats/ext/include', np.get_include()]),
+        Extension('instamatic.formats.ext._cif', ['instamatic/formats/ext/_cif.pyx',]),
+        Extension('instamatic.formats.ext._agi_bitfield', ['instamatic/formats/ext/_agi_bitfield.pyx',]),
+        Extension('instamatic.formats.ext.dense', ['instamatic/formats/ext/dense.pyx',], include_dirs=[np.get_include()]),
+    ]
+    
+ext_modules = cythonize(extensions)
 
 
 setup(
@@ -32,6 +63,7 @@ setup(
     author_email='s.smeets@tudelft.nl',
     license='GPL-3.0-only',
     keywords='electron-crystallography electron-microscopy electron-diffraction serial-crystallography 3D-electron-diffraction micro-ed data-collection automation',
+    ext_modules = ext_modules,
     classifiers=[
             'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7',
@@ -108,9 +140,11 @@ setup(
             'camera/*.yaml',
             'microscope/*.yaml',
             'scripts/*.md'],
-        'instamatic.neural_network': ['*.p']},
+        'instamatic.neural_network': ['*.p'],
+        "instamatic.utils.orientations": ["*"]},
     install_requires=[
         'comtypes>=1.1.7',
+        'Cython>=0.29.21',
         'h5py>=2.10.0',
         'ipython>=7.11.1',
         'lmfit>=1.0.0',
