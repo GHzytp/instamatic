@@ -8,8 +8,6 @@ from skimage import morphology
 from collections import namedtuple
 from collections import OrderedDict
 
-from instamatic.processing.stretch_correction import affine_transform_ellipse_to_circle, apply_transform_to_image
-from instamatic.tools import find_beam_center
 from .get_score_cy import get_score, get_score_mod, get_score_shape, get_score_shape_lst
 from .projector import Projector
 

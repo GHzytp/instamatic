@@ -16,6 +16,9 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from .base_module import BaseModule
 from instamatic import config
 from instamatic import TEMController
+from instamatic.processing import apply_stretch_correction
+from instamatic.tools import find_beam_center, find_beam_center_with_beamstop
+from instamatic.utils.peakfinders2d import subtract_background_median
 from instamatic.utils.indexer import Indexer
 from instamatic.utils.projector import Projector
 from instamatic.formats import read_tiff
@@ -30,6 +33,10 @@ class IndexFrame(LabelFrame):
         self.parent = parent
         #self.ctrl = TEMController.get_instance()
         self.wavelength = config.microscope.wavelength
+        self.img = None
+        self.img_center = None
+        self.background_removed_img = None
+        self.use_beamstop = False
 
         self.init_vars()
 
@@ -38,23 +45,35 @@ class IndexFrame(LabelFrame):
         Label(frame, text='Exposure(s)').grid(row=1, column=0, sticky='W')
         self.e_exposure = Spinbox(frame, textvariable=self.var_exposure_time, width=8, from_=0.0, to=100.0, increment=0.01)
         self.e_exposure.grid(row=1, column=1, sticky='W', padx=5)
-        self.AcquireButton = Button(frame, text='Acquire', width=12, command=lambda:self.start_thread(self.acquire_image))
+        self.AcquireButton = Button(frame, text='Acquire', width=10, command=lambda:self.start_thread(self.acquire_image))
         self.AcquireButton.grid(row=1, column=2, sticky='EW')
-        self.OpenButton = Button(frame, text='Open', width=12, command=self.open_image)
+        self.OpenButton = Button(frame, text='Open', width=10, command=self.open_image)
         self.OpenButton.grid(row=1, column=3, sticky='EW', padx=5)
-        self.ProjectButton = Button(frame, text='Project', width=12, command=lambda:self.start_thread(self.project))
+        self.ProjectButton = Button(frame, text='Project', width=10, command=lambda:self.start_thread(self.project))
         self.ProjectButton.grid(row=1, column=4, sticky='EW')
-        self.IndexButton = Button(frame, text='Index', width=12, command=lambda:self.start_thread(self.index))
+        self.IndexButton = Button(frame, text='Index', width=10, command=lambda:self.start_thread(self.index))
         self.IndexButton.grid(row=1, column=5, sticky='EW', padx=5)
 
-        Label(frame, text='Amplitude').grid(row=2, column=0, sticky='W')
         self.e_amplitude = Spinbox(frame, textvariable=self.var_amplitude, width=8, from_=0.0, to=100.0, increment=0.01)
-        self.e_amplitude.grid(row=2, column=1, sticky='W', padx=5)
-        Label(frame, text='Azimuth').grid(row=1, column=2, sticky='W')
+        self.e_amplitude.grid(row=2, column=0, sticky='EW')
+        Hoverbox(self.e_amplitude, 'Stretch amplitude')
         self.e_azimuth = Spinbox(frame, textvariable=self.var_azimuth, width=8, from_=-180.0, to=180.0, increment=0.01)
-        self.e_azimuth.grid(row=2, column=3, sticky='W', padx=5)
-        self.StretchButton = Button(frame, text='Stretch', width=12, command=self.apply_stretch)
-        self.StretchButton.grid(row=1, column=4, sticky='EW', padx=5)
+        self.e_azimuth.grid(row=2, column=1, sticky='EW', padx=5)
+        Hoverbox(self.e_azimuth, 'Stretch azimuth')
+        Checkbutton(frame, text='Stretch', variable=self.var_apply_stretch, command=self.apply_stretch).grid(row=2, column=2, sticky='W')
+        self.e_min_sigma = Spinbox(frame, textvariable=self.var_min_sigma, width=7, from_=0.0, to=10.0, increment=0.5)
+        self.e_min_sigma.grid(row=2, column=3, sticky='EW', padx=5)
+        Hoverbox(self.e_min_sigma, 'Minimal sigma for peak hunting')
+        self.e_max_sigma = Spinbox(frame, textvariable=self.var_max_sigma, width=7, from_=0.0, to=20.0, increment=0.5)
+        self.e_max_sigma.grid(row=2, column=4, sticky='EW')
+        Hoverbox(self.e_max_sigma, 'Maximum sigma for peak hunting')
+        self.e_threshold = Spinbox(frame, textvariable=self.var_threshold, width=7, from_=0.0, to=10.0, increment=0.1)
+        self.e_threshold.grid(row=2, column=5, sticky='EW', padx=5)
+        Hoverbox(self.e_threshold, 'Threshold level for peak hunting')
+        self.e_min_size = Spinbox(frame, textvariable=self.var_min_size, width=7, from_=3, to=1000, increment=1)
+        self.e_min_size.grid(row=2, column=6, sticky='EW')
+        Hoverbox(self.e_min_size, 'Minimum pixels for each found peaks')
+        Checkbutton(frame, text='Find Peaks', variable=self.var_find_peaks, command=self.find_peaks).grid(row=2, column=7, sticky='EW', padx=5)
 
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
 
@@ -113,11 +132,13 @@ class IndexFrame(LabelFrame):
         Checkbutton(frame, text='Show Center', variable=self.var_show_center, command=self.show_center).grid(row=1, column=1, sticky='W')
         self.e_sigma = Entry(frame, textvariable=self.var_sigma, width=5, justify='center', state=NORMAL)
         self.e_sigma.grid(row=1, column=2, sticky='EW', padx=5)
+        Hoverbox(self.e_sigma, 'Sigma for find center without beam stop or percentile to segment with beam stop')
         Checkbutton(frame, text='Remove BKGD', variable=self.var_remove_background, command=self.remove_background).grid(row=1, column=3, sticky='W')
         self.e_bkgd = Entry(frame, textvariable=self.var_bkgd_level, width=5, justify='center', state=NORMAL)
         self.e_bkgd.grid(row=1, column=4, sticky='EW', padx=5)
+        Hoverbox(self.e_bkgd, 'Background footprint to determine the background level')
         Checkbutton(frame, text='Show Index', variable=self.var_show_index, command=self.show_index).grid(row=1, column=5, sticky='W')
-        
+        Hoverbox(self.e_max_sigma, 'Maximum sigma for peak hunting')
         Label(frame, text='Vmax').grid(row=1, column=6, sticky='EW')
         self.e_vmax = Entry(frame, textvariable=self.var_vmax, width=5, justify='center', state=NORMAL)
         self.e_vmax.grid(row=1, column=7, sticky='EW')
@@ -163,8 +184,15 @@ class IndexFrame(LabelFrame):
         self.var_bkgd_level = DoubleVar(value=20.0)
         self.var_remove_background = BooleanVar(value=False)
         self.var_vmax = DoubleVar(value=500.0)
+        self.var_apply_stretch = BooleanVar(value=False)
         self.var_azimuth = DoubleVar(value=config.calibration.stretch_azimuth)
         self.var_amplitude = DoubleVar(value=config.calibration.stretch_amplitude)
+        self.var_min_sigma = DoubleVar(value=4.0)
+        self.var_max_sigma = DoubleVar(value=5.0)
+        self.var_threshold = DoubleVar(value=1.0)
+        self.var_min_size = IntVar(value=20)
+        self.var_find_peaks = BooleanVar(value=False)
+
 
     def validate(self, action, index, value_if_allowed, prior_value, text, validation_type, trigger_type, widget_name):
         if value_if_allowed:
@@ -184,13 +212,23 @@ class IndexFrame(LabelFrame):
         arr, h = self.ctrl.get_image(exposure=self.var_exposure_time.get())
 
     def open_image(self):
-        self.img_path = filedialog.askopenfilename(initialdir=config.locations['work'], title='Select an image', 
+        img_path = filedialog.askopenfilename(initialdir=config.locations['work'], title='Select an image', 
                             filetypes=(('tiff files', '*.tiff'), ('tif files', '*.tif'), ('all files', '*.*')))
+        if img_path != '':
+            self.img, _ = read_tiff(img_path)
 
     def show_center(self):
-        pass
+        if self.use_beamstop:
+            self.center = find_beam_center_with_beamstop(self.img, z=self.var_sigma.get())
+        else:
+            self.center = find_beam_center(self.img, sigma=self.var_sigma.get())
+        
 
     def remove_background(self):
+        if self.img is not None:
+            self.background_removed_img = subtract_background_median(self.img, footprint=self.var_bkgd_level.get())
+
+    def find_peaks(self):
         pass
 
     def show_index(self):
@@ -204,6 +242,10 @@ class IndexFrame(LabelFrame):
 
     def index(self):
         pass
+
+    def apply_stretch(self):
+        if self.img and self.center is not None:
+            self.stretched_img = apply_stretch_correction(self.img, center=self.center, azimuth=self.var_azimuth.get(), amplitude=self.var_amplitude.get())
 
 module = BaseModule(name='indexing', display_name='Indexing', tk_frame=IndexFrame, location='left')
 commands = {}

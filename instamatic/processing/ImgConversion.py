@@ -118,10 +118,10 @@ class ImgConversion:
                  end_angle: float,               # degrees, end angle of the rotation
                  rotation_axis: float,           # radians, specifies the position of the rotation axis
                  acquisition_time: float,        # seconds, acquisition time (exposure time + overhead)
-                 flatfield: str = 'flatfield.tiff',
                  pixelsize: float,               # px / Angstrom
                  physical_pixelsize: float,      # mm
                  wavelength: float,              # angstrom
+                 flatfield: str = 'flatfield.tiff',
                  stretch_amplitude: float = 0,
                  stretch_azimuth: float = 0,
                  ):
