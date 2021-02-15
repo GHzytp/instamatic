@@ -2,9 +2,10 @@
 # https://gist.github.com/novel-yet-trivial/49fa18828cddca44a2befae84cfd67ad
 
 from itertools import cycle
-from tkinter.ttk import Entry, Treeview
 import tkinter as tk
 import tkinter.font as tkFont
+from tkinter import *
+from tkinter.ttk import *
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -170,7 +171,7 @@ class ShowMatplotlibFig(tk.Toplevel):
     """Simple class to load a matplotlib figure in a new top level panel."""
 
     def __init__(self, parent, fig, title='figure'):
-        Toplevel.__init__(self, parent)
+        tk.Toplevel.__init__(self, parent)
         self.grab_set()
         self.title(title)
         button = Button(self, text='Dismiss', command=self.close)
@@ -192,9 +193,10 @@ class ShowMatplotlibFig(tk.Toplevel):
 
 class popupWindow(tk.Toplevel):
     def __init__(self, parent, title, text):
-        Toplevel.__init__(self, parent)
+        tk.Toplevel.__init__(self, parent)
         self.grab_set()
         self.title(title)
+        self.value = None
 
         self.l = Label(self, text=text)
         self.l.pack()
@@ -206,8 +208,9 @@ class popupWindow(tk.Toplevel):
         self.focus_set()
 
     def close(self):
+        self.value = self.e.get()
         self.destroy()
 
     def get_value(self):
         self.wait_window(self)
-        return self.e.get()
+        return self.value

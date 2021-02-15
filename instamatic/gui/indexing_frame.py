@@ -45,14 +45,17 @@ class IndexFrame(LabelFrame):
         self.refined_orientation = None
         self.hkl_list_on_canvas = []
         self.spots_on_canvas = None
+        self.counter = 0
 
         self.init_vars()
 
         frame = Frame(self)
 
-        Label(frame, text='Exposure(s)').grid(row=1, column=0, sticky='W')
+        self.RefineButton = Button(frame, text='Process All', width=10, command=self.process_all)
+        self.RefineButton.grid(row=1, column=0, sticky='EW')
         self.e_exposure = Spinbox(frame, textvariable=self.var_exposure_time, width=8, from_=0.0, to=100.0, increment=0.01)
         self.e_exposure.grid(row=1, column=1, sticky='W', padx=5)
+        Hoverbox(self.e_exposure, 'Exposure time for image acquisition')
         self.AcquireButton = Button(frame, text='Acquire', width=10, command=self.acquire_image)
         self.AcquireButton.grid(row=1, column=2, sticky='EW')
         self.OpenButton = Button(frame, text='Open', width=10, command=self.open_image)
@@ -206,8 +209,34 @@ class IndexFrame(LabelFrame):
         self.var_thickness = DoubleVar(value=400.0)
         self.var_show_hkl = BooleanVar(value=False)
 
+    def process_all(self):
+        if self.img is not None:
+            if self.use_beamstop:
+                center = find_beam_center_with_beamstop(self.img, z=self.var_sigma.get())
+            else:
+                center = find_beam_center(self.img, sigma=self.var_sigma.get())
+            background_removed_img = subtract_background_median(self.img, footprint=self.var_bkgd_level.get())
+            azimuth = self.var_azimuth.get()
+            amplitude = self.var_amplitude.get()
+            stretched_img = apply_stretch_correction(background_removed_img, center=center, azimuth=azimuth, amplitude=amplitude)
+            min_sigma = self.var_min_sigma.get()
+            max_sigma = self.var_max_sigma.get()
+            threshold = self.var_threshold.get()
+            min_size = self.var_min_size.get()
+            props_collection = find_peaks_regionprops(stretched_img, min_sigma=min_sigma, max_sigma=max_sigma, 
+                                    threshold=threshold, min_size=min_size, return_props=True)
+            self.img_find_peaks = im_reconstruct(props_collection, stretched_img.shape)
+            self.img_on_canvas.set_array(self.img_find_peaks)
+
+            if self.indexer is not None:
+                self.orientation_collection = self.indexer.find_orientation(self.img_find_peaks, center)
+                self.refined_orientation = self.indexer.refine_all(self.img_find_peaks, self.orientation_collection)
+                print('Refinement of indexing finished.')
+            self.canvas.draw()
+
     def acquire_image(self):
         self.ax.cla()
+        self.counter = 0
         self.img, self.img_header = self.ctrl.get_image(exposure=self.var_exposure_time.get())
         self.img_on_canvas = self.ax.imshow(self.img)
         self.ax.set_xlim(0, self.img.shape[0]-1)
@@ -219,6 +248,7 @@ class IndexFrame(LabelFrame):
         img_path = filedialog.askopenfilename(initialdir=config.locations['work'], title='Select an image', 
                             filetypes=(('hdf5 files', '*.h5'), ('tiff files', '*.tiff'), ('tif files', '*.tif'), ('all files', '*.*')))
         if img_path != '':
+            self.counter = 0
             img_path = Path(img_path)
             suffix = img_path.suffix
             if suffix in ('.tif', '.tiff'):
@@ -332,12 +362,16 @@ class IndexFrame(LabelFrame):
         self.projector = Projector.from_parameters(params=unit_cell, spgr=space_group, name=name, dmin=dmin, dmax=dmax, thickness=thickness)
         try:
             self.pixelsize = self.img_header['ImagePixelsize']
+            self.counter += 1
         except KeyError:
             self.pixelsize = popupWindow(self, 'Input pixel size', 'Pixel Size (Å-1/pixel)').get_value()
-            try:
-                self.pixelsize = float(self.pixelsize)
-            except ValueError:
-                raise ValueError('Please input a number in the pop up window')
+
+        if self.counter > 2:
+            self.pixelsize = popupWindow(self, 'Input pixel size', 'Pixel Size (Å-1/pixel)').get_value()
+        try:
+            self.pixelsize = float(self.pixelsize)
+        except ValueError:
+            raise ValueError(f'{self.pixelsize} is not a number. Please input a number in the pop up window')
 
         self.indexer = Indexer.from_projector(self.projector, pixelsize=self.pixelsize)
 
@@ -369,7 +403,7 @@ class IndexFrame(LabelFrame):
                 if self.background_removed_img is not None and self.center is not None:
                     self.stretched_img = apply_stretch_correction(self.background_removed_img, center=self.center, azimuth=azimuth, amplitude=amplitude)
             else:
-                if self.img and self.center is not None:
+                if self.img is not None and self.center is not None:
                     self.stretched_img = apply_stretch_correction(self.img, center=self.center, azimuth=azimuth, amplitude=amplitude)
             self.img_on_canvas.set_array(self.stretched_img)
         else:
