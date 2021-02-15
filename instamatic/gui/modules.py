@@ -17,6 +17,7 @@ all_modules = (
     'cryo',
     'grid',
     'calibration',
+    'indexing',
     'console',
     'debug',
     'about',

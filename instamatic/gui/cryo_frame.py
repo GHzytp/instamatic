@@ -592,7 +592,7 @@ class CryoEDFrame(LabelFrame):
                 self.df_target = pd.read_csv(file)
                              
 
-module = BaseModule(name='cryo', display_name='CryoED', tk_frame=CryoEDFrame, location='left')
+module = BaseModule(name='cryo', display_name='CryoED', tk_frame=CryoEDFrame, location='bottom')
 commands = {}
 
 if __name__ == '__main__':

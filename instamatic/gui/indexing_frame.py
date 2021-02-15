@@ -1,5 +1,6 @@
 import threading
 import time
+import pprint
 from pathlib import Path
 from datetime import datetime
 import tkinter as tk
@@ -232,12 +233,14 @@ class IndexFrame(LabelFrame):
                 self.orientation_collection = self.indexer.find_orientation(self.img_find_peaks, center)
                 self.refined_orientation = self.indexer.refine_all(self.img_find_peaks, self.orientation_collection)
                 print('Refinement of indexing finished.')
+            print('Image processing finished.')
             self.canvas.draw()
 
     def acquire_image(self):
         self.ax.cla()
         self.counter = 0
         self.img, self.img_header = self.ctrl.get_image(exposure=self.var_exposure_time.get())
+        pprint.pprint(self.img_header)
         self.img_on_canvas = self.ax.imshow(self.img)
         self.ax.set_xlim(0, self.img.shape[0]-1)
         self.ax.set_ylim(self.img.shape[1]-1, 0)
@@ -255,7 +258,7 @@ class IndexFrame(LabelFrame):
                 self.img, self.img_header = read_tiff(img_path)
             elif suffix in ('.h5'):
                 self.img, self.img_header = read_hdf5(img_path)
-                print(self.img_header)
+            pprint.pprint(self.img_header)
             self.img_on_canvas = self.ax.imshow(self.img)
             self.ax.set_xlim(0, self.img.shape[0]-1)
             self.ax.set_ylim(self.img.shape[1]-1, 0)
@@ -365,6 +368,7 @@ class IndexFrame(LabelFrame):
             self.counter += 1
         except KeyError:
             self.pixelsize = popupWindow(self, 'Input pixel size', 'Pixel Size (Å-1/pixel)').get_value()
+            self.counter = 0
 
         if self.counter > 2:
             self.pixelsize = popupWindow(self, 'Input pixel size', 'Pixel Size (Å-1/pixel)').get_value()
