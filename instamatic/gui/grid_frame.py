@@ -105,9 +105,6 @@ class GridFrame(LabelFrame):
     def init_vars(self):
         self.var_zoom = DoubleVar(value=1.0)
 
-    def get_selected_positions(self):
-        self.wait_window(self)
-        return self._generate_stage_position()
     def clear_all(self):
         self.canvas.delete('all')
         self.tv_positions.delete(*self.tv_positions.get_children())

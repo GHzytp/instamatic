@@ -20,6 +20,253 @@ sys.path.insert(0, os.path.dirname(__file__))
 ABSENT = -1
 CENTRIC = 1
 
+symops = {
+    '1': [
+        'x, y, z'
+    ],
+
+    '-1': [
+        'x, y, z',
+        '-x, -y, -z'
+    ],
+
+    '2/m:a': [
+        'x, y, z',
+        '-x, y, -z',
+        '-x, -y, -z',
+        'x, -y, z'
+    ],
+
+    '2/m:b': [
+        'x, y, z',
+        '-x, y, -z',
+        '-x, -y, -z',
+        'x, -y, z'
+    ],
+
+    '2/m:c': [
+        'x, y, z',
+        '-x, -y, z',
+        '-x, -y, -z',
+        'x, y, -z'
+    ],
+
+    'mmm': [
+        'x, y, z',
+        '-x, -y, z',
+        'x, -y, -z',
+        '-x, y, -z',
+        '-x, -y, -z',
+        'x, y, -z',
+        '-x, y, z',
+        'x, -y, z'
+    ],
+
+    '4/m': [
+        'x, y, z',
+        '-y, x, z',
+        '-x, -y, z',
+        'y, -x, z',
+        '-x, -y, -z',
+        'y, -x, -z',
+        'x, y, -z',
+        '-y, x, -z'
+    ],
+
+    '4/mmm': [
+        'x, y, z',
+        '-y, x, z',
+        '-x, -y, z',
+        'y, -x, z',
+        'x, -y, -z',
+        '-x, y, -z',
+        'y, x, -z',
+        '-y, -x, -z',
+        '-x, -y, -z',
+        'y, -x, -z',
+        'x, y, -z',
+        '-y, x, -z',
+        '-x, y, z',
+        'x, -y, z',
+        '-y, -x, z',
+        'y, x, z'
+    ],
+
+    '-3': [
+        'x, y, z',
+        '-y, x-y, z',
+        '-x+y, -x, z',
+        '-x, -y, -z',
+        'y, -x+y, -z',
+        'x-y, x, -z'
+    ],
+
+    '-3m': [
+        'x, y, z',
+        '-y, x-y, z',
+        '-x+y, -x, z',
+        'x-y, -y, -z',
+        '-x, -x+y, -z',
+        'y, x, -z',
+        '-x, -y, -z',
+        'y, -x+y, -z',
+        'x-y, x, -z',
+        '-x+y, y, z',
+        'x, x-y, z',
+        '-y, -x, z'
+    ],
+
+    '-3m1': [
+        'x, y, z',
+        '-y, x-y, z',
+        '-x+y, -x, z',
+        'x-y, -y, -z',
+        '-x, -x+y, -z',
+        'y, x, -z',
+        '-x, -y, -z',
+        'y, -x+y, -z',
+        'x-y, x, -z',
+        '-x+y, y, z',
+        'x, x-y, z',
+        '-y, -x, z'
+    ],
+
+    '-31m': [
+        'x, y, z',
+        '-y, x-y, z',
+        '-x+y, -x, z',
+        '-y, -x, -z',
+        '-x+y, y, -z',
+        'x, x-y, -z',
+        '-x, -y, -z',
+        'y, -x+y, -z',
+        'x-y, x, -z',
+        'y, x, z',
+        'x-y, -y, z',
+        '-x, -x+y, z'
+    ],
+
+    '6/m': [
+        'x, y, z',
+        'x-y, x, z',
+        '-y, x-y, z',
+        '-x, -y, z',
+        '-x+y, -x, z',
+        'y, -x+y, z',
+        '-x, -y, -z',
+        '-x+y, -x, -z',
+        'y, -x+y, -z',
+        'x, y, -z',
+        'x-y, x, -z',
+        '-y, x-y, -z'
+    ],
+
+    '6/mmm': [
+        'x, y, z',
+        'x-y, x, z',
+        '-y, x-y, z',
+        '-x, -y, z',
+        '-x+y, -x, z',
+        'y, -x+y, z',
+        'x-y, -y, -z',
+        '-x, -x+y, -z',
+        'y, x, -z',
+        '-y, -x, -z',
+        '-x+y, y, -z',
+        'x, x-y, -z',
+        '-x, -y, -z',
+        '-x+y, -x, -z',
+        'y, -x+y, -z',
+        'x, y, -z',
+        'x-y, x, -z',
+        '-y, x-y, -z',
+        '-x+y, y, z',
+        'x, x-y, z',
+        '-y, -x, z',
+        'y, x, z',
+        'x-y, -y, z',
+        '-x, -x+y, z'
+    ],
+
+    'm-3': [
+        'x, y, z',
+        'z, x, y',
+        'y, z, x',
+        '-y, -z, x',
+        'z, -x, -y',
+        '-y, z, -x',
+        '-z, -x, y',
+        '-z, x, -y',
+        'y, -z, -x',
+        '-x, -y, z',
+        'x, -y, -z',
+        '-x, y, -z',
+        '-x, -y, -z',
+        '-z, -x, -y',
+        '-y, -z, -x',
+        'y, z, -x',
+        '-z, x, y',
+        'y, -z, x',
+        'z, x, -y',
+        'z, -x, y',
+        '-y, z, x',
+        'x, y, -z',
+        '-x, y, z',
+        'x, -y, z'
+    ],
+
+    'm-3m': [
+        'x, y, z',
+        '-y, x, z',
+        '-x, -y, z',
+        'y, -x, z',
+        'x, -z, y',
+        'x, -y, -z',
+        'x, z, -y',
+        'z, y, -x',
+        '-x, y, -z',
+        '-z, y, x',
+        'z, x, y',
+        'y, z, x',
+        '-y, -z, x',
+        'z, -x, -y',
+        '-y, z, -x',
+        '-z, -x, y',
+        '-z, x, -y',
+        'y, -z, -x',
+        'y, x, -z',
+        '-y, -x, -z',
+        '-x, z, y',
+        '-x, -z, -y',
+        'z, -y, x',
+        '-z, -y, -x',
+        '-x, -y, -z',
+        'y, -x, -z',
+        'x, y, -z',
+        '-y, x, -z',
+        '-x, z, -y',
+        '-x, y, z',
+        '-x, -z, y',
+        '-z, -y, x',
+        'x, -y, z',
+        'z, -y, -x',
+        '-z, -x, -y',
+        '-y, -z, -x',
+        'y, z, -x',
+        '-z, x, y',
+        'y, -z, x',
+        'z, x, -y',
+        'z, -x, y',
+        '-y, z, x',
+        '-y, -x, z',
+        'y, x, z',
+        'x, -z, -y',
+        'x, z, y',
+        '-z, y, -x',
+        'z, y, x'
+    ]
+}
+
 reflection_conditions = {
     "00l": lambda h, k, l: abs(h)+abs(k) == 0,
     "0k0": lambda h, k, l: abs(h)+abs(l) == 0,
@@ -579,7 +826,6 @@ class SpaceGroup(object):
     @property
     def laue_symmetry_operations(self):
         """Returns a generator with laue symmetry operations"""
-        from laue_symops import symops
         lauegr = self.laue_group
 
         if self.setting in ('a', 'b', 'c'):
@@ -741,7 +987,6 @@ def generate_hkl_listing(cell, dmin=1.0, dmax=np.inf, as_type=None, expand=False
 
 def get_laue_symops(key):
     """take laue group and return list of symmetry operators (instances of SymOp)"""
-    from .laue_symops import symops
     return (SymOp.from_str(op) for op in symops[key])
 
 

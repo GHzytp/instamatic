@@ -189,3 +189,25 @@ class ShowMatplotlibFig(tk.Toplevel):
         # Fatal Python Error: PyEval_RestoreThread: NULL tstate
         plt.clf()
         plt.close('all')
+
+class popupWindow(tk.Toplevel):
+    def __init__(self, parent, title, text):
+        Toplevel.__init__(self, parent)
+        self.grab_set()
+        self.title(title)
+
+        self.l = Label(self, text=text)
+        self.l.pack()
+        self.e = Entry(self)
+        self.e.pack()
+        self.b = Button(self, text='OK', command=self.close)
+        self.b.pack()
+        self.wm_protocol('WM_DELETE_WINDOW', self.close)
+        self.focus_set()
+
+    def close(self):
+        self.destroy()
+
+    def get_value(self):
+        self.wait_window(self)
+        return self.e.get()

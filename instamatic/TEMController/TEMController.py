@@ -701,6 +701,9 @@ class TEMController:
         else:
             h = self.to_dict(header_keys)
 
+        mode = self.mode.get()
+        mag = self.magnification.value
+
         if self.autoblank:
             self.beam.unblank()
 
@@ -717,8 +720,13 @@ class TEMController:
         h['ImageExposureTime'] = exposure
         h['ImageBinsize'] = binsize
         h['ImageResolution'] = arr.shape
-        # k['ImagePixelsize'] = config.calibration[mode]['pixelsize'][mag] * binsize
-        # k['ImageRotation'] = config.calibration[mode]['rotation'][mag]
+        software_binsize = config.settings.software_binsize
+        if software_binsize is None:
+            h['ImagePixelsize'] = config.calibration[mode]['pixelsize'][mag] * binsize
+        else:
+            h['ImagePixelsize'] = config.calibration[mode]['pixelsize'][mag] * binsize * software_binsize
+        
+        #h['ImageRotation'] = config.calibration[mode]['rotation'][mag]
         h['ImageComment'] = comment
         h['ImageCameraName'] = self.cam.name
         h['ImageCameraDimensions'] = self.cam.getCameraDimensions()
