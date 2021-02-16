@@ -1,6 +1,7 @@
 import threading
 import time
 import pprint
+import yaml
 from pathlib import Path
 from datetime import datetime
 import tkinter as tk
@@ -49,6 +50,7 @@ class IndexFrame(LabelFrame):
         self.spots_on_canvas = None
         self.counter = 0
         self.current_radius = None
+        self.indexing_path = config.locations['work'] / 'indexing'
 
         self.init_vars()
 
@@ -177,47 +179,66 @@ class IndexFrame(LabelFrame):
         self.toolbar.update()
         self.toolbar.grid(row=1, column=0, padx=5)
 
-        
-        
-
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
 
     def init_vars(self):
-        #self.var_exposure_time = DoubleVar(value=round(round(1.5/self.ctrl.cam.default_exposure)*self.ctrl.cam.default_exposure, 1))
-        self.var_exposure_time = DoubleVar(value=1.0)
-        self.var_name = StringVar(value="")
-        self.var_a = DoubleVar(value=10.0)
-        self.var_b = DoubleVar(value=10.0)
-        self.var_c = DoubleVar(value=10.0)
-        self.var_alpha = DoubleVar(value=90.0)
-        self.var_beta = DoubleVar(value=90.0)
-        self.var_gamma = DoubleVar(value=90.0)
-        self.var_space_group = StringVar(value="")
-        self.var_dmax = DoubleVar(value=20.0)
-        self.var_dmin = DoubleVar(value=1.0)
+        try:
+            with open(self.indexing_path / 'params.yaml', 'r') as f:
+                dct = yaml.load(f, Loader=yaml.Loader)
+                print(dct)
+            self.var_a = DoubleVar(value=dct['a'])
+            self.var_b = DoubleVar(value=dct['b'])
+            self.var_c = DoubleVar(value=dct['c'])
+            self.var_alpha = DoubleVar(value=dct['alpha'])
+            self.var_beta = DoubleVar(value=dct['beta'])
+            self.var_gamma = DoubleVar(value=dct['gamma'])
+            self.var_space_group = StringVar(value=dct['space_group'])
+            self.var_dmax = DoubleVar(value=dct['dmax'])
+            self.var_dmin = DoubleVar(value=dct['dmin'])
+            self.var_sigma = DoubleVar(value=dct['sigma'])
+            self.var_bkgd_level = IntVar(value=dct['bkgd_level'])
+            self.var_azimuth = DoubleVar(value=dct['azimuth'])
+            self.var_amplitude = DoubleVar(value=dct['amplitude'])
+            self.var_min_sigma = DoubleVar(value=dct['min_sigma'])
+            self.var_max_sigma = DoubleVar(value=dct['max_sigma'])
+            self.var_threshold = DoubleVar(value=dct['threshold'])
+            self.var_min_size = IntVar(value=dct['min_size'])
+        except:
+            self.var_a = DoubleVar(value=10.0)
+            self.var_b = DoubleVar(value=10.0)
+            self.var_c = DoubleVar(value=10.0)
+            self.var_alpha = DoubleVar(value=90.0)
+            self.var_beta = DoubleVar(value=90.0)
+            self.var_gamma = DoubleVar(value=90.0)
+            self.var_space_group = StringVar(value="")
+            self.var_dmax = DoubleVar(value=20.0)
+            self.var_dmin = DoubleVar(value=1.0)
+            self.var_sigma = DoubleVar(value=20.0)
+            self.var_bkgd_level = IntVar(value=20.0)
+            self.var_azimuth = DoubleVar(value=config.calibration.stretch_azimuth)
+            self.var_amplitude = DoubleVar(value=config.calibration.stretch_amplitude)
+            self.var_min_sigma = DoubleVar(value=4.0)
+            self.var_max_sigma = DoubleVar(value=5.0)
+            self.var_threshold = DoubleVar(value=1.0)
+            self.var_min_size = IntVar(value=20)
+        self.var_apply_stretch = BooleanVar(value=False)
         self.var_show_center = BooleanVar(value=False)
         self.var_show_index = BooleanVar(value=False)
-        self.var_sigma = DoubleVar(value=20.0)
-        self.var_bkgd_level = IntVar(value=20.0)
+        self.var_exposure_time = DoubleVar(value=round(round(1.5/self.ctrl.cam.default_exposure)*self.ctrl.cam.default_exposure, 1))
+        self.var_name = StringVar(value="")
         self.var_remove_background = BooleanVar(value=False)
         self.var_vmax = DoubleVar(value=500.0)
-        self.var_apply_stretch = BooleanVar(value=False)
-        self.var_azimuth = DoubleVar(value=config.calibration.stretch_azimuth)
-        self.var_amplitude = DoubleVar(value=config.calibration.stretch_amplitude)
-        self.var_min_sigma = DoubleVar(value=4.0)
-        self.var_max_sigma = DoubleVar(value=5.0)
-        self.var_threshold = DoubleVar(value=1.0)
-        self.var_min_size = IntVar(value=20)
         self.var_find_peaks = BooleanVar(value=False)
         self.var_thickness = DoubleVar(value=400.0)
         self.var_show_hkl = BooleanVar(value=False)
 
     def process_all(self):
         if self.img is not None:
+            sigma = self.var_sigma.get()
             if self.use_beamstop:
-                center = find_beam_center_with_beamstop(self.img, z=self.var_sigma.get())
+                center = find_beam_center_with_beamstop(self.img, z=sigma)
             else:
-                center = find_beam_center(self.img, sigma=self.var_sigma.get())
+                center = find_beam_center(self.img, sigma=sigma)
             background_removed_img = subtract_background_median(self.img, footprint=self.var_bkgd_level.get())
             azimuth = self.var_azimuth.get()
             amplitude = self.var_amplitude.get()
@@ -235,13 +256,37 @@ class IndexFrame(LabelFrame):
                 self.orientation_collection = self.indexer.find_orientation(self.img_find_peaks, center)
                 self.refined_orientation = self.indexer.refine_all(self.img_find_peaks, self.orientation_collection)
                 print('Refinement of indexing finished.')
+            print('Saving processing parameters...')
+            dct = {}
+            dct['a'] = self.var_a.get()
+            dct['b'] = self.var_b.get()
+            dct['c'] = self.var_c.get()
+            dct['alpha'] = self.var_alpha.get()
+            dct['beta'] = self.var_beta.get()
+            dct['gamma'] = self.var_gamma.get()
+            dct['space_group'] = self.var_space_group.get()
+            dct['dmin'] = self.var_dmin.get()
+            dct['dmax'] = self.var_dmax.get()
+            dct['bkgd_level'] = self.var_bkgd_level.get()
+            dct['sigma'] = sigma
+            dct['azimuth'] = azimuth
+            dct['amplitude'] = amplitude
+            dct['min_sigma'] = min_sigma
+            dct['max_sigma'] = max_sigma
+            dct['threshold'] = threshold
+            dct['min_size'] = min_size
+            with open(self.indexing_path / 'params.yaml', 'w') as f:
+                yaml.dump(dct, f)
             print('Image processing finished.')
             self.canvas.draw()
 
     def acquire_image(self):
         self.ax.cla()
         self.counter = 0
-        self.img, self.img_header = self.ctrl.get_image(exposure=self.var_exposure_time.get())
+        self.indexing_path.mkdir(parents=True, exist_ok=True)
+        existing_tiff = len(list(self.indexing_path.glob('*.tiff')))
+        filename = self.var_name.get() + f'_{existing_tiff:03}'
+        self.img, self.img_header = self.ctrl.get_image(exposure=self.var_exposure_time.get(), out=self.indexing_path / filename)
         pprint.pprint(self.img_header)
         self.img_on_canvas = self.ax.imshow(self.img)
         self.ax.set_xlim(0, self.img.shape[0]-1)
