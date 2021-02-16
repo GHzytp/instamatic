@@ -1000,7 +1000,7 @@ def expand_to_p1(arr, cell):
 
     expanded = np.vstack(np.dot(arr, stacked_symops).astype(int))
 
-    hkl_p1 = np.vstack({tuple(row) for row in expanded})
+    hkl_p1 = np.vstack(list({tuple(row) for row in expanded}))
     # this also works (about 15x faster), but is a bit wtf (http://stackoverflow.com/a/16973510)
     # hkl_p1 = np.unique(expanded.view(np.dtype((np.void, expanded.dtype.itemsize*expanded.shape[1])))).view(expanded.dtype).reshape(-1, expanded.shape[1])
     

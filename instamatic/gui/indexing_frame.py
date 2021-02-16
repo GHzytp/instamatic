@@ -13,6 +13,7 @@ import pandas as pd
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+from matplotlib.patches import Circle
 
 from .base_module import BaseModule
 from instamatic import config
@@ -47,6 +48,7 @@ class IndexFrame(LabelFrame):
         self.hkl_list_on_canvas = []
         self.spots_on_canvas = None
         self.counter = 0
+        self.current_radius = None
 
         self.init_vars()
 
@@ -269,7 +271,10 @@ class IndexFrame(LabelFrame):
             if self.use_beamstop:
                 self.center = find_beam_center_with_beamstop(self.img, z=self.var_sigma.get())
             else:
-                self.center = find_beam_center(self.img, sigma=self.var_sigma.get())
+                center = find_beam_center(self.img, sigma=self.var_sigma.get())
+                print(center)
+                self.center = find_beam_center(self.img[int(center[0])-20:int(center[0])+20, int(center[1])-20:int(center[1])+20], 
+                                            sigma=self.var_sigma.get()/4) + center -20
             self.center_on_canvas = self.ax.plot(self.center[1], self.center[0], marker='o', color='r')
         else:
             self.center_on_canvas.pop(0).remove()
@@ -402,18 +407,40 @@ class IndexFrame(LabelFrame):
     def apply_stretch(self):
         azimuth = self.var_azimuth.get()
         amplitude = self.var_amplitude.get()
-        if self.var_apply_stretch.get():
-            if self.var_remove_background.get():
-                if self.background_removed_img is not None and self.center is not None:
-                    self.stretched_img = apply_stretch_correction(self.background_removed_img, center=self.center, azimuth=azimuth, amplitude=amplitude)
+        if self.center is not None:
+            if self.var_apply_stretch.get():
+                if self.var_remove_background.get():
+                    if self.background_removed_img is not None and self.center is not None:
+                        self.stretched_img = apply_stretch_correction(self.background_removed_img, center=self.center, azimuth=azimuth, amplitude=amplitude)
+                else:
+                    if self.img is not None and self.center is not None:
+                        self.stretched_img = apply_stretch_correction(self.img, center=self.center, azimuth=azimuth, amplitude=amplitude)
+                self.img_on_canvas.set_array(self.stretched_img)
+                if self.current_radius is None:
+                    self.circle_on_canvas = Circle((self.center[1], self.center[0]), self.img.shape[0]//3, color='g', fill=False, linewidth=2)
+                else:
+                    self.circle_on_canvas = Circle((self.center[1], self.center[0]), self.current_radius, color='g', fill=False, linewidth=2)
+                self.ax.add_artist(self.circle_on_canvas)
+                self.cid = self.fig.canvas.mpl_connect('scroll_event', self._mouse_scroll_stretch)
             else:
-                if self.img is not None and self.center is not None:
-                    self.stretched_img = apply_stretch_correction(self.img, center=self.center, azimuth=azimuth, amplitude=amplitude)
-            self.img_on_canvas.set_array(self.stretched_img)
-        else:
-            self.img_on_canvas.set_array(self.img)
+                self.img_on_canvas.set_array(self.img)
+                self.fig.canvas.mpl_disconnect(self.cid)
+                self.circle_on_canvas.remove()
+            self.canvas.draw()
+
+    def _mouse_scroll_stretch(self, event):
+        navi_mode = self.ax.get_navigate_mode()
+        if navi_mode not in (None, "") : return
+        if not event.inaxes: return
+        if event.inaxes != self.ax: return
+        self.current_radius = self.circle_on_canvas.get_radius()
+        if event.button == 'up':
+            self.circle_on_canvas.set_radius(self.current_radius + 3)
+        elif event.button == 'down':
+            self.circle_on_canvas.set_radius(self.current_radius - 3)
         self.canvas.draw()
         
+
 module = BaseModule(name='indexing', display_name='Indexing', tk_frame=IndexFrame, location='left')
 commands = {}
 
