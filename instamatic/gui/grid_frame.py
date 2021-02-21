@@ -35,6 +35,7 @@ class GridFrame(LabelFrame):
         self.counter = 0
         self._drag_data = {"x": 0, "y": 0}
         self.saved_tv_items = None
+        self.software_binsize = config.settings.software_binsize
         self.cryo_frame = [module for module in MODULES if module.name == 'cryo'][0].frame
 
         self.init_vars()
@@ -90,7 +91,10 @@ class GridFrame(LabelFrame):
 
         frame = Frame(self)
 
-        canvas_shape = np.array(config.camera.dimensions) * 0.9
+        if self.software_binsize is None:
+            canvas_shape = np.array(config.camera.dimensions) * 0.95
+        else:
+            canvas_shape = np.array(config.camera.dimensions) / self.software_binsize * 0.95
         self.canvas = Canvas(frame, width=canvas_shape[1], height=canvas_shape[0])
         self.canvas.grid(row=0, column=0)
         self.scroll_x = tk.Scrollbar(frame, orient="horizontal", command=self.canvas.xview)

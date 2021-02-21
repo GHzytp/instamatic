@@ -33,3 +33,4 @@ htmlcov
 pytest.bat
 readme.rst
 TODO
+!instamatic/formats/ext/src/*.c

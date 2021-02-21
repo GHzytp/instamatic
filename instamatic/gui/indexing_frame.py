@@ -50,6 +50,7 @@ class IndexFrame(LabelFrame):
         self.spots_on_canvas = None
         self.counter = 0
         self.current_radius = None
+        self.software_binsize = config.settings.software_binsize
         self.indexing_path = config.locations['work'] / 'indexing'
 
         self.init_vars()
@@ -167,7 +168,10 @@ class IndexFrame(LabelFrame):
 
         frame = Frame(self)
 
-        canvas_shape = np.array(config.camera.dimensions) * 0.9 / 100
+        if self.software_binsize is None:
+            canvas_shape = np.array(config.camera.dimensions) * 0.9 / 100
+        else:
+            canvas_shape = np.array(config.camera.dimensions) / self.software_binsize * 0.9 / 100
         canvas_shape[0] += 1
         self.fig = Figure(figsize=canvas_shape, dpi=100)
         self.fig.subplots_adjust(left=0.1, bottom=0.07, right=0.95, top=0.95, wspace=0, hspace=0)
