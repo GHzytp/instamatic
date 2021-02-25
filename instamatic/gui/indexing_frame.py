@@ -9,6 +9,7 @@ from tkinter import filedialog, messagebox
 from tkinter import *
 from tkinter.ttk import *
 
+import mrcfile
 import numpy as np
 import pandas as pd
 
@@ -24,7 +25,10 @@ from instamatic.tools import find_beam_center, find_beam_center_with_beamstop
 from instamatic.utils.peakfinders2d import subtract_background_median, find_peaks_regionprops, im_reconstruct
 from instamatic.utils.indexer import Indexer, get_indices
 from instamatic.utils.projector import Projector
-from instamatic.formats import read_tiff, read_hdf5
+from instamatic.formats import read_tiff, read_hdf5, read_cbf
+from instamatic.formats.mrc import read_image as read_mrc
+from instamatic.formats.adscimage import read_adsc
+from instamatic.formats.dm import dmReader
 from instamatic.utils.widgets import Hoverbox, Spinbox, popupWindow
 
 
@@ -300,7 +304,8 @@ class IndexFrame(LabelFrame):
     def open_image(self):
         self.ax.cla()
         img_path = filedialog.askopenfilename(initialdir=config.locations['work'], title='Select an image', 
-                            filetypes=(('hdf5 files', '*.h5'), ('tiff files', '*.tiff'), ('tif files', '*.tif'), ('all files', '*.*')))
+                            filetypes=(('mrc files', '*.mrc'), ('img files', '*.img'), ('dm3 files', '*.dm3'), ('dm4 files', '*.dm4'), ('hdf5 files', '*.h5'), ('smv files', '*.smv'), 
+                                        ('tiff files', '*.tiff'), ('tif files', '*.tif'), ('cbf files', '*.cbf'), ('all files', '*.*')))
         if img_path != '':
             self.counter = 0
             img_path = Path(img_path)
@@ -309,6 +314,18 @@ class IndexFrame(LabelFrame):
                 self.img, self.img_header = read_tiff(img_path)
             elif suffix in ('.h5'):
                 self.img, self.img_header = read_hdf5(img_path)
+            elif suffix == '.mrc':
+                #self.img, self.img_header = read_mrc(img_path)
+                with mrcfile.open(img_path, permissive=True) as f:
+                    self.img = f.data
+                    self.img_header = {name:f.header[name] for name in f.header.dtype.names}
+            elif suffix in ('.img', '.smv'):
+                self.img, self.img_header = read_adsc(img_path)
+            elif suffix == '.cbf':
+                self.img, self.img_header = read_cbf(img_path)
+            elif suffix in ('.dm3', '.dm4'):
+                self.img = dmReader(img_path)['data']
+                self.img_header = None
             pprint.pprint(self.img_header)
             self.img_on_canvas = self.ax.imshow(self.img)
             self.ax.set_xlim(0, self.img.shape[0]-1)
@@ -323,7 +340,8 @@ class IndexFrame(LabelFrame):
                 center = find_beam_center(self.img, sigma=self.var_sigma.get())
                 print(center)
                 self.center = find_beam_center(self.img[int(center[0])-20:int(center[0])+20, int(center[1])-20:int(center[1])+20], 
-                                            sigma=self.var_sigma.get()/4) + center -20
+                                            sigma=self.var_sigma.get()/4) + center -21
+                print(self.center)
             self.center_on_canvas = self.ax.plot(self.center[1], self.center[0], marker='o', color='r')
         else:
             self.center_on_canvas.pop(0).remove()
@@ -466,9 +484,9 @@ class IndexFrame(LabelFrame):
                         self.stretched_img = apply_stretch_correction(self.img, center=self.center, azimuth=azimuth, amplitude=amplitude)
                 self.img_on_canvas.set_array(self.stretched_img)
                 if self.current_radius is None:
-                    self.circle_on_canvas = Circle((self.center[1], self.center[0]), self.img.shape[0]//3, color='g', fill=False, linewidth=2)
+                    self.circle_on_canvas = Circle((self.center[1], self.center[0]), self.img.shape[0]//3, color='blue', fill=False, linewidth=0.5)
                 else:
-                    self.circle_on_canvas = Circle((self.center[1], self.center[0]), self.current_radius, color='g', fill=False, linewidth=2)
+                    self.circle_on_canvas = Circle((self.center[1], self.center[0]), self.current_radius, color='blue', fill=False, linewidth=0.5)
                 self.ax.add_artist(self.circle_on_canvas)
                 self.cid = self.fig.canvas.mpl_connect('scroll_event', self._mouse_scroll_stretch)
             else:
