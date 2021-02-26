@@ -423,7 +423,7 @@ class Experiment:
 
         self.end_position = self.ctrl.stage.get()
         self.end_angle = self.end_position[3]
-        self.camera_length = int(self.ctrl.magnification.value)
+        self.camera_length = self.ctrl.magnification.value
         self.stage_positions.append((99999, self.end_position))
 
         is_moving = bool(self.ctrl.stage.is_moving())

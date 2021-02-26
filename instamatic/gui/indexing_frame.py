@@ -173,9 +173,9 @@ class IndexFrame(LabelFrame):
         frame = Frame(self)
 
         if self.software_binsize is None:
-            canvas_shape = np.array(config.camera.dimensions) * 0.9 / 100
+            canvas_shape = np.array(config.camera.dimensions[::-1]) * 0.9 / 100
         else:
-            canvas_shape = np.array(config.camera.dimensions) / self.software_binsize * 0.9 / 100
+            canvas_shape = np.array(config.camera.dimensions[::-1]) / self.software_binsize * 0.9 / 100
         canvas_shape[0] += 1
         self.fig = Figure(figsize=canvas_shape, dpi=100)
         self.fig.subplots_adjust(left=0.1, bottom=0.07, right=0.95, top=0.95, wspace=0, hspace=0)
@@ -297,8 +297,8 @@ class IndexFrame(LabelFrame):
         self.img, self.img_header = self.ctrl.get_image(exposure=self.var_exposure_time.get(), out=self.indexing_path / filename)
         pprint.pprint(self.img_header)
         self.img_on_canvas = self.ax.imshow(self.img)
-        self.ax.set_xlim(0, self.img.shape[0]-1)
-        self.ax.set_ylim(self.img.shape[1]-1, 0)
+        self.ax.set_xlim(0, self.img.shape[1]-1)
+        self.ax.set_ylim(self.img.shape[0]-1, 0)
         self.canvas.draw()
 
     def open_image(self):
