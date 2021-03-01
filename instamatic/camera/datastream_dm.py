@@ -12,6 +12,7 @@ from abc import ABC, abstractmethod
 
 from instamatic.tools import printer
 from instamatic.formats import read_tiff
+from instamatic.processing import apply_stretch_correction
 from instamatic import config
 from .camera_dm import CameraDM
 
@@ -133,6 +134,9 @@ class ProcessingStream:
         self.stopProcEvent = multiprocessing.Event()
         self.subframetime = config.settings.default_subframe_time
         self.frametime = config.settings.default_frame_time
+        self.center = np.array([config.settings.cent_x, config.settings.cent_y])
+        self.azimuth = config.calibration.stretch_azimuth
+        self.amplitude = config.calibration.stretch_amplitude
 
     def run(self, queue, read_event_processing, write_event_processing, read_event, write_event, shared_mem_processing, shared_mem):
         try:
@@ -159,6 +163,8 @@ class ProcessingStream:
                         arr = ne.evaluate('(arr - dark_ref) * gain_norm')
                         #arr = ne.evaluate('(arr - dark_ref) ')
                         arr[ne.evaluate('arr < 0')] = 0
+                        if config.settings.do_stretch_correction:
+                            arr= apply_stretch_correction(arr, center=self.center, azimuth=self.azimuth, amplitude=self.amplitude)
                         arr = arr.astype(np.uint16)
                         self.put_arr(queue, arr, read_event, write_event, shared_mem)
                 else:
@@ -166,6 +172,8 @@ class ProcessingStream:
                         arr = self.get_arr(queue, arr_obtain, read_event_processing, write_event_processing, shared_mem_processing)
                         if scale is not None:
                             arr = block_reduce(arr, block_size=(scale,scale), func=np.mean, cval=0)
+                            if config.settings.do_stretch_correction:
+                                arr= apply_stretch_correction(arr, center=self.center, azimuth=self.azimuth, amplitude=self.amplitude)
                             arr = arr.astype(np.uint16)
                         self.put_arr(queue, arr, read_event, write_event, shared_mem)
             else:
@@ -193,6 +201,8 @@ class ProcessingStream:
                             tmp_store += arr
                     tmp_store /= j + 1 # 0.22ms cost 2.56ms for 1k by 1k image(float64) 1.28ms(float32)
                     tmp_store[ne.evaluate('tmp_store < 0')] = 0 # 0.7ms cost 0.97ms for 1k by 1k image(float64) 0.8ms(float32)
+                    if config.settings.do_stretch_correction:
+                        tmp_store= apply_stretch_correction(tmp_store, center=self.center, azimuth=self.azimuth, amplitude=self.amplitude)
                     arr = tmp_store.astype(np.uint16)
                     self.put_arr(queue, arr, read_event, write_event, shared_mem)
         except:
