@@ -117,6 +117,11 @@ class Experiment:
                  write_xds: bool = True,
                  write_dials: bool = True,
                  write_red: bool = True,
+                 do_stretch_correction: bool = False,
+                 stretch_amplitude: float = 0.0,
+                 stretch_azimuth: float = 0.0,
+                 stretch_cent_x: float = 0.0,
+                 stretch_cent_y: float = 0.0,
                  stop_event=None,
                  ):
         super().__init__()
@@ -146,6 +151,12 @@ class Experiment:
         self.write_dials = write_dials
         self.write_red = write_red
         self.write_pets = write_tiff  # TODO
+
+        self.do_stretch_correction = do_stretch_correction
+        self.stretch_azimuth = stretch_azimuth  # deg
+        self.stretch_amplitude = stretch_amplitude  # %
+        self.stretch_cent_x = stretch_cent_x
+        self.stretch_cent_y = stretch_cent_y
 
         self.image_interval_enabled = enable_image_interval
         if enable_image_interval:
@@ -217,6 +228,8 @@ class Experiment:
             print(f'Wavelength: {self.wavelength} Angstrom', file=f)
             print(f'Stretch amplitude: {self.stretch_azimuth} %', file=f)
             print(f'Stretch azimuth: {self.stretch_amplitude} degrees', file=f)
+            print(f'Stretch center x: {self.stretch_cent_x} pixel', file=f)
+            print(f'Stretch center y: {self.stretch_cent_y} pixel', file=f)
             print(f'Rotation axis: {self.rotation_axis} radians', file=f)
             print(f'Oscillation angle: {self.osc_angle:.4f} degrees', file=f)
             print(f'Number of frames: {self.nframes_diff}', file=f)
@@ -419,7 +432,7 @@ class Experiment:
             self.ctrl.stage.x += np.random.randint(-100, 100)
             self.ctrl.stage.y += np.random.randint(-100, 100)
             self.ctrl.stage.a += np.random.randint(-60, 60)
-            self.ctrl.magnification.set(330)
+            self.ctrl.magnification.set(config.microscope.ranges['diff'][3])
 
         self.end_position = self.ctrl.stage.get()
         self.end_angle = self.end_position[3]
@@ -457,8 +470,6 @@ class Experiment:
             self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize * software_binsize  # mm
 
         self.wavelength = config.microscope.wavelength  # angstrom
-        self.stretch_azimuth = config.calibration.stretch_azimuth  # deg
-        self.stretch_amplitude = config.calibration.stretch_amplitude  # %
 
         self.nframes_diff = len(buffer)
         self.nframes_image = len(image_buffer)
@@ -495,7 +506,6 @@ class Experiment:
 
         The buffer index must start at 1.
         """
-
         img_conv = ImgConversion(buffer=buffer,
                                  osc_angle=self.osc_angle,
                                  start_angle=self.start_angle,
@@ -506,8 +516,11 @@ class Experiment:
                                  pixelsize=self.pixelsize,
                                  physical_pixelsize=self.physical_pixelsize,
                                  wavelength=self.wavelength,
+                                 do_stretch_correction=self.do_stretch_correction,
                                  stretch_amplitude=self.stretch_amplitude,
                                  stretch_azimuth=self.stretch_azimuth,
+                                 stretch_cent_x=self.stretch_cent_x,
+                                 stretch_cent_y=self.stretch_cent_y
                                  )
 
         print('Writing data files...')

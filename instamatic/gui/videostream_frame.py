@@ -14,8 +14,8 @@ from .base_module import BaseModule
 from instamatic import config
 from instamatic.formats import read_tiff
 from instamatic.formats import write_tiff
-from instamatic.processing.flatfield import apply_flatfield_correction
-from instamatic.utils.widgets import Spinbox
+from instamatic.processing import apply_stretch_correction, apply_flatfield_correction
+from instamatic.utils.widgets import Spinbox, Hoverbox
 from instamatic.TEMController import get_instance
 
 class VideoStreamFrame(LabelFrame):
@@ -102,24 +102,28 @@ class VideoStreamFrame(LabelFrame):
         self.var_show_res = BooleanVar(value=True)
         self.var_resolution = DoubleVar(value=0)
 
+        self.var_apply_stretch = BooleanVar(value=False)
+        self.var_azimuth = DoubleVar(value=config.calibration.stretch_azimuth)
+        self.var_amplitude = DoubleVar(value=config.calibration.stretch_amplitude)
+        self.var_cent_x = DoubleVar(value=self.dimension[0]/2)
+        self.var_cent_y = DoubleVar(value=self.dimension[1]/2)
+
     def buttonbox(self, master):
-        if self.stream.cam.interface=="DM":
+        if self.stream.cam.interface=="DM" and config.settings.buffer_stream_use_thread:
             frame = Frame(master)
-            frame.pack(side='bottom', fill='both')
-            self.btn_save = Button(frame, text='Save Image',
-                     command=self.saveImage)
-            self.btn_save.pack(side='left', expand=True, fill='both', padx=5, pady=5)
+            self.btn_save = Button(frame, text='Save Image', command=self.saveImage)
+            self.btn_save.pack(side='left', expand=True, fill='both', padx=5)
             self.btn_pause = Button(frame, text='Pause Stream', command=self.pause_stream, state=NORMAL)
-            self.btn_pause.pack(side='left', expand=True, fill='both', padx=5, pady=5)
+            self.btn_pause.pack(side='left', expand=True, fill='both', padx=5)
             self.btn_continue = Button(frame, text='Continue Stream', command=self.continue_stream, state=DISABLED)
-            self.btn_continue.pack(side='left', expand=True, fill='both', padx=5, pady=5)
+            self.btn_continue.pack(side='left', expand=True, fill='both', padx=5)
+            frame.pack(side='bottom', fill='both')
         else:
-            btn = Button(master, text='Save image',
-                     command=self.saveImage)
-            btn.pack(side='bottom', fill='both', padx=10, pady=10)
+            btn = Button(master, text='Save image', command=self.saveImage)
+            btn.pack(side='bottom', fill='both', padx=5)
 
     def header(self, master):
-        ewidth = 8
+        ewidth = 6
         lwidth = 12
 
         frame = Frame(master)
@@ -130,10 +134,15 @@ class VideoStreamFrame(LabelFrame):
         self.cb_contrast = Checkbutton(frame, text='Auto contrast', variable=self.var_auto_contrast)
         self.cb_contrast.grid(row=1, column=5)
 
-        self.e_fps = Entry(frame, width=lwidth, textvariable=self.var_fps, state=DISABLED)
-        self.e_interval = Entry(frame, width=lwidth, textvariable=self.var_interval, state=DISABLED)
+        self.e_frametime = Spinbox(frame, width=ewidth, textvariable=self.var_frametime, from_=0.0, to=100.0, increment=0.1)
 
-        Label(frame, width=lwidth, text='fps:').grid(row=1, column=0)
+        Label(frame, width=lwidth, text='exposure (s)').grid(row=1, column=6)
+        self.e_frametime.grid(row=1, column=7)
+
+        self.e_fps = Entry(frame, width=ewidth, textvariable=self.var_fps, state=DISABLED)
+        self.e_interval = Entry(frame, width=ewidth, textvariable=self.var_interval, state=DISABLED)
+
+        Label(frame, text='fps:').grid(row=1, column=0)
         self.e_fps.grid(row=1, column=1, sticky='we')
         Label(frame, width=lwidth, text='interval (ms):').grid(row=1, column=2)
         self.e_interval.grid(row=1, column=3, sticky='we')
@@ -141,20 +150,29 @@ class VideoStreamFrame(LabelFrame):
         frame.pack()
 
         frame = Frame(master)
-
-        self.e_frametime = Spinbox(frame, width=ewidth, textvariable=self.var_frametime, from_=0.0, to=100.0, increment=0.1)
-
-        Label(frame, width=lwidth, text='exposure (s)').grid(row=1, column=0)
-        self.e_frametime.grid(row=1, column=1)
-
+        
         self.e_brightness = Spinbox(frame, width=ewidth, textvariable=self.var_brightness, from_=0.0, to=10.0, increment=0.1)
 
-        Label(frame, width=lwidth, text='Brightness').grid(row=1, column=2)
-        self.e_brightness.grid(row=1, column=3)
+        Label(frame, text='Brightness').grid(row=1, column=0)
+        self.e_brightness.grid(row=1, column=1)
 
-        Label(frame, width=lwidth, text='DisplayRange').grid(row=1, column=4)
+        Label(frame, width=lwidth, text='DisplayRange').grid(row=1, column=2)
         self.e_display_range = Spinbox(frame, width=ewidth, textvariable=self.var_display_range, from_=1, to=self.display_range_default, increment=1000)
-        self.e_display_range.grid(row=1, column=5)
+        self.e_display_range.grid(row=1, column=3)
+
+        Checkbutton(frame, text='Apply Stretch', variable=self.var_apply_stretch, command=self.apply_stretch).grid(row=1, column=4, sticky='W')
+        self.e_amplitude = Spinbox(frame, textvariable=self.var_amplitude, width=6, from_=0.0, to=100.0, increment=0.01)
+        self.e_amplitude.grid(row=1, column=5, sticky='EW')
+        Hoverbox(self.e_amplitude, 'Stretch amplitude')
+        self.e_azimuth = Spinbox(frame, textvariable=self.var_azimuth, width=6, from_=-180.0, to=180.0, increment=0.01)
+        self.e_azimuth.grid(row=1, column=6, sticky='EW')
+        Hoverbox(self.e_azimuth, 'Stretch azimuth')
+        self.e_cent_x = Spinbox(frame, textvariable=self.var_cent_x, width=6, from_=0.0, to=self.dimension[0], increment=0.1)
+        self.e_cent_x.grid(row=1, column=7, sticky='EW')
+        Hoverbox(self.e_cent_x, 'Stretch center position X')
+        self.e_cent_y = Spinbox(frame, textvariable=self.var_cent_y, width=6, from_=0.0, to=self.dimension[1], increment=0.1)
+        self.e_cent_y.grid(row=1, column=8, sticky='EW')
+        Hoverbox(self.e_cent_y, 'Stretch center position Y')
 
         frame.pack()
 
@@ -195,6 +213,9 @@ class VideoStreamFrame(LabelFrame):
             else:
                 self.res_shell_panel = self.panel.create_oval((dimension[1]-dimension[0])/2, 0, (dimension[1]+dimension[0])/2, dimension[0], outline='red')
             self.panel.pack(side='left', padx=5, pady=5)
+
+    def apply_stretch(self):
+        pass
 
     def show_center(self):
         if self.var_show_center.get():
@@ -310,12 +331,28 @@ class VideoStreamFrame(LabelFrame):
             large = np.percentile(tmp[::8, ::8], 99.5)
             frame = ne.evaluate('tmp * (256.0 / (1 + large))')  # use 128x128 array for faster calculation
 
+            if self.var_apply_stretch.get():
+                center = [self.var_cent_x.get(), self.var_cent_y.get()]
+                azimuth = self.var_azimuth.get()
+                amplitude = self.var_amplitude.get()
+                frame = apply_stretch_correction(frame, center=center, azimuth=azimuth, amplitude=amplitude)
+
             image = Image.fromarray(frame)
         elif self.display_range != self.display_range_default:
             image = np.clip(frame, 0, self.display_range)
             image = (256.0 / self.display_range) * image
+            if self.var_apply_stretch.get():
+                center = [self.var_cent_x.get(), self.var_cent_y.get()]
+                azimuth = self.var_azimuth.get()
+                amplitude = self.var_amplitude.get()
+                image = apply_stretch_correction(image, center=center, azimuth=azimuth, amplitude=amplitude)
             image = Image.fromarray(image)
         else:
+            if self.var_apply_stretch.get():
+                center = [self.var_cent_x.get(), self.var_cent_y.get()]
+                azimuth = self.var_azimuth.get()
+                amplitude = self.var_amplitude.get()
+                frame = apply_stretch_correction(frame, center=center, azimuth=azimuth, amplitude=amplitude)
             image = Image.fromarray(frame)
 
         if self.brightness != 1:
@@ -324,6 +361,8 @@ class VideoStreamFrame(LabelFrame):
 
         if self.resize_image:
             image = image.resize((950, 950))
+
+        
 
         image = ImageTk.PhotoImage(image=image)
 

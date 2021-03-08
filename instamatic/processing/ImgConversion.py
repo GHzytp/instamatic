@@ -11,7 +11,7 @@ from instamatic.formats import read_tiff
 from instamatic.formats import write_adsc
 from instamatic.formats import write_mrc
 from instamatic.formats import write_tiff
-from instamatic.processing.flatfield import apply_flatfield_correction
+from instamatic.processing import apply_stretch_correction, apply_flatfield_correction
 from instamatic.processing.stretch_correction import affine_transform_ellipse_to_circle
 from instamatic.tools import find_beam_center
 from instamatic.tools import find_beam_center_with_beamstop
@@ -32,9 +32,9 @@ def rotation_axis_to_xyz(rotation_axis, invert=False, setting='xds'):
     rot_z = 0
 
     if setting == 'dials':
-        return rot_x, -rot_y, rot_z
-    elif setting == 'xds':
         return rot_x, rot_y, rot_z
+    elif setting == 'xds':
+        return rot_x, -rot_y, rot_z
     else:
         raise ValueError("Must be one of {'dials', 'xds'}")
 
@@ -121,9 +121,12 @@ class ImgConversion:
                  pixelsize: float,               # px / Angstrom
                  physical_pixelsize: float,      # mm
                  wavelength: float,              # angstrom
+                 do_stretch_correction: bool = False,
+                 stretch_amplitude=0.0,          # Stretch correction amplitude, %
+                 stretch_azimuth=0.0,            # Stretch correction azimuth, degrees
+                 stretch_cent_x: float = 0,
+                 stretch_cent_y: float = 0,
                  flatfield: str = 'flatfield.tiff',
-                 stretch_amplitude: float = 0,
-                 stretch_azimuth: float = 0,
                  ):
         if flatfield is not None:
             flatfield, h = read_tiff(flatfield)
@@ -134,15 +137,24 @@ class ImgConversion:
 
         self.smv_subdrc = 'data'
 
+        self.do_stretch_correction = do_stretch_correction
+        self.stretch_azimuth = stretch_azimuth
+        self.stretch_amplitude = stretch_amplitude
+        self.stretch_cent_x = stretch_cent_x
+        self.stretch_cent_y = stretch_cent_y
+
         while len(buffer) != 0:
             i, img, h = buffer.pop(0)
 
             self.headers[i] = h
 
             if self.flatfield is not None:
-                self.data[i] = apply_flatfield_correction(img, self.flatfield)
-            else:
-                self.data[i] = img
+                img = apply_flatfield_correction(img, self.flatfield)
+
+            if self.do_stretch_correction:
+                img = apply_stretch_correction(img, center=[stretch_cent_x, stretch_cent_y], azimuth=stretch_azimuth, amplitude=stretch_amplitude)
+                
+            self.data[i] = img
 
         self.untrusted_areas = []
 
@@ -156,9 +168,6 @@ class ImgConversion:
         self.physical_pixelsize = physical_pixelsize  
         self.wavelength = wavelength  
         # NOTE: Stretch correction - not sure if the azimuth and amplitude are correct anymore.
-        self.do_stretch_correction = True
-        self.stretch_azimuth = stretch_azimuth
-        self.stretch_amplitude = stretch_amplitude
 
         self.distance = (1 / self.wavelength) * (self.physical_pixelsize / self.pixelsize)
         self.osc_angle = osc_angle
@@ -191,7 +200,7 @@ class ImgConversion:
             'use_beamstop': False,
             'untrusted_areas': [],
             'smv_subdrc': 'data',
-            'do_stretch_correction': False,
+            'do_stretch_correction': self.do_stretch_correction,
         }
 
         for attr, default in kw_attrs.items():
@@ -456,8 +465,8 @@ class ImgConversion:
         header['DIM'] = 2
         header['BYTE_ORDER'] = 'little_endian'
         header['TYPE'] = 'unsigned_short'
-        header['SIZE1'] = shape_x
-        header['SIZE2'] = shape_y
+        header['SIZE1'] = shape_y
+        header['SIZE2'] = shape_x
         header['PIXEL_SIZE'] = self.physical_pixelsize
         header['BIN'] = '1x1'
         header['BIN_TYPE'] = 'HW'

@@ -1,4 +1,5 @@
 from .ImgConversion import *
+from instamatic.processing import apply_stretch_correction, apply_flatfield_correction
 
 
 class ImgConversionTVIPS(ImgConversion):
@@ -21,6 +22,11 @@ class ImgConversionTVIPS(ImgConversion):
                  pixelsize: float = None,          # p/Angstrom, size of the pixels (overrides camera_length)
                  physical_pixelsize: float = None,  # mm, physical size of the pixels (overrides camera length)
                  wavelength: float = None,         # Angstrom, relativistic wavelength of the electron beam
+                 do_stretch_correction: bool = False,
+                 stretch_amplitude=0.0,          # Stretch correction amplitude, %
+                 stretch_azimuth=0.0,            # Stretch correction azimuth, degrees
+                 stretch_cent_x: float = 0,
+                 stretch_cent_y: float = 0,
                  ):
         if flatfield is not None:
             flatfield, h = read_tiff(flatfield)
@@ -31,15 +37,23 @@ class ImgConversionTVIPS(ImgConversion):
 
         self.smv_subdrc = 'data'
 
+        self.do_stretch_correction = do_stretch_correction
+        self.stretch_azimuth = stretch_azimuth
+        self.stretch_amplitude = stretch_amplitude
+        self.stretch_cent_x = stretch_cent_x
+        self.stretch_cent_y = stretch_cent_y
+
         while len(buffer) != 0:
             i, img, h = buffer.pop(0)
 
             self.headers[i] = h
 
             if self.flatfield is not None:
-                self.data[i] = apply_flatfield_correction(img, self.flatfield)
-            else:
-                self.data[i] = img
+                img = apply_flatfield_correction(img, self.flatfield)
+            if self.do_stretch_correction:
+                img = apply_stretch_correction(img, center=[stretch_cent_x, stretch_cent_y], azimuth=stretch_azimuth, amplitude=stretch_amplitude)
+                
+            self.data[i] = img
 
         self.untrusted_areas = []
 

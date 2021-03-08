@@ -5,6 +5,7 @@ from tkinter import *
 from tkinter.ttk import *
 
 from .base_module import BaseModule
+from .modules import MODULES
 from instamatic.utils.widgets import Spinbox
 from instamatic import config
 from instamatic import TEMController
@@ -20,6 +21,7 @@ class ExperimentalcRED(LabelFrame):
         self.parent = parent
         self.ctrl = TEMController.get_instance()
         self.image_stream = self.ctrl.image_stream
+        self.stream_frame = [module for module in MODULES if module.name == 'stream'][0].frame
 
         sbwidth = 10
 
@@ -279,6 +281,11 @@ class ExperimentalcRED(LabelFrame):
                   'write_xds': self.var_save_xds.get(),
                   'write_dials': self.var_save_dials.get(),
                   'write_red': self.var_save_red.get(),
+                  'do_stretch_correction': self.stream_frame.var_apply_stretch.get(),
+                  'stretch_amplitude': self.stream_frame.var_amplitude.get(),
+                  'stretch_azimuth': self.stream_frame.var_azimuth.get(),
+                  'stretch_cent_x': self.stream_frame.var_cent_x.get(),
+                  'stretch_cent_y': self.stream_frame.var_cent_y.get(),
                   'stop_event': self.stopEvent}
         return params
 
