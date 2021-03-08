@@ -23,42 +23,7 @@ ACTIVATION_THRESHOLD = 0.2
 use_vm = config.settings.use_VM_server_exe
 
 # degree/s
-speed_table_fei = {
-    1.00: 21.14,
-    0.90: 19.61,
-    0.80: 18.34,
-    0.70: 16.90,
-    0.60: 14.85,
-    0.50: 12.69,
-    0.40: 10.62,
-    0.30: 8.20,
-    0.20: 5.66,
-    0.10: 2.91,
-    0.05: 1.48,
-    0.04: 1.18,
-    0.03: 0.888,
-    0.02: 0.593,
-    0.01: 0.297,
-}
-
-# degree/s
-speed_table_jeol = {
-    1.00: 21.14,
-    0.90: 19.61,
-    0.80: 18.34,
-    0.70: 16.90,
-    0.60: 14.85,
-    0.50: 12.69,
-    0.40: 10.62,
-    0.30: 8.20,
-    0.20: 5.66,
-    0.10: 2.91,
-    0.05: 1.48,
-    0.04: 1.18,
-    0.03: 0.888,
-    0.02: 0.593,
-    0.01: 0.297,
-}
+speed_table = config.microscope.SpeedTable
 
 def print_and_log(msg, logger=None):
     print(msg)
@@ -405,16 +370,10 @@ class Experiment:
                 buffer.append((i, img, h))
                 # print(f"Angle: {self.ctrl.stage.a}")
 
-            if self.ctrl.tem.interface == "fei":
-                if self.start_angle < self.footfree_rotate_to:
-                    self.current_angle = self.current_angle + speed_table_fei[self.rotation_speed] * self.exposure
-                else:
-                    self.current_angle = self.current_angle - speed_table_fei[self.rotation_speed] * self.exposure
+            if self.start_angle < self.footfree_rotate_to:
+                self.current_angle = self.current_angle + speed_table[self.rotation_speed] * self.exposure
             else:
-                if self.start_angle < self.footfree_rotate_to:
-                    self.current_angle = self.current_angle + speed_table_jeol[self.rotation_speed] * self.exposure
-                else:
-                    self.current_angle = self.current_angle - speed_table_jeol[self.rotation_speed] * self.exposure
+                self.current_angle = self.current_angle - speed_table[self.rotation_speed] * self.exposure
 
             i += 1
 

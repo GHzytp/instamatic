@@ -96,8 +96,8 @@ class ExperimentalcRED(LabelFrame):
             self.e_endangle.grid(row=11, column=1, sticky='W', padx=10)
 
             Label(frame, text='Rotation Speed:').grid(row=11, column=2, sticky='W')
-            speed_options = [0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
-            self.e_rotspeed = OptionMenu(frame, self.var_rotation_speed, 0.01, *speed_options)
+            speed_options = [1, 2, 3, 4, 5, 6]
+            self.e_rotspeed = OptionMenu(frame, self.var_rotation_speed, 2, *speed_options)
             self.e_rotspeed.grid(row=11, column=3, sticky='W', padx=10)
 
         elif self.ctrl.tem.interface == "fei":
