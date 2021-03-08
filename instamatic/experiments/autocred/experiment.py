@@ -146,7 +146,12 @@ class Experiment:
                  log=None,
                  flatfield=None,
                  image_interval=99999,
-                 diff_defocus=0):
+                 diff_defocus=0,
+                 do_stretch_correction: bool = False,
+                 stretch_amplitude: float = 0.0,
+                 stretch_azimuth: float = 0.0,
+                 stretch_cent_x: float = 0.0,
+                 stretch_cent_y: float = 0.0):
         super().__init__()
         self.ctrl = ctrl
         self.path = path
@@ -178,6 +183,14 @@ class Experiment:
         self.rotrangelimit = rotrange
         self.backlash_killer = backlash_killer
         self.rotation_speed = rotation_speed
+
+        self.wavelength = config.microscope.wavelength  # angstrom
+        
+        self.do_stretch_correction = do_stretch_correction
+        self.stretch_azimuth = stretch_azimuth  # deg
+        self.stretch_amplitude = stretch_amplitude  # %
+        self.stretch_cent_x = stretch_cent_x
+        self.stretch_cent_y = stretch_cent_y
 
         self.calibdir = self.path.parent / 'calib'
 
@@ -867,10 +880,6 @@ class Experiment:
             self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][self.camera_length] * self.binsize * software_binsize  # Angstrom^(-1)/pixel
             self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize * software_binsize  # mm
 
-        self.wavelength = config.microscope.wavelength  # angstrom
-        self.stretch_azimuth = config.calibration.stretch_azimuth
-        self.stretch_amplitude = config.calibration.stretch_amplitude
-
         now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         with open(os.path.join(path, 'cRED_log.txt'), 'w') as f:
@@ -883,8 +892,12 @@ class Experiment:
             print(f'Pixelsize: {self.pixelsize} Angstrom^(-1)/pixel', file=f)
             print(f'Physical pixelsize: {self.physical_pixelsize} um', file=f)
             print(f'Wavelength: {self.wavelength} Angstrom', file=f)
-            print(f'Stretch amplitude: {self.stretch_azimuth} %', file=f)
-            print(f'Stretch azimuth: {self.stretch_amplitude} degrees', file=f)
+            if self.do_stretch_correction:
+                print(f'Apply stretch correction: {self.do_stretch_correction}', file=f)
+                print(f'Stretch amplitude: {self.stretch_azimuth} %', file=f)
+                print(f'Stretch azimuth: {self.stretch_amplitude} degrees', file=f)
+                print(f'Stretch center x: {self.stretch_cent_x} pixel', file=f)
+                print(f'Stretch center y: {self.stretch_cent_y} pixel', file=f)
             print(f'Rotation axis: {rotation_angle} radians', file=f)
             print(f'Oscillation angle: {osangle} degrees', file=f)
             print(f'Number of frames: {len(buffer)}', file=f)
@@ -903,8 +916,11 @@ class Experiment:
                                  pixelsize=self.pixelsize,
                                  physical_pixelsize=self.physical_pixelsize,
                                  wavelength=self.wavelength,
+                                 do_stretch_correction=self.do_stretch_correction,
                                  stretch_amplitude=self.stretch_amplitude,
                                  stretch_azimuth=self.stretch_azimuth,
+                                 stretch_cent_x=self.stretch_cent_x,
+                                 stretch_cent_y=self.stretch_cent_y
                                  )
 
         img_conv.tiff_writer(pathtiff)

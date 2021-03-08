@@ -6,6 +6,7 @@ from tkinter.ttk import *
 from numpy import pi
 
 from .base_module import BaseModule
+from .modules import MODULES
 from instamatic.holder.holder import get_instance
 from instamatic.utils.widgets import Spinbox, Hoverbox
 from instamatic import config
@@ -19,6 +20,7 @@ class ExperimentalcREDXnano(LabelFrame):
         self.parent = parent
         self.tem_ctrl = TEMController.get_instance()
         self.image_stream = self.tem_ctrl.image_stream
+        self.stream_frame = [module for module in MODULES if module.name == 'stream'][0].frame
         self.rec_path = config.locations['work'] / 'rec'
 
         self.init_vars()
@@ -736,6 +738,11 @@ class ExperimentalcREDXnano(LabelFrame):
                   'write_xds': self.var_save_xds.get(),
                   'write_dials': self.var_save_dials.get(),
                   'write_red': self.var_save_red.get(),
+                  'do_stretch_correction': self.stream_frame.var_apply_stretch.get(),
+                  'stretch_amplitude': self.stream_frame.var_amplitude.get(),
+                  'stretch_azimuth': self.stream_frame.var_azimuth.get(),
+                  'stretch_cent_x': self.stream_frame.var_cent_x.get(),
+                  'stretch_cent_y': self.stream_frame.var_cent_y.get(),
                   'stop_event': self.stopColEvent}
         return params
 

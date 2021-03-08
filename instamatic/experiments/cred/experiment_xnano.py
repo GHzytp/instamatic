@@ -72,6 +72,11 @@ class Experiment:
                  write_dials: bool = True,
                  write_red: bool = True,
                  write_cbf: bool = True,
+                 do_stretch_correction: bool = False,
+                 stretch_amplitude: float = 0.0,
+                 stretch_azimuth: float = 0.0,
+                 stretch_cent_x: float = 0.0,
+                 stretch_cent_y: float = 0.0,
                  stop_event=None,
                  ):
         super().__init__()
@@ -96,6 +101,12 @@ class Experiment:
         self.write_red = write_red
         self.write_cbf = write_cbf
         self.write_pets = write_tiff  # TODO
+
+        self.do_stretch_correction = do_stretch_correction
+        self.stretch_azimuth = stretch_azimuth  # deg
+        self.stretch_amplitude = stretch_amplitude  # %
+        self.stretch_cent_x = stretch_cent_x
+        self.stretch_cent_y = stretch_cent_y
 
         self.image_interval_enabled = enable_image_interval
         if enable_image_interval:
@@ -335,8 +346,6 @@ class Experiment:
             self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize * software_binsize  # mm
             
         self.wavelength = config.microscope.wavelength  # angstrom
-        self.stretch_azimuth = config.calibration.stretch_azimuth  # deg
-        self.stretch_amplitude = config.calibration.stretch_amplitude  # %
 
         self.nframes_diff = len(buffer)
         self.nframes_image = len(image_buffer)
@@ -384,8 +393,11 @@ class Experiment:
                                  pixelsize=self.pixelsize,
                                  physical_pixelsize=self.physical_pixelsize,
                                  wavelength=self.wavelength,
+                                 do_stretch_correction=self.do_stretch_correction,
                                  stretch_amplitude=self.stretch_amplitude,
                                  stretch_azimuth=self.stretch_azimuth,
+                                 stretch_cent_x=self.stretch_cent_x,
+                                 stretch_cent_y=self.stretch_cent_y
                                  )
 
         print('Writing data files...')

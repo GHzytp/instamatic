@@ -14,7 +14,7 @@ import instamatic
 from instamatic import config
 from instamatic.formats import write_hdf5
 from instamatic.formats import write_tiff
-from instamatic.processing.ImgConversionTPX import ImgConversionTPX as ImgConversion
+from instamatic.processing import apply_stretch_correction, apply_flatfield_correction
 from instamatic.image_utils import translate_image
 
 from .virtualimage import get_mask_circ, get_mask_ann
@@ -77,7 +77,12 @@ class Experiment:
                  save_tiff_raw_imgs: bool = True,
                  save_hdf5_raw_imgs: bool = False,
                  save_raw_imgs: bool = True,
-                 acquisition_finished = None):
+                 acquisition_finished = None,
+                 do_stretch_correction: bool = False,
+                 stretch_amplitude: float = 0.0,
+                 stretch_azimuth: float = 0.0,
+                 stretch_cent_x: float = 0.0,
+                 stretch_cent_y: float = 0.0):
         self.ctrl = ctrl
         self.path = path
         self.logger = log
@@ -113,10 +118,13 @@ class Experiment:
             self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize * self.software_binsize  # mm
 
         self.wavelength = config.microscope.wavelength  # angstrom
-        self.stretch_azimuth = config.calibration.stretch_azimuth  # deg
-        self.stretch_amplitude = config.calibration.stretch_amplitude  # %
         self.spotsize = self.ctrl.spotsize
 
+        self.do_stretch_correction = do_stretch_correction
+        self.stretch_azimuth = stretch_azimuth  # deg
+        self.stretch_amplitude = stretch_amplitude  # %
+        self.stretch_cent_x = stretch_cent_x
+        self.stretch_cent_y = stretch_cent_y
 
         if self.path is not None:
             self.setup_path()
@@ -229,11 +237,15 @@ class Experiment:
             print(f'Pixelsize: {self.pixelsize} Angstrom^(-1)/pixel', file=f)
             print(f'Physical pixelsize: {self.physical_pixelsize} um', file=f)
             print(f'Wavelength: {self.wavelength} Angstrom', file=f)
-            print(f'Stretch amplitude: {self.stretch_azimuth} %', file=f)
-            print(f'Stretch azimuth: {self.stretch_amplitude} degrees', file=f)
             print(f'Number of points x-direction: {self.nx}, y-direction: {self.ny}', file=f)
             print(f'Interval x-direction: {self.interval_x} nm, y-direction: {self.interval_y} nm', file=f)
             print(f'Scan pattern: {self.scan_pattern}', file=f)
+            if self.do_stretch_correction:
+                print(f'Apply stretch correction: {self.do_stretch_correction}', file=f)
+                print(f'Stretch amplitude: {self.stretch_azimuth} %', file=f)
+                print(f'Stretch azimuth: {self.stretch_amplitude} degrees', file=f)
+                print(f'Stretch correction center x: {self.stretch_cent_x}', file=f)
+                print(f'Stretch correction center y: {self.stretch_cent_y}', file=f)
             
     def virtual_img_info(self):
         with open(self.path / 'summary.txt', 'a') as f:
@@ -408,12 +420,16 @@ class Experiment:
             for i in range(len(self.buffer)):
                 img, header = self.buffer[i]
                 fn = self.tiff_path / f'{i:07d}.tiff'
+                if self.do_stretch_correction:
+                    img = apply_stretch_correction(img, center=[self.stretch_cent_x, self.stretch_cent_y], azimuth=self.stretch_azimuth, amplitude=self.stretch_amplitude)
                 write_tiff(fn, img, header=header)
         if self.save_hdf5_raw_imgs:
             fn = self.hdf5_path / f'raw_imgs.h5'
             with h5py.File(fn, 'w') as hf:
                 for i in range(len(self.buffer)):
                     img, header = self.buffer[i]
+                    if self.do_stretch_correction:
+                        img = apply_stretch_correction(img, center=[self.stretch_cent_x, self.stretch_cent_y], azimuth=self.stretch_azimuth, amplitude=self.stretch_amplitude)
                     dset = hf.create_dataset(f'{i:07d}', data=img)
                     dset.attrs.update(header)
 

@@ -9,6 +9,7 @@ from tkinter.ttk import *
 import matplotlib.pyplot as plt
 
 from .base_module import BaseModule
+from .modules import MODULES
 from instamatic import config
 from instamatic.calibrate import CalibBeamShift
 from instamatic.calibrate.filenames import *
@@ -25,6 +26,7 @@ class ExperimentalautocRED(LabelFrame):
     def __init__(self, parent):
         LabelFrame.__init__(self, parent, text='Serial Rotation Electron Diffraction (SerialRED)')
         self.parent = parent
+        self.stream_frame = [module for module in MODULES if module.name == 'stream'][0].frame
 
         self.init_vars()
 
@@ -203,7 +205,12 @@ class ExperimentalautocRED(LabelFrame):
                   'offset': self.var_offset.get(),
                   'rotrange': self.var_rotrange.get(),
                   'backlash_killer': self.var_backlash.get(),
-                  'rotation_speed': self.var_rotspeed.get()}
+                  'rotation_speed': self.var_rotspeed.get(),
+                  'do_stretch_correction': self.stream_frame.var_apply_stretch.get(),
+                  'stretch_amplitude': self.stream_frame.var_amplitude.get(),
+                  'stretch_azimuth': self.stream_frame.var_azimuth.get(),
+                  'stretch_cent_x': self.stream_frame.var_cent_x.get(),
+                  'stretch_cent_y': self.stream_frame.var_cent_y.get()}
         return params
 
     def toggle_interval_buttons(self):

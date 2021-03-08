@@ -315,10 +315,8 @@ def acquire_data_CRED_TVIPS(controller, **kwargs):
         expdir = controller.module_io.get_new_experiment_directory()
         expdir.mkdir(exist_ok=True, parents=True)
 
-        controller.cred_tvips_exp = cRED_tvips.Experiment(ctrl=controller.ctrl, path=expdir,
-                                                          log=controller.log, mode=mode,
-                                                          track=instruction_file, exposure=exposure,
-                                                          rotation_speed=rotation_speed)
+        controller.cred_tvips_exp = cRED_tvips.Experiment(ctrl=controller.ctrl, path=expdir, log=controller.log, mode=mode, track=instruction_file, 
+                                                        exposure=exposure, rotation_speed=rotation_speed)
         controller.cred_tvips_exp.get_ready()
 
         barrier.wait()  # synchronize with GUI
@@ -329,10 +327,8 @@ def acquire_data_CRED_TVIPS(controller, **kwargs):
         expdir = controller.module_io.get_new_experiment_directory()
         expdir.mkdir(exist_ok=True, parents=True)
 
-        cred_tvips_exp = cRED_tvips.SerialExperiment(ctrl=controller.ctrl, path=expdir,
-                                                     log=controller.log, mode=mode,
-                                                     instruction_file=instruction_file, exposure=exposure,
-                                                     target_angle=target_angle, rotation_speed=rotation_speed)
+        cred_tvips_exp = cRED_tvips.SerialExperiment(ctrl=controller.ctrl, path=expdir, log=controller.log, mode=mode, instruction_file=instruction_file, 
+                                                    exposure=exposure, target_angle=target_angle, rotation_speed=rotation_speed)
         cred_tvips_exp.run()
     elif task == 'stop':
         pass

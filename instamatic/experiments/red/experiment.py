@@ -24,7 +24,8 @@ class Experiment:
         Path to flatfield correction image
     """
 
-    def __init__(self, ctrl, path: str = None, log=None, flatfield=None):
+    def __init__(self, ctrl, path: str = None, log=None, flatfield=None, do_stretch_correction=False, 
+                stretch_amplitude=0.0, stretch_azimuth=0.0, stretch_cent_x=0.0, stretch_cent_y=0.0):
         super().__init__()
         self.ctrl = ctrl
         self.path = Path(path)
@@ -36,6 +37,12 @@ class Experiment:
         self.tiff_path.mkdir(exist_ok=True, parents=True)
         self.tiff_image_path.mkdir(exist_ok=True, parents=True)
         self.mrc_path.mkdir(exist_ok=True, parents=True)
+
+        self.do_stretch_correction = do_stretch_correction
+        self.stretch_azimuth = stretch_azimuth  # deg
+        self.stretch_amplitude = stretch_amplitude  # %
+        self.stretch_cent_x = stretch_cent_x
+        self.stretch_cent_y = stretch_cent_y
 
         self.logger = log
         self.camtype = ctrl.cam.name
@@ -160,8 +167,6 @@ class Experiment:
                 self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize * software_binsize
 
         self.wavelength = config.microscope.wavelength  # angstrom
-        self.stretch_azimuth = config.calibration.stretch_azimuth
-        self.stretch_amplitude = config.calibration.stretch_amplitude
 
         with open(self.path / 'summary.txt', 'a') as f:
             print(f'Rotation range: {self.end_angle-self.start_angle:.2f} degrees', file=f)
@@ -171,11 +176,15 @@ class Experiment:
             print(f'Pixelsize: {self.pixelsize} Angstrom^(-1)/pixel', file=f)
             print(f'Physical pixelsize: {self.physical_pixelsize} um', file=f)
             print(f'Wavelength: {self.wavelength} Angstrom', file=f)
-            print(f'Stretch amplitude: {self.stretch_azimuth} %', file=f)
-            print(f'Stretch azimuth: {self.stretch_amplitude} degrees', file=f)
             print(f'Rotation axis: {self.rotation_axis} radians', file=f)
             print(f'Stepsize: {self.stepsize:.4f} degrees', file=f)
             print(f'Number of frames: {self.nframes}', file=f)
+            if self.do_stretch_correction:
+                print(f'Apply stretch correction: {self.do_stretch_correction}', file=f)
+                print(f'Stretch amplitude: {self.stretch_azimuth} %', file=f)
+                print(f'Stretch azimuth: {self.stretch_amplitude} degrees', file=f)
+                print(f'Stretch center x: {self.stretch_cent_x} pixel', file=f)
+                print(f'Stretch center y: {self.stretch_cent_y} pixel', file=f)
 
         img_conv = ImgConversion(buffer=self.buffer,
                                  osc_angle=self.stepsize,
@@ -187,8 +196,11 @@ class Experiment:
                                  pixelsize=self.pixelsize,
                                  physical_pixelsize=self.physical_pixelsize,
                                  wavelength=self.wavelength,
+                                 do_stretch_correction=self.do_stretch_correction,
                                  stretch_amplitude=self.stretch_amplitude,
                                  stretch_azimuth=self.stretch_azimuth,
+                                 stretch_cent_x=self.stretch_cent_x,
+                                 stretch_cent_y=self.stretch_cent_y
                                  )
 
         print('Writing data files...')
