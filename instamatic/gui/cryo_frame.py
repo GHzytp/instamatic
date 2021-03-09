@@ -11,11 +11,11 @@ import numpy as np
 import pandas as pd
 
 from .base_module import BaseModule
+from .modules import MODULES
 from instamatic import config
 from instamatic import TEMController
 from instamatic.formats import write_tiff
 from instamatic.utils import suppress_stderr
-from instamatic.gui.grid_frame import GridFrame
 from instamatic.gui.grid_window import GridWindow
 from instamatic.utils.widgets import MultiListbox, Hoverbox
 
@@ -38,6 +38,11 @@ class CryoEDFrame(LabelFrame):
         self.dimension = self.ctrl.cam.dimension
         self.binsize = self.ctrl.cam.default_binsize
         self.software_binsize = config.settings.software_binsize
+        self.indexing_frame = [module for module in MODULES if module.name == 'indexing'][0].frame
+        try:
+            self.grid_frame = [module for module in MODULES if module.name == 'grid'][0].frame
+        except IndexError:
+            self.grid_frame = None
 
         self.init_vars()
 
@@ -91,6 +96,16 @@ class CryoEDFrame(LabelFrame):
         self.GoXYButton.grid(row=5, column=2, sticky='EW')
         self.GoXYZButton = Button(frame, text='Go to XYZ', width=11, command=self.go_xyz, state=NORMAL)
         self.GoXYZButton.grid(row=5, column=3, sticky='EW', padx=5)
+        self.ShowGridButton = Button(frame, text='Show Grid', width=11, command=self.show_grid, state=NORMAL)
+        self.ShowGridButton.grid(row=5, column=4, sticky='EW')
+        self.ShowSquareButton = Button(frame, text='Show Target', width=11, command=self.show_square, state=NORMAL)
+        self.ShowSquareButton.grid(row=5, column=5, sticky='EW', padx=5)
+        self.ShowTargetButton = Button(frame, text='Show Target', width=11, command=self.show_target, state=NORMAL)
+        self.ShowTargetButton.grid(row=5, column=6, sticky='EW')
+
+        self.RunTargetButton = Button(frame, text='Run Target', width=11, command=self.run_target, state=NORMAL)
+        self.RunTargetButton.grid(row=6, column=0, sticky='EW')
+        
 
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
 
@@ -159,6 +174,18 @@ class CryoEDFrame(LabelFrame):
         self.var_name = StringVar(value="")
         self.var_level = StringVar(value='Whole')
         self.var_exposure = DoubleVar(value=round(round(1.5/self.ctrl.cam.default_exposure)*self.ctrl.cam.default_exposure, 1))
+
+    def run_target(self):
+        pass
+
+    def show_grid(self):
+        pass
+
+    def show_square(self):
+        pass
+
+    def show_target(self):
+        pass
 
     @suppress_stderr
     def show_progress(self, n):
@@ -590,6 +617,9 @@ class CryoEDFrame(LabelFrame):
                 self.df_square = pd.read_csv(file)
             elif 'target' in file:
                 self.df_target = pd.read_csv(file)
+        self.tv_grid_square.delete(*self.tv_grid_square.get_children())
+        self.tv_target.delete(*self.tv_target.get_children())
+        self.tv_whole_grid.delete(*self.tv_whole_grid.get_children())
                              
 
 module = BaseModule(name='cryo', display_name='CryoED', tk_frame=CryoEDFrame, location='bottom')
