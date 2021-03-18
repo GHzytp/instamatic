@@ -36,7 +36,7 @@ class GridFrame(LabelFrame):
         self._drag_data = {"x": 0, "y": 0}
         self.saved_tv_items = None
         self.software_binsize = config.settings.software_binsize
-        self.cryo_frame = [module for module in MODULES if module.name == 'cryo'][0].frame
+        self.cryo_frame = None
 
         self.init_vars()
         
@@ -131,6 +131,21 @@ class GridFrame(LabelFrame):
             self.map_path = filedialog.askopenfilename(initialdir=self.init_dir, title='Select an image', 
                             filetypes=(('tiff files', '*.tiff'), ('tif files', '*.tif'), ('all files', '*.*')))
         if self.map_path != '':
+            self.clear_all()
+            self.lbl_open_map.config(text=self.map_path.split("/")[-1])
+            suffix = self.map_path.split('.')[-1]
+            if suffix in ('tiff', 'tif'):
+                self.map, self.map_info = read_tiff(self.map_path)
+            if self.map is not None:
+                tmp = self.map - np.min(self.map[::8, ::8])
+                tmp = self.map * (256.0 / (1 + np.percentile(self.map[::8, ::8], 99.5))) 
+                self.image_scaled = self.image = Image.fromarray(tmp)
+                self.image_tk = ImageTk.PhotoImage(image=self.image)
+                self.map_on_canvas = self.canvas.create_image(0, 0, anchor=NW, image=self.image_tk, state=DISABLED)
+                self.canvas.configure(scrollregion=self.canvas.bbox("all")) # coordinate for the whole image
+
+    def open_from_frame(self):
+        if self.map_path != '' and self.map_path is not None:
             self.clear_all()
             self.lbl_open_map.config(text=self.map_path.split("/")[-1])
             suffix = self.map_path.split('.')[-1]
@@ -287,23 +302,26 @@ class GridFrame(LabelFrame):
             stage_pos = self.point_list[['pos_x', 'pos_y']].to_numpy()
             stage_pos -= pixel_center
             stage_matrix = np.array(self.map_info['stage_matrix']).reshape((2, 2))
-            stage_matrix = stage_matrix[::-1]
+            stage_matrix = stage_matrix[::-1] * self.map_info['ImagePixelsize']
             stage_pos = stage_pos @ stage_matrix
             stage_pos += np.array(self.map_info['center_pos'])
             stage_pos = np.round(stage_pos)
-            stage_pos_df = pd.DataFrame({'pos_x':stage_pos[:,0], 'pos_y':stage_pos[:,1]})
+            stage_pos_df = pd.DataFrame({'x':self.point_list['pos_x'], 'y':self.point_list['pos_y'], 'pos_x':stage_pos[:,0], 'pos_y':stage_pos[:,1]})
             path = Path(self.map_path).parent
             return stage_pos_df, path
         else:
             return None, None
 
     def send_items(self):
+        if self.cryo_frame is None:
+            self.cryo_frame = [module for module in MODULES if module.name == 'cryo'][0].frame
+
         stage_pos_df, path = self._generate_stage_position()
 
         level = self.cryo_frame.var_level.get()
         if stage_pos_df is not None:
             z = self.cryo_frame.ctrl.stage.z
-            name = self.map_path.name
+            name = Path(self.map_path).name
             if level == 'Whole':
                 if name.split('_')[0] != 'grid':
                     messagebox.showerror(title='Error', message='Please use grid level image!')

@@ -40,6 +40,7 @@ class IndexFrame(LabelFrame):
         self.parent = parent
         self.ctrl = TEMController.get_instance()
         self.wavelength = config.microscope.wavelength
+        self.img_path = None
         self.img = None
         self.img_center = None
         self.stretched_img = None
@@ -303,33 +304,44 @@ class IndexFrame(LabelFrame):
 
     def open_image(self):
         self.ax.cla()
-        img_path = filedialog.askopenfilename(initialdir=config.locations['work'], title='Select an image', 
+        self.img_path = filedialog.askopenfilename(initialdir=config.locations['work'], title='Select an image', 
                             filetypes=(('mrc files', '*.mrc'), ('img files', '*.img'), ('dm3 files', '*.dm3'), ('dm4 files', '*.dm4'), ('hdf5 files', '*.h5'), ('smv files', '*.smv'), 
                                         ('tiff files', '*.tiff'), ('tif files', '*.tif'), ('cbf files', '*.cbf'), ('all files', '*.*')))
-        if img_path != '':
+        if self.img_path != '':
             self.counter = 0
-            img_path = Path(img_path)
+            self.img_path = Path(self.img_path)
             suffix = img_path.suffix
             if suffix in ('.tif', '.tiff'):
-                self.img, self.img_header = read_tiff(img_path)
+                self.img, self.img_header = read_tiff(self.img_path)
             elif suffix in ('.h5'):
-                self.img, self.img_header = read_hdf5(img_path)
+                self.img, self.img_header = read_hdf5(self.img_path)
             elif suffix == '.mrc':
                 #self.img, self.img_header = read_mrc(img_path)
-                with mrcfile.open(img_path, permissive=True) as f:
+                with mrcfile.open(self.img_path, permissive=True) as f:
                     self.img = f.data
                     self.img_header = {name:f.header[name] for name in f.header.dtype.names}
             elif suffix in ('.img', '.smv'):
-                self.img, self.img_header = read_adsc(img_path)
+                self.img, self.img_header = read_adsc(self.img_path)
             elif suffix == '.cbf':
-                self.img, self.img_header = read_cbf(img_path)
+                self.img, self.img_header = read_cbf(self.img_path)
             elif suffix in ('.dm3', '.dm4'):
-                self.img = dmReader(img_path)['data']
+                self.img = dmReader(self.img_path)['data']
                 self.img_header = None
             pprint.pprint(self.img_header)
             self.img_on_canvas = self.ax.imshow(self.img)
-            self.ax.set_xlim(0, self.img.shape[0]-1)
-            self.ax.set_ylim(self.img.shape[1]-1, 0)
+            self.ax.set_xlim(0, self.img.shape[1]-1)
+            self.ax.set_ylim(self.img.shape[0]-1, 0)
+            self.canvas.draw()
+
+    def open_from_frame(self):
+        if self.img_path != '' and self.img_path is not None:
+            self.counter = 0
+            self.img_path = Path(self.img_path)
+            self.img, self.img_header = read_tiff(self.img_path)
+            pprint.pprint(self.img_header)
+            self.img_on_canvas = self.ax.imshow(self.img)
+            self.ax.set_xlim(0, self.img.shape[1]-1)
+            self.ax.set_ylim(self.img.shape[0]-1, 0)
             self.canvas.draw()
 
     def show_center(self):
