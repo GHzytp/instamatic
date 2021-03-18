@@ -186,24 +186,45 @@ class CryoEDFrame(LabelFrame):
     def show_grid_montage(self):
         self.grid_frame.map_path = str(self.grid_montage_path)
         self.grid_frame.open_from_frame()
+        self.grid_frame.point_list = pd.DataFrame(columns=['pos_x', 'pos_y', 'cross_1', 'cross_2'])
+        self.grid_frame.point_list['pos_x'] = self.df_grid['x']
+        self.grid_frame.point_list['pos_y'] = self.df_grid['y']
+        self.grid_frame.load_positions_from_frame()
 
     def show_grid(self):
-        selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
-        self.grid_frame.map_path = str(self.df_grid.loc[self.df_grid['grid']==selected_grid, 'img_location'])
-        self.grid_frame.open_from_frame()
+        try:
+            selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+            self.grid_frame.map_path = str(self.grid_dir/self.df_grid.loc[self.df_grid['grid']==selected_grid, 'img_location'].values[0])
+            self.grid_frame.open_from_frame()
+            self.grid_frame.point_list = pd.DataFrame(columns=['pos_x', 'pos_y', 'cross_1', 'cross_2'])
+            self.grid_frame.point_list['pos_x'] = self.df_square.loc[self.df_square['grid']==selected_grid, 'x']
+            self.grid_frame.point_list['pos_y'] = self.df_square.loc[self.df_square['grid']==selected_grid, 'y']
+            self.grid_frame.load_positions_from_frame()
+        except IndexError:
+            raise RuntimeError('Please choose grid')
 
     def show_square(self):
-        selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
-        selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
-        self.grid_frame.map_path = str(self.df_square.loc[(self.df_square['grid']==selected_grid) & (self.df_square['square']==selected_square), 'img_location'])
-        self.grid_frame.open_from_frame()
+        try:
+            selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+            selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
+            self.grid_frame.map_path = str(self.grid_dir/self.df_square.loc[(self.df_square['grid']==selected_grid) & (self.df_square['square']==selected_square), 'img_location'].values[0])
+            self.grid_frame.open_from_frame()
+            self.grid_frame.point_list = pd.DataFrame(columns=['pos_x', 'pos_y', 'cross_1', 'cross_2'])
+            self.grid_frame.point_list['pos_x'] = self.df_target.loc[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square), 'x']
+            self.grid_frame.point_list['pos_y'] = self.df_target.loc[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square), 'y']
+            self.grid_frame.load_positions_from_frame()
+        except IndexError:
+            raise RuntimeError('Please choose grid and square')
 
     def show_target(self):
-        selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
-        selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
-        selected_target = self.tv_target.get_children().index(self.tv_target.selection()[0])
-        self.indexing_frame.img_path = str(self.df_target.loc[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square) & (self.df_target['target']==selected_target), 'img_location'])
-        self.indexing_frame.open_from_frame()
+        try:
+            selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+            selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
+            selected_target = self.tv_target.get_children().index(self.tv_target.selection()[0])
+            self.indexing_frame.img_path = str(self.grid_dir/self.df_target.loc[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square) & (self.df_target['target']==selected_target), 'diff_location'].values[0])
+            self.indexing_frame.open_from_frame()
+        except IndexError:
+            raise RuntimeError('Please choose grid, square and target')
 
     @suppress_stderr
     def show_progress(self, n):
@@ -261,27 +282,30 @@ class CryoEDFrame(LabelFrame):
 
             confirm  = messagebox.askquestion('Collect grid square map', 'Confirm proper conditions (medium mag) were setted')
             if confirm == 'yes':
-                num = 1
-                self.square_dir = self.grid_dir / f'Sqaure_{num}'
-                success = False
-                while not success:
-                    try:
-                        self.square_dir.mkdir(parents=True)
-                        success = True
-                    except OSError:
-                        num += 1
-                        self.square_dir = self.grid_dir / f'Square_{num}'
-                self.mag = self.ctrl.magnification.get()
-                if self.software_binsize is None:
-                    self.image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize #nm->um
-                else:
-                    self.image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize * self.software_binsize
-                
-                self.var_radius.set(self.image_scale * (self.dimension[0] + self.dimension[1]) / 4)
-                t = threading.Thread(target=self.collect_image, args=(self.var_exposure.get(),level,self.square_dir/f'square_{self.var_name.get()}.tiff'), daemon=True)
-                t.start()
-                selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
-                self.df_grid.loc[self.df_grid['grid']==selected_grid, 'img_location'] = self.square_dir/f'square_{self.var_name.get()}.tiff'
+                try:
+                    selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+                    num = 1
+                    self.square_dir = self.grid_dir / f'Sqaure_{num}'
+                    success = False
+                    while not success:
+                        try:
+                            self.square_dir.mkdir(parents=True)
+                            success = True
+                        except OSError:
+                            num += 1
+                            self.square_dir = self.grid_dir / f'Square_{num}'
+                    self.mag = self.ctrl.magnification.get()
+                    if self.software_binsize is None:
+                        self.image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize #nm->um
+                    else:
+                        self.image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize * self.software_binsize
+                    
+                    self.var_radius.set(self.image_scale * (self.dimension[0] + self.dimension[1]) / 4)
+                    t = threading.Thread(target=self.collect_image, args=(self.var_exposure.get(),level,self.square_dir/f'square_{self.var_name.get()}.tiff'), daemon=True)
+                    t.start()
+                    self.df_grid.loc[self.df_grid['grid']==selected_grid, 'img_location'] = Path(self.square_dir.name)/f'square_{self.var_name.get()}.tiff'
+                except IndexError:
+                    raise RuntimeError('Please choose grid')
 
         elif level == 'Target':
             if self.square_dir is None:
@@ -289,28 +313,31 @@ class CryoEDFrame(LabelFrame):
             
             confirm  = messagebox.askquestion('Collect targets', 'Confirm proper conditions (high mag) were setted')
             if confirm == 'yes':
-                num = 1
-                self.target_dir = self.square_dir / f'Target_{num}'
-                success = False
-                while not success:
-                    try:
-                        self.target_dir.mkdir(parents=True)
-                        success = True
-                    except OSError:
-                        num += 1
-                        self.target_dir = self.square_dir / f'Target_{num}'
-                self.mag = self.ctrl.magnification.get()
-                if self.software_binsize is None:
-                    self.image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize #nm->um
-                else:
-                    self.image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize * self.software_binsize
-                
-                self.var_radius.set(self.image_scale * (self.dimension[0] + self.dimension[1]) / 4)
-                t = threading.Thread(target=self.collect_image, args=(self.var_exposure.get(),level,self.target_dir/f'target_{self.var_name.get()}.tiff'), daemon=True)
-                t.start()
-                selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
-                selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
-                self.df_square.loc[(self.df_square['grid']==selected_grid) & (self.df_square['square']==selected_square), 'img_location'] = self.target_dir/f'target_{self.var_name.get()}.tiff'
+                try:
+                    selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+                    selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
+                    num = 1
+                    self.target_dir = self.square_dir / f'Target_{num}'
+                    success = False
+                    while not success:
+                        try:
+                            self.target_dir.mkdir(parents=True)
+                            success = True
+                        except OSError:
+                            num += 1
+                            self.target_dir = self.square_dir / f'Target_{num}'
+                    self.mag = self.ctrl.magnification.get()
+                    if self.software_binsize is None:
+                        self.image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize #nm->um
+                    else:
+                        self.image_scale = config.calibration[self.state]['pixelsize'][self.mag] / 1000 * self.binsize * self.software_binsize
+                    
+                    self.var_radius.set(self.image_scale * (self.dimension[0] + self.dimension[1]) / 4)
+                    t = threading.Thread(target=self.collect_image, args=(self.var_exposure.get(),level,self.target_dir/f'target_{self.var_name.get()}.tiff'), daemon=True)
+                    t.start()
+                    self.df_square.loc[(self.df_square['grid']==selected_grid) & (self.df_square['square']==selected_square), 'img_location'] = Path(self.target_dir.parent.name)/self.target_dir.name/f'target_{self.var_name.get()}.tiff'
+                except IndexError:
+                    raise RuntimeError('Please choose grid and square')
 
     def retake_image(self):
         level = self.var_level.get()
@@ -328,15 +355,18 @@ class CryoEDFrame(LabelFrame):
     def get_diff(self):
         self.state = self.ctrl.mode.state
         if self.state in ('D', 'diff', 'LAD'):
-            self.cam_len = self.ctrl.magnification.get()
-            selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
-            selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
-            selected_target = self.tv_target.get_children().index(self.tv_target.selection()[0])
-            target_path = self.df_square.loc[(self.df_square['grid']==selected_grid) & (self.df_square['square']==selected_square), 'img_location'].parent
-            existing_tiff = len(list(self.target_path.glob('*.tiff')))
-            t = threading.Thread(target=self.collect_image, args=(self.var_exposure.get(),'Target diffcation',target_path/f'target_diff_{self.var_name.get()}_{existing_tiff:03}.tiff'), daemon=True)
-            t.start()
-            self.df_target.loc[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square) & (self.df_target['target']==selected_target), 'img_location'] = target_path/f'target_diff_{existing_tiff:03}.tiff'
+            try:
+                selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+                selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
+                selected_target = self.tv_target.get_children().index(self.tv_target.selection()[0])
+                self.cam_len = self.ctrl.magnification.get()
+                target_path = self.grid_dir/self.df_square.loc[(self.df_square['grid']==selected_grid) & (self.df_square['square']==selected_square), 'img_location'].parent
+                existing_tiff = len(list(self.target_path.glob('*.tiff')))
+                t = threading.Thread(target=self.collect_image, args=(self.var_exposure.get(),'Target diffcation',target_path/f'target_diff_{self.var_name.get()}_{existing_tiff:03}.tiff'), daemon=True)
+                t.start()
+                self.df_target.loc[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square) & (self.df_target['target']==selected_target), 'img_location'] = Path(self.target_dir.parent.name)/self.target_dir.name/f'target_diff_{self.var_name.get()}_{existing_tiff:03}.tiff'
+            except IndexError:
+                raise RuntimeError('Please choose grid, square and target')
 
     def collect_montage(self, num_img, filepath):
         ctrl = self.ctrl
@@ -355,7 +385,7 @@ class CryoEDFrame(LabelFrame):
         h['mode'] = self.state
         h['magnification'] = self.mag
         h['ImageResolution'] = stitched.shape
-        h['stage_matrix'] = self.ctrl.get_stagematrix() #nm
+        h['stage_matrix'] = self.ctrl.get_stagematrix() # normalized need to multiple pixelsize
         h['ImagePixelsize'] = self.image_scale * 1000 #um -> nm
         write_tiff(filepath, stitched, header=h)
         self.ctrl.stage.xy = current_pos
@@ -370,14 +400,7 @@ class CryoEDFrame(LabelFrame):
         h['mode'] = self.state
         h['magnification'] = self.mag
         h['ImageResolution'] = arr.shape
-        h['stage_matrix'] = self.ctrl.get_stagematrix() #nm
-        if self.state in ('D', 'diff', 'LAD'):
-            if self.software_binsize is None:
-                h['ImagePixelsize'] = config.calibration[self.state]['pixelsize'][self.cam_len] * self.binsize
-            else:
-                h['ImagePixelsize'] = config.calibration[self.state]['pixelsize'][self.cam_len] * self.binsize * self.software_binsize
-        else:
-            h['ImagePixelsize'] = self.image_scale * 1000 #um -> nm
+        h['stage_matrix'] = self.ctrl.get_stagematrix() # normalized need to multiple pixelsize
         write_tiff(filepath, arr, header=h)
         self.ctrl.stage.xy = current_pos
         self.lb_coll1.config(text=f'{level} completed. Saved dir: {filepath.parent}')
@@ -462,8 +485,7 @@ class CryoEDFrame(LabelFrame):
             self.tv_target.delete(*self.tv_target.get_children())
             selected_square_df = self.df_square[self.df_square['grid'] == selected].reset_index().drop(['index'], axis=1)
             for index in range(len(selected_square_df)):
-                self.tv_grid_square.insert("",'end', text="Item_"+str(index), 
-                        values=(index, selected_square_df.loc[index,'pos_x'],selected_square_df.loc[index,'pos_y'],selected_square_df.loc[index,'pos_z']))
+                self.tv_grid_square.insert("",'end', text="Item_"+str(index), values=(index, selected_square_df.loc[index,'pos_x'],selected_square_df.loc[index,'pos_y'],selected_square_df.loc[index,'pos_z']))
 
     def update_square(self, event):
         selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
@@ -474,8 +496,7 @@ class CryoEDFrame(LabelFrame):
             self.tv_target.delete(*self.tv_target.get_children())
             selected_target_df = self.df_target[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square)].reset_index().drop(['index'], axis=1)
             for index in range(len(selected_target_df)):
-                self.tv_target.insert("",'end', text="Item_"+str(index), 
-                        values=(index, selected_target_df.loc[index,'pos_x'],selected_target_df.loc[index,'pos_y'],selected_target_df.loc[index,'pos_z']))
+                self.tv_target.insert("",'end', text="Item_"+str(index), values=(index, selected_target_df.loc[index,'pos_x'],selected_target_df.loc[index,'pos_y'],selected_target_df.loc[index,'pos_z']))
 
     def update_z_square(self):
         selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
@@ -571,9 +592,8 @@ class CryoEDFrame(LabelFrame):
         num = 0
         for index, _ in self.df_target[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square)].iterrows():
             self.df_target.loc[index, 'target'] = num
-            self.tv_target.set(existing_targets[index], 0, value=num)
+            self.tv_target.set(existing_targets[num], 0, value=num)
             num += 1
-        print(self.df_target)
 
     def del_square(self):
         try:
@@ -593,15 +613,13 @@ class CryoEDFrame(LabelFrame):
         num = 0
         for index, _ in self.df_square[self.df_square['grid']==selected_grid].iterrows():
             self.df_square.loc[index, 'square'] = num
-            self.tv_grid_square.set(existing_square[index], 0, value=num)
+            self.tv_grid_square.set(existing_square[num], 0, value=num)
             num+=1
 
         num = 0
         for index, _ in self.df_square_org_index.iterrows():
             self.df_target.loc[self.df_target['square']==index, 'square'] = num
-            self.tv_grid_square.set(existing_grid[index], 0, value=num)
             num+=1
-        print(self.df_square)
 
     def del_grid(self):
         try:
@@ -638,25 +656,37 @@ class CryoEDFrame(LabelFrame):
         if self.grid_dir is not None:
             dir_name = filedialog.askdirectory(initialdir=self.grid_dir, title='Save Whole Grid')
             sample_name = self.var_name.get()
-            self.df_grid.to_csv(dir_name/f'grid_{sample_name}.csv', index=False)
-            self.df_square.to_csv(dir_name/f'square_{sample_name}.csv', index=False)
-            self.df_target.to_csv(dir_name/f'target_{sample_name}.csv', index=False)
+            self.df_grid.to_csv(Path(dir_name)/f'grid_{sample_name}.csv', index=False)
+            self.df_square.to_csv(Path(dir_name)/f'square_{sample_name}.csv', index=False)
+            self.df_target.to_csv(Path(dir_name)/f'target_{sample_name}.csv', index=False)
 
     def load_grid(self):
         dir_name = filedialog.askdirectory(initialdir=self.grid_dir, title='Load Whole Grid')
-        dir_name = Path(dir_name)
-        files = dir_name.glob('*.csv')
-        for file in files:
-            if 'grid' in file:
-                self.df_grid = pd.read_csv(file)
-            elif 'square' in file:
-                self.df_square = pd.read_csv(file)
-            elif 'target' in file:
-                self.df_target = pd.read_csv(file)
-        self.tv_grid_square.delete(*self.tv_grid_square.get_children())
-        self.tv_target.delete(*self.tv_target.get_children())
-        self.tv_whole_grid.delete(*self.tv_whole_grid.get_children())
-                             
+        if dir_name != '':
+            self.tv_grid_square.delete(*self.tv_grid_square.get_children())
+            self.tv_target.delete(*self.tv_target.get_children())
+            self.tv_whole_grid.delete(*self.tv_whole_grid.get_children())
+            dir_name = Path(dir_name)
+            self.grid_dir = dir_name
+            files = dir_name.glob('*.csv')
+            for file in files:
+                if 'grid' in str(file):
+                    self.df_grid = pd.read_csv(file)
+                elif 'square' in str(file):
+                    self.df_square = pd.read_csv(file)
+                elif 'target' in str(file):
+                    self.df_target = pd.read_csv(file)
+            imgs = dir_name.glob('*.tiff')
+            counter = 0
+            for img in imgs:
+                if 'grid' in str(img):
+                    self.grid_montage_path = img
+                if counter > 1:
+                    raise RuntimeError('Only one grid montage allow for one grid')
+
+            for index in range(len(self.df_grid)):
+                self.tv_whole_grid.insert("",'end', text="Item_"+str(index), values=(index, self.df_grid.loc[index,'pos_x'],self.df_grid.loc[index,'pos_y']))
+
 
 module = BaseModule(name='cryo', display_name='CryoED', tk_frame=CryoEDFrame, location='bottom')
 commands = {}

@@ -185,6 +185,21 @@ class GridFrame(LabelFrame):
                 self.point_list.loc[index, 'cross_2'] = self.canvas.create_line(cent_x, cent_y-5, cent_x, cent_y+6, tags='cross', width=3, fill='red')
             self.saved_tv_items = self.tv_positions.get_children()
 
+    def load_positions_from_frame(self):
+        self.canvas.delete('cross')
+        self.counter = 0
+        self.tv_positions.delete(*self.tv_positions.get_children())
+        for index in range(len(self.point_list)):
+            cent_x = self.point_list.loc[index, 'pos_x']
+            cent_y = self.point_list.loc[index, 'pos_y']
+            self.tv_positions.insert("",'end', text="Item"+str(self.counter), values=(cent_x,cent_y))
+            self.counter += 1
+            cent_x = cent_x * self.last_scale
+            cent_y = cent_y * self.last_scale
+            self.point_list.loc[index, 'cross_1'] = self.canvas.create_line(cent_x-5, cent_y, cent_x+6, cent_y, tags='cross', width=3, fill='red')
+            self.point_list.loc[index, 'cross_2'] = self.canvas.create_line(cent_x, cent_y-5, cent_x, cent_y+6, tags='cross', width=3, fill='red')
+        self.saved_tv_items = self.tv_positions.get_children()
+
     def add_position(self):
         self.canvas.unbind("<ButtonRelease-1>")
         self.canvas.unbind("<B1-Motion>")
@@ -349,10 +364,11 @@ class GridFrame(LabelFrame):
 
                     last_num_square = len(self.cryo_frame.df_square)
                     existing_num_square = len(self.cryo_frame.df_square[self.cryo_frame.df_square['grid'] == grid_num])
+                    existing_square_in_tv = len(self.cryo_frame.tv_grid_square.get_children())
                     self.cryo_frame.df_square = self.cryo_frame.df_square.append(stage_pos_df, ignore_index=True)
                     for index in range(len(stage_pos_df)):
                         self.cryo_frame.tv_grid_square.insert("",'end', text="Item_"+str(last_num_square+index), 
-                                        values=(last_num_square+index, stage_pos_df.loc[index,'pos_x'],stage_pos_df.loc[index,'pos_y'],z))
+                                        values=(existing_square_in_tv+index, stage_pos_df.loc[index,'pos_x'],stage_pos_df.loc[index,'pos_y'],z))
                         self.cryo_frame.df_square.loc[last_num_square+index, 'grid'] = grid_num
                         self.cryo_frame.df_square.loc[last_num_square+index, 'square'] = existing_num_square + index
                         self.cryo_frame.df_square.loc[last_num_square+index, 'pos_z'] = z
@@ -374,10 +390,11 @@ class GridFrame(LabelFrame):
                         return
                     last_num_target = len(self.cryo_frame.df_target)
                     existing_num_targets = len(self.cryo_frame.df_target[(self.cryo_frame.df_target['grid'] == grid_num) & (self.cryo_frame.df_target['square'] == square_num)])
+                    existing_target_in_tv = len(self.cryo_frame.tv_target.get_children())
                     self.cryo_frame.df_target = self.cryo_frame.df_target.append(stage_pos_df, ignore_index=True)
                     for index in range(len(stage_pos_df)):
                         self.cryo_frame.tv_target.insert("",'end', text="Item_"+str(last_num_target+index), 
-                                        values=(last_num_target+index, stage_pos_df.loc[index,'pos_x'],stage_pos_df.loc[index,'pos_y'],z))
+                                        values=(existing_target_in_tv+index, stage_pos_df.loc[index,'pos_x'],stage_pos_df.loc[index,'pos_y'],z))
                         self.cryo_frame.df_target.loc[last_num_target+index, 'grid'] = grid_num
                         self.cryo_frame.df_target.loc[last_num_target+index, 'square'] = square_num
                         self.cryo_frame.df_target.loc[last_num_target+index, 'target'] = existing_num_targets+index
