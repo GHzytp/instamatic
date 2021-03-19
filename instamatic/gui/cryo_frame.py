@@ -75,14 +75,12 @@ class CryoEDFrame(LabelFrame):
         self.lb_coll1.grid(row=3, column=0, columnspan=7, sticky='EW', pady=5)
         
 
-        self.AddTargetButton = Button(frame, text='Add Target', width=11, command=self.add_target, state=NORMAL)
-        self.AddTargetButton.grid(row=4, column=0, sticky='EW')
-        self.DelTargetButton = Button(frame, text='Del Target', width=11, command=self.del_target, state=NORMAL)
-        self.DelTargetButton.grid(row=4, column=1, sticky='EW', padx=5)
-        self.DelSquareButton = Button(frame, text='Del Square', width=11, command=self.del_square, state=NORMAL)
-        self.DelSquareButton.grid(row=4, column=2, sticky='EW')
         self.DelGridButton = Button(frame, text='Del Grid', width=11, command=self.del_grid, state=NORMAL)
-        self.DelGridButton.grid(row=4, column=3, sticky='EW', padx=5)
+        self.DelGridButton.grid(row=4, column=0, sticky='EW')
+        self.DelSquareButton = Button(frame, text='Del Square', width=11, command=self.del_square, state=NORMAL)
+        self.DelSquareButton.grid(row=4, column=1, sticky='EW', padx=5)
+        self.DelTargetButton = Button(frame, text='Del Target', width=11, command=self.del_target, state=NORMAL)
+        self.DelTargetButton.grid(row=4, column=2, sticky='EW')
         self.SaveGridButton = Button(frame, text='Change Grid', width=11, command=self.change_grid, state=NORMAL)
         self.SaveGridButton.grid(row=4, column=4, sticky='EW')
         self.SaveGridButton = Button(frame, text='Save Grid', width=11, command=self.save_grid, state=NORMAL)
@@ -189,6 +187,7 @@ class CryoEDFrame(LabelFrame):
         self.grid_frame.point_list = pd.DataFrame(columns=['pos_x', 'pos_y', 'cross_1', 'cross_2'])
         self.grid_frame.point_list['pos_x'] = self.df_grid['x']
         self.grid_frame.point_list['pos_y'] = self.df_grid['y']
+        self.grid_frame.point_list = self.grid_frame.point_list.reset_index().drop(['index'], axis=1)
         self.grid_frame.load_positions_from_frame()
 
     def show_grid(self):
@@ -199,6 +198,7 @@ class CryoEDFrame(LabelFrame):
             self.grid_frame.point_list = pd.DataFrame(columns=['pos_x', 'pos_y', 'cross_1', 'cross_2'])
             self.grid_frame.point_list['pos_x'] = self.df_square.loc[self.df_square['grid']==selected_grid, 'x']
             self.grid_frame.point_list['pos_y'] = self.df_square.loc[self.df_square['grid']==selected_grid, 'y']
+            self.grid_frame.point_list = self.grid_frame.point_list.reset_index().drop(['index'], axis=1)
             self.grid_frame.load_positions_from_frame()
         except IndexError:
             raise RuntimeError('Please choose grid')
@@ -212,6 +212,7 @@ class CryoEDFrame(LabelFrame):
             self.grid_frame.point_list = pd.DataFrame(columns=['pos_x', 'pos_y', 'cross_1', 'cross_2'])
             self.grid_frame.point_list['pos_x'] = self.df_target.loc[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square), 'x']
             self.grid_frame.point_list['pos_y'] = self.df_target.loc[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square), 'y']
+            self.grid_frame.point_list = self.grid_frame.point_list.reset_index().drop(['index'], axis=1)
             self.grid_frame.load_positions_from_frame()
         except IndexError:
             raise RuntimeError('Please choose grid and square')
@@ -573,13 +574,6 @@ class CryoEDFrame(LabelFrame):
             except IndexError:
                 raise RuntimeError('Please select a grid, a square and a target position')
 
-    def add_target(self):
-        try:
-            selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
-            selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
-        except IndexError:
-            raise RuntimeError('Please select grid and square level.')
-
     def del_target(self):
         try:
             selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
@@ -686,6 +680,7 @@ class CryoEDFrame(LabelFrame):
             for img in imgs:
                 if 'grid' in str(img):
                     self.grid_montage_path = img
+                    counter += 1
                 if counter > 1:
                     raise RuntimeError('Only one grid montage allow for one grid')
 
