@@ -431,10 +431,11 @@ class CryoEDFrame(LabelFrame):
 
                     last_num_square = len(self.df_square)
                     existing_num_square = len(self.df_square[self.df_square['grid'] == grid_num])
+                    existing_square_in_tv = len(self.tv_grid_square.get_children())
                     self.df_square = self.df_square.append(self.position_list, ignore_index=True)
                     for index in range(len(self.position_list)):
                         self.tv_grid_square.insert("",'end', text="Item_"+str(last_num_square+index), 
-                                        values=(last_num_square+index, self.position_list.loc[index,'pos_x'],self.position_list.loc[index,'pos_y'],z))
+                                        values=(existing_square_in_tv+index, self.position_list.loc[index,'pos_x'],self.position_list.loc[index,'pos_y'],z))
                         self.df_square.loc[last_num_square+index, 'grid'] = grid_num
                         self.df_square.loc[last_num_square+index, 'square'] = existing_num_square + index
                         self.df_square.loc[last_num_square+index, 'pos_z'] = z
@@ -454,10 +455,11 @@ class CryoEDFrame(LabelFrame):
 
                     last_num_target = len(self.df_target)
                     existing_num_targets = len(self.df_target[(self.df_target['grid'] == grid_num) & (self.df_target['square'] == square_num)])
+                    existing_target_in_tv = len(self.tv_target.get_children())
                     self.df_target = self.df_target.append(self.position_list, ignore_index=True)
                     for index in range(len(self.position_list)):
                         self.tv_target.insert("",'end', text="Item_"+str(last_num_target+index), 
-                                        values=(last_num_target+index, self.position_list.loc[index,'pos_x'],self.position_list.loc[index,'pos_y'],z))
+                                        values=(existing_target_in_tv+index, self.position_list.loc[index,'pos_x'],self.position_list.loc[index,'pos_y'],z))
                         self.df_target.loc[last_num_target+index, 'grid'] = grid_num
                         self.df_target.loc[last_num_target+index, 'square'] = square_num
                         self.df_target.loc[last_num_target+index, 'target'] = existing_num_targets+index
@@ -473,9 +475,12 @@ class CryoEDFrame(LabelFrame):
         self.tv_whole_grid.delete(*self.tv_whole_grid.get_children())
         self.tv_grid_square.delete(*self.tv_grid_square.get_children())
         self.tv_target.delete(*self.tv_target.get_children())
+        self.grid_montage_path = None
         self.grid_dir = None
         self.target_dir = None
         self.square_dir = None
+        self.last_grid = None
+        self.last_square = None
 
     def update_grid(self, event):
         selected = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
