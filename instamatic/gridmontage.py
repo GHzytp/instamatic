@@ -108,7 +108,7 @@ class GridMontage:
 
         return coords, px_center, stage_center
 
-    def start(self):
+    def start(self, save=True):
         """Start the experiment."""
         ctrl = self.ctrl
 
@@ -132,7 +132,8 @@ class GridMontage:
 
         self.buffer = buffer
 
-        self.save()
+        if save:
+            self.save()
 
     def to_montage(self):
         """Convert the experimental data to a `Montage` object."""
@@ -184,8 +185,7 @@ class GridMontage:
             'mode': self.mode,
             'spotsize': self.spotsize,
             'flip': self.flip,
-            'image_binning': self.binning,
-            'pixelsize': self.pixelsize,
+            'ImagePixelsize': self.pixelsize,
         }
 
         import yaml
