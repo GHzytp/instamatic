@@ -52,7 +52,7 @@ class CryoEDFrame(LabelFrame):
         self.e_level = OptionMenu(frame, self.var_level, 'Whole', 'Whole', 'Square', 'Target')
         self.e_level.config(width=7)
         self.e_level.grid(row=0, column=0, sticky='EW')
-        Label(frame, text='GridSize:', anchor="center").grid(row=0, column=1, sticky='EW')
+        Label(frame, text='Grid Size:', anchor="center").grid(row=0, column=1, sticky='EW')
         self.e_radius = Spinbox(frame, textvariable=self.var_num, width=6, from_=0, to=10, increment=1)
         self.e_radius.grid(row=0, column=2, sticky='EW', padx=5)
         Label(frame, text='Exp Name:', anchor="center").grid(row=0, column=3, sticky='EW')
@@ -89,25 +89,26 @@ class CryoEDFrame(LabelFrame):
         self.LoadGridButton.grid(row=4, column=6, sticky='EW')
         
 
-        self.UpdateZButton = Button(frame, text='Z Square', width=11, command=self.update_z_square, state=NORMAL)
-        self.UpdateZButton.grid(row=5, column=0, sticky='EW')
-        self.UpdateZButton = Button(frame, text='Z Target', width=11, command=self.update_z_target, state=NORMAL)
-        self.UpdateZButton.grid(row=5, column=1, sticky='EW', padx=5)
         self.GoXYButton = Button(frame, text='Go to XY', width=11, command=self.go_xy, state=NORMAL)
-        self.GoXYButton.grid(row=5, column=2, sticky='EW')
+        self.GoXYButton.grid(row=5, column=0, sticky='EW')
         self.GoXYZButton = Button(frame, text='Go to XYZ', width=11, command=self.go_xyz, state=NORMAL)
-        self.GoXYZButton.grid(row=5, column=3, sticky='EW', padx=5)
+        self.GoXYZButton.grid(row=5, column=1, sticky='EW', padx=5)
         self.ShowGridButton = Button(frame, text='Show Mont', width=11, command=self.show_grid_montage, state=NORMAL)
-        self.ShowGridButton.grid(row=5, column=4, sticky='EW')
+        self.ShowGridButton.grid(row=5, column=2, sticky='EW')
         self.ShowGridButton = Button(frame, text='Show Grid', width=11, command=self.show_grid, state=NORMAL)
-        self.ShowGridButton.grid(row=5, column=5, sticky='EW', padx=5)
+        self.ShowGridButton.grid(row=5, column=3, sticky='EW', padx=5)
         self.ShowSquareButton = Button(frame, text='ShowSquare', width=11, command=self.show_square, state=NORMAL)
-        self.ShowSquareButton.grid(row=5, column=6, sticky='EW')
-
+        self.ShowSquareButton.grid(row=5, column=4, sticky='EW')
         self.ShowTargetButton = Button(frame, text='Show Target', width=11, command=self.show_target, state=NORMAL)
-        self.ShowTargetButton.grid(row=6, column=0, sticky='EW')
+        self.ShowTargetButton.grid(row=5, column=5, sticky='EW', padx=5)
         self.RunTargetButton = Button(frame, text='Run Target', width=11, command=self.run_target, state=NORMAL)
-        self.RunTargetButton.grid(row=6, column=1, sticky='EW', padx=5)
+        self.RunTargetButton.grid(row=5, column=6, sticky='EW')
+
+        Checkbutton(frame, text='Auto Z', variable=self.var_auto_height).grid(row=6, column=0, sticky='EW', padx=10)
+        self.UpdateZButton = Button(frame, text='Z Square', width=11, command=self.update_z_square, state=NORMAL)
+        self.UpdateZButton.grid(row=6, column=1, sticky='EW', padx=5)
+        self.UpdateZButton = Button(frame, text='Z Target', width=11, command=self.update_z_target, state=NORMAL)
+        self.UpdateZButton.grid(row=6, column=2, sticky='EW')
         
 
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
@@ -177,6 +178,7 @@ class CryoEDFrame(LabelFrame):
         self.var_name = StringVar(value="")
         self.var_level = StringVar(value='Whole')
         self.var_exposure = DoubleVar(value=round(round(1.5/self.ctrl.cam.default_exposure)*self.ctrl.cam.default_exposure, 1))
+        self.var_auto_height = BooleanVar(value=False)
 
     def run_target(self):
         pass
@@ -395,7 +397,6 @@ class CryoEDFrame(LabelFrame):
         h['center_pos'] = current_pos
         h['mode'] = self.state
         h['magnification'] = self.mag
-        h['ImageResolution'] = arr.shape
         h['stage_matrix'] = self.ctrl.get_stagematrix() # normalized need to multiple pixelsize
         write_tiff(filepath, arr, header=h)
         self.ctrl.stage.xy = current_pos
@@ -484,7 +485,7 @@ class CryoEDFrame(LabelFrame):
             self.last_grid = selected
             square_img_location = self.df_grid.loc[self.df_grid['grid']==selected, 'img_location'].values[0]
             if type(square_img_location) is not float:
-                self.square_dir = self.grid_dir/square_img_location.parent
+                self.square_dir = (self.grid_dir/square_img_location).parent
             self.tv_grid_square.delete(*self.tv_grid_square.get_children())
             self.tv_target.delete(*self.tv_target.get_children())
             selected_square_df = self.df_square[self.df_square['grid'] == selected].reset_index().drop(['index'], axis=1)
@@ -499,28 +500,34 @@ class CryoEDFrame(LabelFrame):
             self.last_grid = selected_grid
             square_img_location = self.df_grid.loc[self.df_grid['grid']==selected, 'img_location'].values[0]
             if type(square_img_location) is not float:
-                self.square_dir = self.grid_dir/square_img_location.parent
+                self.square_dir = (self.grid_dir/square_img_location).parent
             target_img_location = self.df_square.loc[(self.df_square['grid']==selected_grid)&(self.df_square['square']==selected_square), 'img_location'].values[0]
             if type(target_img_location) is not float:
-                self.target_dir = self.target_dir/target_img_location.parent
+                self.target_dir = (self.target_dir/target_img_location).parent
             self.tv_target.delete(*self.tv_target.get_children())
             selected_target_df = self.df_target[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square)].reset_index().drop(['index'], axis=1)
             for index in range(len(selected_target_df)):
                 self.tv_target.insert("",'end', text="Item_"+str(index), values=(index, selected_target_df.loc[index,'pos_x'],selected_target_df.loc[index,'pos_y'],selected_target_df.loc[index,'pos_z']))
 
     def update_z_square(self):
-        selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
-        selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
-        z = self.ctrl.stage.z
-        self.df_square.loc[(self.df_square['grid']==selected_grid) & (self.df_square['square']==selected_square), 'pos_z'] = z
+        if self.var_auto_height.get():
+            pass
+        else:
+            selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+            selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
+            z = self.ctrl.stage.z
+            self.df_square.loc[(self.df_square['grid']==selected_grid) & (self.df_square['square']==selected_square), 'pos_z'] = z
 
     def update_z_target(self):
-        selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
-        selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
-        selected_target = self.tv_target.get_children().index(self.tv_target.selection()[0])
-        z = self.ctrl.stage.z
-        self.df_target.loc[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square) & 
-                            (self.df_target['target']==selected_target), 'pos_z'] = z
+        if self.var_auto_height.get():
+            pass
+        else:
+            selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+            selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
+            selected_target = self.tv_target.get_children().index(self.tv_target.selection()[0])
+            z = self.ctrl.stage.z
+            self.df_target.loc[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square) & 
+                                (self.df_target['target']==selected_target), 'pos_z'] = z
 
     def go_xy(self):
         level = self.var_level.get()

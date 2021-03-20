@@ -185,6 +185,67 @@ def find_holes(img, area=0, plot=True, fname=None, verbose=True, max_eccentricit
 
     return newprops
 
+def find_square(img: np.array = None, 
+                diameter: float = None, 
+                tolerance: float = 0.1, 
+                threshold: int = None, 
+                plot: bool = False) -> tuple:
+    # Mind the definition of x and y position
+    if img is not None:
+        if not threshold:
+            threshold = filters.threshold_otsu(img)
+        selem = morphology.disk(10)
+        seg = morphology.binary_closing(img > threshold, selem=selem)
+
+        labeled, _ = ndimage.label(seg)
+        props = measure.regionprops(labeled)
+
+        if diameter is None:
+            diameter = np.median([(prop.area ** 0.5) for prop in props])
+            print(f'Diameter: {diameter:.0f} pixels')
+
+        max_val = tolerance * diameter
+
+        imagecoords = []
+
+        allds = []  # all diameters
+        selds = []  # selected diameters
+
+        for prop in props:
+            x, y = prop.centroid
+
+            d = prop.area ** 0.5
+            allds.append(d)
+
+            if abs(d - diameter) < max_val:
+                imagecoords.append((x, y))
+                selds.append(d)
+
+        imagecoords = np.array(imagecoords)
+
+        if plot:
+            fig, (ax0, ax1) = plt.subplots(ncols=2, figsize=(12, 4))
+
+            ax0.set_title(f'Segmentation (z>{threshold:.0f})')
+            ax0.imshow(seg)
+
+            ax1.set_title('Image coords')
+            ax1.imshow(img)
+
+            try:
+                plot_x, plot_y = np.array(imagecoords).T
+                ax1.scatter(plot_y, plot_x, marker='+', color='r')
+            except ValueError:
+                pass
+
+        print(f'All hole diameters     50%: {np.median(allds):6.0f} | 5%: {np.percentile(allds, 5):6.0f} | 95%: {np.percentile(allds, 95):6.0f}')
+        if len(selds) > 0:
+            print(f'Selected hole diameter 50%: {np.median(selds):6.0f} | 5%: {np.percentile(selds, 5):6.0f} | 95%: {np.percentile(selds, 95):6.0f}')
+        else:
+            print(f'Selected hole diameter 50%: {"-":>6s} | 5%: {"-":>6s} | 95%: {"-":>6s}')
+
+        return imagecoords
+
 
 def find_holes_entry():
     from formats import read_image

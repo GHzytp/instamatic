@@ -17,6 +17,7 @@ from .modules import MODULES
 from instamatic import config
 from instamatic.formats import read_tiff, write_tiff
 from instamatic.utils.widgets import Hoverbox, Spinbox
+from instamatic.processing.find_holes import find_square
 
 class GridFrame(LabelFrame):
     """Load a GUi to show the grid map and label suitable crystals."""
@@ -33,48 +34,51 @@ class GridFrame(LabelFrame):
         self.image_scaled = None
         self.last_scale = 1
         self.counter = 0
+        self.select_flag = 0
         self._drag_data = {"x": 0, "y": 0}
         self.saved_tv_items = None
         self.software_binsize = config.settings.software_binsize
         self.cryo_frame = None
+        self.map_on_canvas = None
+        self.last_selected_position = None
 
         self.init_vars()
         
         frame = Frame(self)
 
-        self.OpenMapButton = Button(frame, text='Open Map', width=13, command=self.open_map, state=NORMAL)
+        self.OpenMapButton = Button(frame, text='Open Map', width=12, command=self.open_map, state=NORMAL)
         self.OpenMapButton.grid(row=0, column=0, sticky='EW')
         self.lbl_open_map = Label(frame, text="", width=13)
-        self.lbl_open_map.grid(row=0, column=1, columnspan=2, sticky='EW', padx=5)
+        self.lbl_open_map.grid(row=0, column=1, columnspan=3, sticky='EW', padx=5)
 
-        self.AddPosButton = Button(frame, text='Add Position', width=13, command=self.add_position, state=NORMAL)
+        self.AddPosButton = Button(frame, text='Add Position', width=12, command=self.add_position, state=NORMAL)
         self.AddPosButton.grid(row=1, column=0, sticky='EW')
-        self.DeletePosButton = Button(frame, text='Delete Position', width=13, command=self.delete_position, state=NORMAL)
+        self.DeletePosButton = Button(frame, text='Del Position', width=12, command=self.delete_position, state=NORMAL)
         self.DeletePosButton.grid(row=1, column=1, sticky='EW', padx=5)
-        self.MoveMapButton = Button(frame, text='Move Map', width=13, command=self.move_map, state=NORMAL)
+        self.MoveMapButton = Button(frame, text='Move Map', width=12, command=self.move_map, state=NORMAL)
         self.MoveMapButton.grid(row=1, column=2, sticky='EW')
-        self.UnbindAllButton = Button(frame, text='Unbind All', width=13, command=self.unbind_all, state=NORMAL)
+        self.UnbindAllButton = Button(frame, text='Unbind All', width=12, command=self.unbind_all, state=NORMAL)
         self.UnbindAllButton.grid(row=1, column=3, sticky='EW', padx=5)
+        self.ClearAllButton = Button(frame, text='Clear All', width=12, command=self.clear_all, state=NORMAL)
+        self.ClearAllButton.grid(row=1, column=4, sticky='EW')
 
-        self.SavePosButton = Button(frame, text='Save Positions', width=13, command=self.save_positions, state=NORMAL)
-        self.SavePosButton.grid(row=2, column=0, sticky='EW')
-        self.LoadPosButton = Button(frame, text='Load Positions', width=13, command=self.load_positions, state=NORMAL)
-        self.LoadPosButton.grid(row=2, column=1, sticky='EW', padx=5)
-        Label(frame, text="Set Zoom Level").grid(row=2, column=2, stick='W')
-        self.e_zoom_level = Spinbox(frame, width=10, textvariable=self.var_zoom, from_=0.02, to=1, increment=0.01)
-        self.e_zoom_level.grid(row=2, column=3, stick='EW', padx=5)
-
+        self.e_tolerance = Spinbox(frame, width=8, textvariable=self.var_tolerance, from_=0.01, to=2, increment=0.01)
+        self.e_tolerance.grid(row=2, column=0, stick='EW', padx=5)
+        self.FindSquareButton = Button(frame, text='Find Squares', width=12, command=self.find_squares, state=NORMAL)
+        self.FindSquareButton.grid(row=2, column=1, sticky='EW')
+        
         self.zoom_slider = tk.Scale(frame, variable=self.var_zoom, from_=0.02, to=1, resolution=0.01, showvalue=1, orient=HORIZONTAL, command=self.set_zoom)
-        self.zoom_slider.grid(row=3, column=0, columnspan=3, sticky='EW', padx=5)
+        self.zoom_slider.grid(row=3, column=0, columnspan=3, sticky='EW')
+        self.e_zoom_level = Spinbox(frame, width=8, textvariable=self.var_zoom, from_=0.02, to=1, increment=0.01)
+        self.e_zoom_level.grid(row=3, column=3, stick='EW', padx=5)
         self.ZoomButton = Button(frame, text='Set Zoom', command=self.set_zoom, state=NORMAL)
-        self.ZoomButton.grid(row=3, column=3, sticky='EW', padx=5)
+        self.ZoomButton.grid(row=3, column=4, sticky='EW')
 
-        self.ClearAllButton = Button(frame, text='Clear All', width=13, command=self.clear_all, state=NORMAL)
-        self.ClearAllButton.grid(row=0, column=3, sticky='EW', padx=5)
+        
         self.DeleteItemButton = Button(frame, text='Delete', width=11, command=self.delete_item, state=NORMAL)
-        self.DeleteItemButton.grid(row=0, column=4, sticky='EW')
+        self.DeleteItemButton.grid(row=0, column=5, sticky='EW')
         self.SendItemsButton = Button(frame, text='Send', width=11, command=self.send_items, state=NORMAL)
-        self.SendItemsButton.grid(row=0, column=5, sticky='EW')
+        self.SendItemsButton.grid(row=0, column=6, sticky='EW')
         self.tv_positions = Treeview(frame, height=3, selectmode='browse')
         self.tv_positions["columns"] = ("1", "2")
         self.tv_positions['show'] = 'headings'
@@ -82,10 +86,13 @@ class GridFrame(LabelFrame):
         self.tv_positions.column("2", width=13, anchor='c')
         self.tv_positions.heading("1", text="Pos_x")
         self.tv_positions.heading("2", text="Pos_y")
-        self.tv_positions.grid(row=1, column=4, rowspan=5, columnspan=2, sticky='EW')
+        self.tv_positions.grid(row=1, column=5, rowspan=5, columnspan=2, sticky='EW')
         self.scroll_tv = ttk.Scrollbar(frame, orient="vertical", command=self.tv_positions.yview)
-        self.scroll_tv.grid(row=1, column=6, rowspan=5, sticky='NS')
+        self.scroll_tv.grid(row=1, column=7, rowspan=5, sticky='NS')
         self.tv_positions.configure(yscrollcommand=self.scroll_tv.set)
+        self.tv_positions.bind("<Double-1>", self.update_tv)
+        self.tv_positions.bind("<Button-2>", self.update_tv)
+        self.tv_positions.bind("<Button-3>", self.update_tv)
 
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
 
@@ -108,6 +115,7 @@ class GridFrame(LabelFrame):
         
     def init_vars(self):
         self.var_zoom = DoubleVar(value=1.0)
+        self.var_tolerance = DoubleVar(value=0.1)
 
     def clear_all(self):
         self.canvas.delete('all')
@@ -122,6 +130,9 @@ class GridFrame(LabelFrame):
         self.saved_tv_items = None
         self.var_zoom.set(1.0)
         self.lbl_open_map.config(text="")
+        self.map_on_canvas = None
+        self.select_flag = 0
+        self.last_selected_position = None
 
     def open_map(self):
         if self.init_dir is None:
@@ -185,6 +196,24 @@ class GridFrame(LabelFrame):
                 self.point_list.loc[index, 'cross_2'] = self.canvas.create_line(cent_x, cent_y-5, cent_x, cent_y+6, tags='cross', width=3, fill='red')
             self.saved_tv_items = self.tv_positions.get_children()
 
+    def find_squares(self):
+        if 'grid' in Path(self.map_path).name:
+            coords = find_square(self.map, tolerance=self.var_tolerance.get())
+            coords = coords.T
+            print(coords)
+            self.point_list = pd.DataFrame(columns=['pos_x', 'pos_y', 'cross_1', 'cross_2'])
+            self.point_list['pos_x'] = coords[1]
+            self.point_list['pos_y'] = coords[0]
+            """
+            self.seg = Image.fromarray(seg)
+            self.seg_tk = ImageTk.PhotoImage(image=self.seg)
+            self.seg_on_canvas = self.canvas.create_image(0, 0, anchor=NW, image=self.seg_tk, state=DISABLED)
+            self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+            """
+            self.load_positions_from_frame()
+        else:
+            print('Can only find squares on grid level')
+
     def load_positions_from_frame(self):
         self.canvas.delete('cross')
         self.counter = 0
@@ -199,6 +228,40 @@ class GridFrame(LabelFrame):
             self.point_list.loc[index, 'cross_1'] = self.canvas.create_line(cent_x-5, cent_y, cent_x+6, cent_y, tags='cross', width=3, fill='red')
             self.point_list.loc[index, 'cross_2'] = self.canvas.create_line(cent_x, cent_y-5, cent_x, cent_y+6, tags='cross', width=3, fill='red')
         self.saved_tv_items = self.tv_positions.get_children()
+
+    def update_tv(self, event):
+        selected_item = self.tv_positions.selection()[0]
+        selected_position = self.saved_tv_items.index(selected_item)
+        selected_cross = (self.point_list.loc[selected_position, 'cross_1'], self.point_list.loc[selected_position, 'cross_2'])
+        print(selected_position)
+        print(selected_cross)
+        print(self.last_selected_position)
+        if self.last_selected_position is None:
+            self.last_selected_position = selected_position
+            self.canvas.itemconfig(int(selected_cross[0]), fill='blue')
+            self.canvas.itemconfig(int(selected_cross[1]), fill='blue')
+            self.select_flag = 1
+        else:
+            if selected_position == self.last_selected_position:
+                if self.select_flag == 0:
+                    self.canvas.itemconfig(int(selected_cross[0]), fill='blue')
+                    self.canvas.itemconfig(int(selected_cross[1]), fill='blue')
+                    self.select_flag = 1
+                elif self.select_flag == 1:
+                    self.canvas.itemconfig(int(selected_cross[0]), fill='red')
+                    self.canvas.itemconfig(int(selected_cross[1]), fill='red')
+                    self.select_flag = 0
+            else:
+                try:
+                    last_selected_cross = (self.point_list.loc[self.last_selected_position, 'cross_1'], self.point_list.loc[self.last_selected_position, 'cross_2'])
+                    self.canvas.itemconfig(int(last_selected_cross[0]), fill='red')
+                    self.canvas.itemconfig(int(last_selected_cross[1]), fill='red')
+                except KeyError:
+                    pass
+                self.last_selected_position = selected_position
+                self.canvas.itemconfig(int(selected_cross[0]), fill='blue')
+                self.canvas.itemconfig(int(selected_cross[1]), fill='blue')
+                self.select_flag = 1
 
     def add_position(self):
         self.canvas.unbind("<ButtonRelease-1>")
@@ -295,6 +358,7 @@ class GridFrame(LabelFrame):
                 self.canvas.delete(int(self.point_list.loc[index, 'cross_2']))
                 self.tv_positions.delete(self.saved_tv_items[index])
         self.point_list = self.point_list[-delete_condition]
+        print(self.point_list)
 
     def delete_item(self):
         selected_item = self.tv_positions.selection()
@@ -335,7 +399,6 @@ class GridFrame(LabelFrame):
 
         level = self.cryo_frame.var_level.get()
         if stage_pos_df is not None:
-            z = self.cryo_frame.ctrl.stage.z
             name = Path(self.map_path).name
             if level == 'Whole':
                 if name.split('_')[0] != 'grid':
@@ -350,6 +413,7 @@ class GridFrame(LabelFrame):
                 self.cryo_frame.grid_dir = Path(path)
                 print(self.cryo_frame.df_grid)
             elif level == 'Square':
+                z = self.cryo_frame.ctrl.stage.z
                 if self.cryo_frame.df_grid is None:
                     raise RuntimeError('Please collect whole grid map first!')
                 else:
@@ -376,6 +440,7 @@ class GridFrame(LabelFrame):
                     self.cryo_frame.grid_dir = Path(path).parent
                     print(self.cryo_frame.df_square)
             elif level == 'Target':
+                z = self.cryo_frame.ctrl.stage.z
                 if self.cryo_frame.df_square is None:
                     raise RuntimeError('Please collect grid square map first!')
                 else:
