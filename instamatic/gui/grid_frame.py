@@ -63,9 +63,9 @@ class GridFrame(LabelFrame):
         self.ClearAllButton.grid(row=1, column=4, sticky='EW')
 
         self.e_tolerance = Spinbox(frame, width=8, textvariable=self.var_tolerance, from_=0.01, to=2, increment=0.01)
-        self.e_tolerance.grid(row=2, column=0, stick='EW', padx=5)
+        self.e_tolerance.grid(row=2, column=0, stick='EW')
         self.FindSquareButton = Button(frame, text='Find Squares', width=12, command=self.find_squares, state=NORMAL)
-        self.FindSquareButton.grid(row=2, column=1, sticky='EW')
+        self.FindSquareButton.grid(row=2, column=1, sticky='EW', padx=5)
         
         self.zoom_slider = tk.Scale(frame, variable=self.var_zoom, from_=0.02, to=1, resolution=0.01, showvalue=1, orient=HORIZONTAL, command=self.set_zoom)
         self.zoom_slider.grid(row=3, column=0, columnspan=3, sticky='EW')
