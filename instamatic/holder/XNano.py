@@ -101,7 +101,7 @@ class XNanoHolder:
         TABLE = ctypes.c_double *24
         table = TABLE()
         
-        self.lib.getCompCoef(ctypes.byref(table))
+        self.lib.getCompCoef(ctypes.cast(table, ctypes.POINTER(ctypes.c_double)))
 
         return list(table)
 
