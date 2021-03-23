@@ -78,6 +78,9 @@ class Experiment:
                  stretch_cent_x: float = 0.0,
                  stretch_cent_y: float = 0.0,
                  stop_event=None,
+                 holder_ctrl=None,
+                 amplitude=None,
+                 angle=None
                  ):
         super().__init__()
         self.ctrl = ctrl
@@ -87,6 +90,9 @@ class Experiment:
         self.logger = log
         self.stopEvent = stop_event
         self.flatfield = flatfield
+        self.holder_ctrl = holder_ctrl
+        self.amplitude = amplitude
+        self.angle = angle
 
         self.diff_defocus = diff_defocus
         self.start_frames = start_frames
@@ -188,7 +194,42 @@ class Experiment:
         self.tiff_path = self.path / 'tiff' if self.write_tiff else None
         self.smv_path = self.path / 'SMV' if (self.write_xds or self.write_dials) else None
         self.mrc_path = self.path / 'RED' if self.write_red else None
-         self.cbf_path = self.path / 'CBF' if self.write_cbf else None
+        self.cbf_path = self.path / 'CBF' if self.write_cbf else None
+
+    def start_rotation(self) -> float:
+        """Controls the starting of the rotation of the experiment.
+
+        In the default mode, use holder ctrl to control the rotation
+        In `simulate` mode, simulate the start condition.
+
+        Returns the starting value for the rotation.
+        """
+        self.start_position = self.holder_ctrl.getAngle()
+        self.stage_positions.append((0, self.start_position))
+        a = self.start_position[3]
+
+        if self.mode == 'simulate':
+            start_angle = a
+            print('Data Recording started.')
+
+        else:
+            rotate_to = self.angle
+            a0 = a
+            self.holder_ctrl.holderRotateTo(rotate_to, self.amplitude)
+            while abs(a - a0) < ACTIVATION_THRESHOLD:
+                if self.stopEvent.is_set():
+                    break
+                time.sleep(0.1)
+                a = holder_ctrl.getAngle()
+
+            print('Data Recording started.')
+            start_angle = a
+
+        if self.unblank_beam:
+            print('Unblanking beam')
+            self.ctrl.beam.unblank()
+
+        return start_angle
 
     def relax_beam(self, n_cycles: int = 5):
         """Relax the beam prior to the experiment by toggling between the
@@ -240,10 +281,7 @@ class Experiment:
         if self.relax_beam_before_experiment:
             self.relax_beam()
 
-        if self.unblank_beam:
-            print('Unblanking beam')
-            self.ctrl.beam.unblank()
-            
+        self.start_angle = self.start_rotation()
         self.current_angle = self.start_angle
         self.ctrl.cam.block()
 
@@ -294,9 +332,6 @@ class Experiment:
 
             i += 1
 
-            if self.ctrl.tem.interface == 'fei':
-                if not self.ctrl.tem.isStageMoving():
-                    self.stopEvent.set()
 
         t1 = time.perf_counter()
 
@@ -311,7 +346,7 @@ class Experiment:
             self.ctrl.magnification.set(330)
 
         self.end_position = self.ctrl.stage.get()
-        self.end_angle = self.end_position[3]
+        self.end_angle = self.holder_ctrl.getAngle()
         self.camera_length = int(self.ctrl.magnification.value)
         self.stage_positions.append((99999, self.end_position))
 

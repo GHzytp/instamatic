@@ -743,7 +743,10 @@ class ExperimentalcREDXnano(LabelFrame):
                   'stretch_azimuth': self.stream_frame.var_azimuth.get(),
                   'stretch_cent_x': self.stream_frame.var_cent_x.get(),
                   'stretch_cent_y': self.stream_frame.var_cent_y.get(),
-                  'stop_event': self.stopColEvent}
+                  'stop_event': self.stopColEvent,
+                  'holder_ctrl': self.holder_ctrl,
+                  'amplitude': self.var_amp.get(),
+                  'angle': self.var_angle.get()}
         return params
 
 
