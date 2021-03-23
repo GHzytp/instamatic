@@ -6,6 +6,7 @@ from tkinter import *
 from tkinter.ttk import *
 
 from .base_module import BaseModule
+from .modules import MODULES
 from instamatic import config
 from instamatic.utils.widgets import Spinbox
 
@@ -17,6 +18,7 @@ class IOFrame(LabelFrame):
     def __init__(self, parent):
         LabelFrame.__init__(self, parent, text='Input/Output')
         self.parent = parent
+        self.cryo_frame = None
 
         self.workdrc = Path(config.settings.work_directory)
 
@@ -95,7 +97,48 @@ class IOFrame(LabelFrame):
         self.var_experiment_number.set(number)
         return number
 
+    def determine_experiment_directory(self):
+        if self.cryo_frame is None:
+            try:
+                self.cryo_frame = [module for module in MODULES if module.name == 'cryo'][0].frame
+            except IndexError:
+                return
+
+        if self.cryo_frame.grid_montage_path is not None:
+            level = self.cryo_frame.var_level.get()
+            if level == 'Whole':
+                raise RuntimeError('Please select Square or Target level to run 3DED experiment.')
+            elif level == 'Square':
+                self.var_directory.set(str(self.cryo_frame.grid_montage_path.parent/'3DED'))
+                drc = Path(self.var_directory.get())
+                name = self.var_sample_name.get()
+                number = self.var_experiment_number.get()
+                path = drc / f'{name}_{number}'
+                while path.exists():
+                    number += 1
+                    path = drc / f'{name}_{number}'
+                self.var_experiment_number.set(number)
+                selected_grid = self.cryo_frame.tv_whole_grid.get_children().index(self.cryo_frame.tv_whole_grid.selection()[0])
+                selected_square = self.cryo_frame.tv_grid_square.get_children().index(self.cryo_frame.tv_grid_square.selection()[0])
+                self.cryo_frame.df_square.loc[(self.cryo_frame.df_square['grid']==selected_grid) & (self.cryo_frame.df_square['square']==selected_square), '3DED'] = str(path)
+            elif level == 'Target':
+                self.var_directory.set(str(self.cryo_frame.grid_montage_path.parent/'3DED'))
+                drc = Path(self.var_directory.get())
+                name = self.var_sample_name.get()
+                number = self.var_experiment_number.get()
+                path = drc / f'{name}_{number}'
+                while path.exists():
+                    number += 1
+                    path = drc / f'{name}_{number}'
+                self.var_experiment_number.set(number)
+                selected_grid = self.cryo_frame.tv_whole_grid.get_children().index(self.cryo_frame.tv_whole_grid.selection()[0])
+                selected_square = self.cryo_frame.tv_grid_square.get_children().index(self.cryo_frame.tv_grid_square.selection()[0])
+                selected_target = self.cryo_frame.tv_target.get_children().index(self.cryo_frame.tv_target.selection()[0])
+                self.cryo_frame.df_target.loc[(self.cryo_frame.df_target['grid']==selected_grid) & (self.cryo_frame.df_target['square']==selected_square) & (self.cryo_frame.df_target['target']==selected_target), '3DED'] = str(path)
+
+
     def get_new_experiment_directory(self):
+        self.determine_experiment_directory()
         self.update_experiment_number()
         return self.get_experiment_directory()
 

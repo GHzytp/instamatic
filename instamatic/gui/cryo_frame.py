@@ -28,8 +28,8 @@ class CryoEDFrame(LabelFrame):
         LabelFrame.__init__(self, parent, text='Cryo electron diffraction protocol')
         self.parent = parent
         self.df_grid = pd.DataFrame(columns=['grid', 'x', 'y', 'pos_x', 'pos_y', 'img_location'])
-        self.df_square = pd.DataFrame(columns=['grid', 'square', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'img_location'])
-        self.df_target = pd.DataFrame(columns=['grid', 'square', 'target', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'diff_location'])
+        self.df_square = pd.DataFrame(columns=['grid', 'square', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'img_location', '3DED'])
+        self.df_target = pd.DataFrame(columns=['grid', 'square', 'target', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'diff_location', '3DED'])
         self.grid_dir = None
         self.square_dir = None
         self.last_grid = None
@@ -467,8 +467,8 @@ class CryoEDFrame(LabelFrame):
 
     def change_grid(self):
         self.df_grid = pd.DataFrame(columns=['grid', 'x', 'y', 'pos_x', 'pos_y', 'img_location'])
-        self.df_square = pd.DataFrame(columns=['grid', 'square', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'img_location'])
-        self.df_target = pd.DataFrame(columns=['grid', 'square', 'target', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'diff_location'])
+        self.df_square = pd.DataFrame(columns=['grid', 'square', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'img_location', '3DED'])
+        self.df_target = pd.DataFrame(columns=['grid', 'square', 'target', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'diff_location', '3DED'])
         self.tv_whole_grid.delete(*self.tv_whole_grid.get_children())
         self.tv_grid_square.delete(*self.tv_grid_square.get_children())
         self.tv_target.delete(*self.tv_target.get_children())
