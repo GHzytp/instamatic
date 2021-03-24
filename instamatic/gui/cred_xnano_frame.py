@@ -302,6 +302,7 @@ class ExperimentalcREDXnano(LabelFrame):
 
     def init_vars(self):
         self.holder_ctrl = None
+        self.mode = 'regular'
         self.var_holder_id = IntVar(value=0)
         self.var_angle = DoubleVar(value=0.0)
         self.var_interval = IntVar(value=100)
@@ -441,7 +442,7 @@ class ExperimentalcREDXnano(LabelFrame):
         self.stopColEvent.clear()
 
         params = self.get_params()
-        self.q.put(('cred', params))
+        self.q.put(('cred_xnano', params))
 
         self.triggerEvent.set()
 
@@ -513,15 +514,15 @@ class ExperimentalcREDXnano(LabelFrame):
                 num += 1
                 self.xnano_rec_path = self.rec_path / f'XNanoRec_{num}'
 
-        self.holder_ctrl.holderRotateTo(self.var_angle.get()*pi/180, self.var_amp.get())
+        self.rotate_to()
         t_record_angle = threading.Thread(target=self.record_angle, args=(), daemon=True)
         t_record_angle.start()
 
     def record_angle(self):
         self.stopRecEvent.clear()
         num = 1
-        current_angle = self.holder_ctrl.getAngle()*180/pi
-        target_angle = self.var_angle.get()*180/pi
+        current_angle = self.holder_ctrl.getAngle() * 180 / pi
+        target_angle = self.var_angle.get()
         angle_list = []
         if self.var_amp.get() > 0:
             rotation_direction = 1
@@ -531,7 +532,7 @@ class ExperimentalcREDXnano(LabelFrame):
             raise RuntimeError('Amp value not set.')
 
         while round(current_angle, 1) != round(target_angle, 1) and rotation_direction * (current_angle - target_angle) < 0 and not self.stopRecEvent.is_set():
-            current_angle = self.holder_ctrl.getAngle()*180/pi
+            current_angle = self.holder_ctrl.getAngle() * 180 / pi
             outfile = self.xnano_rec_path / f'{num:05d}.tiff'
             comment = f'Saved image with XNano holder: current angle = {current_angle:.2f}'
             img, _ = self.tem_ctrl.get_image(exposure=self.var_exposure_time.get(), out=outfile, comment=comment)
@@ -556,7 +557,7 @@ class ExperimentalcREDXnano(LabelFrame):
         while outfile.is_file():
             num += 1
             outfile = self.xnano_save_path / f'{num:05d}.tiff'
-        current_angle = self.holder_ctrl.getAngle()*180/pi
+        current_angle = self.holder_ctrl.getAngle() * 180 / pi
         comment = f'Saved image with XNano holder: current angle = {current_angle:.2f}'
         img, _ = self.tem_ctrl.get_image(exposure=self.var_exposure_time.get(), out=outfile, comment=comment)
 
@@ -734,6 +735,7 @@ class ExperimentalcREDXnano(LabelFrame):
                   'start_frames': self.var_start_frames.get(),
                   'start_frames_interval': self.var_start_frames_interval.get(),
                   'defocus_start_angle': self.var_defocus_start_angle.get(),
+                  'mode': self.mode,
                   'write_tiff': self.var_save_tiff.get(),
                   'write_xds': self.var_save_xds.get(),
                   'write_dials': self.var_save_dials.get(),

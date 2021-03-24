@@ -59,6 +59,7 @@ class Experiment:
                  flatfield: str = None,
                  exposure_time: float = 0.3,
                  unblank_beam: bool = False,
+                 mode: str = None,
                  enable_image_interval: bool = False,
                  image_interval: int = 99999,
                  low_angle_image_interval: int = 99999,
@@ -93,6 +94,9 @@ class Experiment:
         self.holder_ctrl = holder_ctrl
         self.amplitude = amplitude
         self.angle = angle
+        self.mode = mode
+        if self.ctrl.cam.name == 'simulate' and self.ctrl.tem.interface != "fei":
+            self.mode = 'simulate'
 
         self.diff_defocus = diff_defocus
         self.start_frames = start_frames
@@ -204,9 +208,9 @@ class Experiment:
 
         Returns the starting value for the rotation.
         """
-        self.start_position = self.holder_ctrl.getAngle()
-        self.stage_positions.append((0, self.start_position))
-        a = self.start_position[3]
+        self.start_angle = self.holder_ctrl.getAngle() * 180 / np.pi
+        self.stage_positions.append((0, self.start_angle))
+        a = self.start_angle
 
         if self.mode == 'simulate':
             start_angle = a
@@ -215,12 +219,12 @@ class Experiment:
         else:
             rotate_to = self.angle
             a0 = a
-            self.holder_ctrl.holderRotateTo(rotate_to, self.amplitude)
+            self.holder_ctrl.holderRotateTo(rotate_to*np.pi/180, self.amplitude)
             while abs(a - a0) < ACTIVATION_THRESHOLD:
                 if self.stopEvent.is_set():
                     break
                 time.sleep(0.1)
-                a = holder_ctrl.getAngle()
+                a = holder_ctrl.getAngle() * 180 / np.pi
 
             print('Data Recording started.')
             start_angle = a
@@ -320,7 +324,7 @@ class Experiment:
                     diff = next_interval - time.perf_counter()  # seconds
 
                 if self.track_stage_position and diff > 0.1:
-                    self.stage_positions.append((i, self.ctrl.stage.get()))
+                    self.stage_positions.append((i, self.holder_ctrl.getAngle() * 180 / np.pi))
 
                 time.sleep(diff)
 
@@ -340,15 +344,12 @@ class Experiment:
 
         if self.mode == 'simulate':
             # simulate somewhat realistic end numbers
-            self.ctrl.stage.x += np.random.randint(-100, 100)
-            self.ctrl.stage.y += np.random.randint(-100, 100)
-            self.ctrl.stage.a += np.random.randint(-60, 60)
-            self.ctrl.magnification.set(330)
-
-        self.end_position = self.ctrl.stage.get()
-        self.end_angle = self.holder_ctrl.getAngle()
+            self.ctrl.magnification.set(config.microscope.ranges['diff'][3])
+            self.end_angle = np.random.randint(-60, 60)
+        else:
+            self.end_angle = self.holder_ctrl.getAngle() * 180 / np.pi
         self.camera_length = int(self.ctrl.magnification.value)
-        self.stage_positions.append((99999, self.end_position))
+        self.stage_positions.append((99999, self.end_angle))
 
         is_moving = bool(self.ctrl.stage.is_moving())
         self.logger.info(f'Experiment finished, stage is moving: {is_moving}')
