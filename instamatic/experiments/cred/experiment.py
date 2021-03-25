@@ -110,6 +110,7 @@ class Experiment:
         self.defocus_start_angle = defocus_start_angle
         self.exposure_image = exposure_time_image
         self.frametime = self.ctrl.cam.frametime
+        self.rotation_axis = config.calibration.camera_rotation_vs_stage_xy
 
         self.write_tiff = write_tiff
         self.write_xds = write_xds
@@ -420,7 +421,8 @@ class Experiment:
         self.total_time = t1 - t0
         self.acquisition_time = self.total_time / self.nframes
         self.total_angle = abs(self.end_angle - self.start_angle)
-        self.rotation_axis = config.calibration.camera_rotation_vs_stage_xy
+        if self.end_angle < self.start_angle:
+            self.rotation_axis += np.pi
 
         software_binsize = config.settings.software_binsize
         if software_binsize is None:

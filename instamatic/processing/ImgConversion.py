@@ -391,8 +391,7 @@ class ImgConversion:
         observed_range = self.observed_range
         self.missing_range = self.missing_range
 
-        invert_rotation_axis = self.start_angle > self.end_angle
-        rotation_xyz = rotation_axis_to_xyz(self.rotation_axis, invert=invert_rotation_axis, setting='dials')
+        rotation_xyz = rotation_axis_to_xyz(self.rotation_axis, setting='dials')
 
         export_dials_variables(smv_path, sequence=observed_range, missing=self.missing_range, rotation_xyz=rotation_xyz)
 
@@ -562,8 +561,7 @@ class ImgConversion:
 
         nframes = max(self.complete_range)
 
-        invert_rotation_axis = self.start_angle > self.end_angle
-        rot_x, rot_y, rot_z = rotation_axis_to_xyz(self.rotation_axis, invert=invert_rotation_axis)
+        rot_x, rot_y, rot_z = rotation_axis_to_xyz(self.rotation_axis)
 
         shape_x, shape_y = self.data_shape
 

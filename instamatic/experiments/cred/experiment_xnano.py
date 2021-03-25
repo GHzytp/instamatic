@@ -117,6 +117,7 @@ class Experiment:
         self.stretch_amplitude = stretch_amplitude  # %
         self.stretch_cent_x = stretch_cent_x
         self.stretch_cent_y = stretch_cent_y
+        self.rotation_axis = config.calibration.camera_rotation_vs_stage_xy
 
         self.image_interval_enabled = enable_image_interval
         if enable_image_interval:
@@ -371,7 +372,8 @@ class Experiment:
         self.total_time = t1 - t0
         self.acquisition_time = self.total_time / self.nframes
         self.total_angle = abs(self.end_angle - self.start_angle)
-        self.rotation_axis = config.calibration.camera_rotation_vs_stage_xy
+        if self.end_angle < self.start_angle:
+            self.rotation_axis += np.pi
 
         software_binsize = config.settings.software_binsize
         if software_binsize is None:
