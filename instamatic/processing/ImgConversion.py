@@ -215,7 +215,6 @@ class ImgConversion:
             'end_angle',
             'osc_angle',
             'distance',
-            'mean_beam_center',
             'wavelength',
             'physical_pixelsize',
             'pixelsize',

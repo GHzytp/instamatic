@@ -500,7 +500,12 @@ class ExperimentalcREDXnano(LabelFrame):
         self.holder_ctrl.holderFine(self.var_axis.get(), self.var_amp.get())
 
     def rotate_to(self):
-        self.holder_ctrl.holderRotateTo(self.var_angle.get()*pi/180, self.var_amp.get())
+        amp = self.var_amp.get()
+        if amp < 0:
+            amp = -amp
+            self.var_amp.set(amp)
+            
+        self.holder_ctrl.holderRotateTo(self.var_angle.get()*pi/180, amp)
 
     def rotate_record(self):
         num = 1
@@ -518,20 +523,20 @@ class ExperimentalcREDXnano(LabelFrame):
         t_record_angle = threading.Thread(target=self.record_angle, args=(), daemon=True)
         t_record_angle.start()
 
+    def isclose(self, a, b, rel_tol=1e-09, abs_tol=0.0):
+        return abs(a-b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
+
     def record_angle(self):
         self.stopRecEvent.clear()
         num = 1
         current_angle = self.holder_ctrl.getAngle() * 180 / pi
         target_angle = self.var_angle.get()
+        amp = self.var_amp.get()
         angle_list = []
-        if self.var_amp.get() > 0:
-            rotation_direction = 1
-        elif self.var_amp.get() < 0:
-            rotation_direction = -1
-        else:
+        if self.isclose(amp, 0):
             raise RuntimeError('Amp value not set.')
 
-        while round(current_angle, 1) != round(target_angle, 1) and rotation_direction * (current_angle - target_angle) < 0 and not self.stopRecEvent.is_set():
+        while not self.isclose(round(current_angle, 1), round(target_angle, 1)) and not self.stopRecEvent.is_set():
             current_angle = self.holder_ctrl.getAngle() * 180 / pi
             outfile = self.xnano_rec_path / f'{num:05d}.tiff'
             comment = f'Saved image with XNano holder: current angle = {current_angle:.2f}'
