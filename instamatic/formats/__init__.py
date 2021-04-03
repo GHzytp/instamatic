@@ -16,7 +16,8 @@ from .csvIO import write_ycsv
 from .mrc import read_image as read_mrc
 from .mrc import write_image as write_mrc
 from .cbfimage import CbfImage
-
+from .emdVelox import fileEMDVelox
+from .emd import fileEMD
 
 def read_image(fname: str) -> (np.array, dict):
     """Guess filetype by extension."""
@@ -31,10 +32,32 @@ def read_image(fname: str) -> (np.array, dict):
         img, h = read_mrc(fname)
     elif ext in ('.cbf'):
         img, h = read_cbf(fname)
+    elif ext in ('.emd'):
+        img, h = read_emd(fname)
     else:
         raise OSError(f'Cannot open file {fname}, unknown extension: {ext}')
     return img, h
 
+def read_emd(fname: str):
+    try:
+        with fileEMDVelox(fname) as emd:
+            im0, metadata0 = emd.get_dataset(0)
+            return im0, metadata0
+    except KeyError:
+        with fileEMD(fname, readonly = True) as emd:
+            im0, dims = emd.get_emdgroup(emd.list_emds[0])
+            metadata0 = {}
+            for dim in dims:
+                try:
+                    d = dim[0][1] - dim[0][0]
+                except:
+                    d = 0
+                metadata0['pixelSize'].append(d)
+            metadata0['pixelUnit'] = [aa[2] for aa in dims]
+            metadata0['pixelName'] = [aa[1] for aa in dims]
+            return im0, metadata0
+    else:
+        raise OSError(f'Cannot open this emd file')
 
 def write_tiff(fname: str, data, header: dict = None):
     """Simple function to write a tiff file.
@@ -68,19 +91,18 @@ def read_tiff(fname: str) -> (np.array, dict):
         image: np.ndarray, header: dict
             a tuple of the image as numpy array and dictionary with all the tem parameters and image attributes
     """
-    tiff = tifffile.TiffFile(fname)
+    with tifffile.TiffFile(fname) as tiff:
+        page = tiff.pages[0]
+        img = page.asarray()
 
-    page = tiff.pages[0]
-    img = page.asarray()
+        if page.software == 'instamatic':
+            header = yaml.load(page.tags['ImageDescription'].value, Loader=yaml.Loader)
+        elif tiff.is_tvips:
+            header = tiff.tvips_metadata
+        else:
+            header = {}
 
-    if page.software == 'instamatic':
-        header = yaml.load(page.tags['ImageDescription'].value, Loader=yaml.Loader)
-    elif tiff.is_tvips:
-        header = tiff.tvips_metadata
-    else:
-        header = {}
-
-    return img, header
+        return img, header
 
 
 def write_hdf5(fname: str, data, header: dict = None):
@@ -116,16 +138,16 @@ def read_hdf5(fname: str) -> (np.array, dict):
     if not os.path.exists(fname):
         raise FileNotFoundError(f"No such file: '{fname}'")
 
-    f = h5py.File(fname, 'r')
-    return np.array(f['data']), dict(f['data'].attrs)
+    with h5py.File(fname, 'r') as f:
+        return np.array(f['data']), dict(f['data'].attrs)
 
 
 def read_cbf(fname: str):
     if not os.path.exists(fname):
         raise FileNotFoundError(f"No such file: '{fname}'")
 
-    cbf = CbfImage(fname=fname)
-    return cbf.data, cbf.header
+    with CbfImage(fname=fname) as cbf:
+        return cbf.data, cbf.header
 
 def write_cbf(fname: str, data, header: dict = None):
     cbf = CbfImage(data=data, header=header)

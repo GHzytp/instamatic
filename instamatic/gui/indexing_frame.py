@@ -25,7 +25,7 @@ from instamatic.tools import find_beam_center, find_beam_center_with_beamstop
 from instamatic.utils.peakfinders2d import subtract_background_median, find_peaks_regionprops, im_reconstruct
 from instamatic.utils.indexer import Indexer, get_indices
 from instamatic.utils.projector import Projector
-from instamatic.formats import read_tiff, read_hdf5, read_cbf
+from instamatic.formats import read_tiff, read_hdf5, read_cbf, read_emd
 from instamatic.formats.mrc import read_image as read_mrc
 from instamatic.formats.adscimage import read_adsc
 from instamatic.formats.dm import dmReader
@@ -163,9 +163,12 @@ class IndexFrame(LabelFrame):
         Hoverbox(self.e_bkgd, 'Background footprint to determine the background level')
         Checkbutton(frame, text='Show Index', variable=self.var_show_index, command=self.show_index).grid(row=1, column=5, sticky='W')
         Checkbutton(frame, text='Show HKL', variable=self.var_show_hkl).grid(row=1, column=6, sticky='W')
-        Label(frame, text='Vmax').grid(row=1, column=7, sticky='EW')
+        self.e_vmin = Entry(frame, textvariable=self.var_vmin, width=5, justify='center', state=NORMAL)
+        self.e_vmin.grid(row=1, column=7, sticky='EW')
+        Hoverbox(self.e_vmin, 'Minimum pixel value for image contrast')
         self.e_vmax = Entry(frame, textvariable=self.var_vmax, width=5, justify='center', state=NORMAL)
         self.e_vmax.grid(row=1, column=8, sticky='EW')
+        Hoverbox(self.e_vmax, 'Maximum pixel value for image contrast')
         self.IndexButton = Button(frame, text='Refresh', width=12, command=self.refresh)
         self.IndexButton.grid(row=1, column=9, sticky='EW', padx=5)
 
@@ -236,6 +239,7 @@ class IndexFrame(LabelFrame):
         self.var_exposure_time = DoubleVar(value=round(round(1.5/self.ctrl.cam.default_exposure)*self.ctrl.cam.default_exposure, 1))
         self.var_name = StringVar(value="")
         self.var_remove_background = BooleanVar(value=False)
+        self.var_vmin = DoubleVar(value=0.0)
         self.var_vmax = DoubleVar(value=500.0)
         self.var_find_peaks = BooleanVar(value=False)
         self.var_thickness = DoubleVar(value=400.0)
@@ -306,11 +310,11 @@ class IndexFrame(LabelFrame):
         self.ax.cla()
         self.img_path = filedialog.askopenfilename(initialdir=config.locations['work'], title='Select an image', 
                             filetypes=(('mrc files', '*.mrc'), ('img files', '*.img'), ('dm3 files', '*.dm3'), ('dm4 files', '*.dm4'), ('hdf5 files', '*.h5'), ('smv files', '*.smv'), 
-                                        ('tiff files', '*.tiff'), ('tif files', '*.tif'), ('cbf files', '*.cbf'), ('all files', '*.*')))
+                                        ('tiff files', '*.tiff'), ('tif files', '*.tif'), ('emd files', '*.emd'), ('cbf files', '*.cbf'), ('all files', '*.*')))
         if self.img_path != '':
             self.counter = 0
             self.img_path = Path(self.img_path)
-            suffix = img_path.suffix
+            suffix = self.img_path.suffix
             if suffix in ('.tif', '.tiff'):
                 self.img, self.img_header = read_tiff(self.img_path)
             elif suffix in ('.h5'):
@@ -327,6 +331,8 @@ class IndexFrame(LabelFrame):
             elif suffix in ('.dm3', '.dm4'):
                 self.img = dmReader(self.img_path)['data']
                 self.img_header = None
+            elif suffix == '.emd':
+                self.img, self.img_header = read_emd(self.img_path)
             pprint.pprint(self.img_header)
             self.img_on_canvas = self.ax.imshow(self.img)
             self.ax.set_xlim(0, self.img.shape[1]-1)
@@ -433,7 +439,7 @@ class IndexFrame(LabelFrame):
     def refresh(self):
         current_img = self.img_on_canvas.get_array()
         self.img_on_canvas.remove()
-        self.img_on_canvas = self.ax.imshow(current_img, vmax=self.var_vmax.get(), cmap="gray")
+        self.img_on_canvas = self.ax.imshow(current_img,vmin=self.var_vmin.get(), vmax=self.var_vmax.get(), cmap="gray")
         self.canvas.draw()
 
     def project(self):
