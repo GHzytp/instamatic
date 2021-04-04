@@ -10,13 +10,10 @@ from tkinter.ttk import *
 import numpy as np
 import pandas as pd
 
-from PIL import Image
-from PIL import ImageEnhance
-from PIL import ImageTk
+from PIL import Image, ImageEnhance, ImageTk
 
 from instamatic import config
-from instamatic.formats import read_tiff
-from instamatic.formats import write_tiff
+from instamatic.formats import read_tiff, write_tiff
 from instamatic.utils.widgets import Hoverbox, Spinbox
 
 class GridWindow(Toplevel):
@@ -121,7 +118,7 @@ class GridWindow(Toplevel):
             stage_pos = stage_pos @ stage_matrix
             stage_pos += np.array(self.map_info['center_pos'])
             stage_pos = np.round(stage_pos)
-            stage_pos_df = pd.DataFrame({'pos_x':stage_pos[:,0], 'pos_y':stage_pos[:,1]})
+            stage_pos_df = pd.DataFrame({'x':self.point_list['pos_x'], 'y':self.point_list['pos_y'], 'pos_x':stage_pos[:,0], 'pos_y':stage_pos[:,1]})
             return stage_pos_df, Path(self.map_path).parent
         else:
             return None, None
@@ -266,7 +263,9 @@ class GridWindow(Toplevel):
                 self.canvas.delete(int(self.point_list.loc[index, 'cross_1']))
                 self.canvas.delete(int(self.point_list.loc[index, 'cross_2']))
                 self.tv_positions.delete(self.saved_tv_items[index])
+        self.saved_tv_items = self.tv_positions.get_children()
         self.point_list = self.point_list[-delete_condition]
+        self.point_list = self.point_list.reset_index().drop(['index'], axis=1)
 
     def delete_item(self):
         selected_item = self.tv_positions.selection()
@@ -276,13 +275,14 @@ class GridWindow(Toplevel):
             delete_condition = [False] * len(self.saved_tv_items)
             delete_condition[index] = True
             delete_condition = pd.Series(delete_condition)
-            print(delete_condition)
             for index, condition in delete_condition.iteritems():
                 if condition == True:
                     self.canvas.delete(int(self.point_list.loc[index, 'cross_1']))
                     self.canvas.delete(int(self.point_list.loc[index, 'cross_2']))
             self.tv_positions.delete(selected_item)
+            self.saved_tv_items = self.tv_positions.get_children()
             self.point_list = self.point_list[-delete_condition]
+            self.point_list = self.point_list.reset_index().drop(['index'], axis=1)
 
 if __name__ == '__main__':
     root = Tk()

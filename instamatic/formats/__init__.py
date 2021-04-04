@@ -46,7 +46,7 @@ def read_emd(fname: str):
     except KeyError:
         with fileEMD(fname, readonly = True) as emd:
             im0, dims = emd.get_emdgroup(emd.list_emds[0])
-            metadata0 = {}
+            metadata0 = {'pixelSize':[]}
             for dim in dims:
                 try:
                     d = dim[0][1] - dim[0][0]
@@ -56,7 +56,7 @@ def read_emd(fname: str):
             metadata0['pixelUnit'] = [aa[2] for aa in dims]
             metadata0['pixelName'] = [aa[1] for aa in dims]
             return im0, metadata0
-    else:
+    except:
         raise OSError(f'Cannot open this emd file')
 
 def write_tiff(fname: str, data, header: dict = None):

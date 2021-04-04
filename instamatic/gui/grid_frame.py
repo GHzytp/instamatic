@@ -74,7 +74,8 @@ class GridFrame(LabelFrame):
         self.ZoomButton = Button(frame, text='Set Zoom', command=self.set_zoom, state=NORMAL)
         self.ZoomButton.grid(row=3, column=4, sticky='EW')
 
-        
+        self.DeleteItemButton = Button(frame, text='Delete All', width=11, command=self.delete_all, state=NORMAL)
+        self.DeleteItemButton.grid(row=0, column=4, sticky='EW')
         self.DeleteItemButton = Button(frame, text='Delete', width=11, command=self.delete_item, state=NORMAL)
         self.DeleteItemButton.grid(row=0, column=5, sticky='EW')
         self.SendItemsButton = Button(frame, text='Send', width=11, command=self.send_items, state=NORMAL)
@@ -357,7 +358,9 @@ class GridFrame(LabelFrame):
                 self.canvas.delete(int(self.point_list.loc[index, 'cross_1']))
                 self.canvas.delete(int(self.point_list.loc[index, 'cross_2']))
                 self.tv_positions.delete(self.saved_tv_items[index])
+        self.saved_tv_items = self.tv_positions.get_children()
         self.point_list = self.point_list[-delete_condition]
+        self.point_list = self.point_list.reset_index().drop(['index'], axis=1)
         print(self.point_list)
 
     def delete_item(self):
@@ -373,7 +376,18 @@ class GridFrame(LabelFrame):
                     self.canvas.delete(int(self.point_list.loc[index, 'cross_1']))
                     self.canvas.delete(int(self.point_list.loc[index, 'cross_2']))
             self.tv_positions.delete(selected_item)
+            self.saved_tv_items = self.tv_positions.get_children()
             self.point_list = self.point_list[-delete_condition]
+            self.point_list = self.point_list.reset_index().drop(['index'], axis=1)
+
+    def delete_all(self):
+        self.tv_positions.delete(*self.tv_positions.get_children())
+        self.canvas.delete('cross')
+        self.point_list = pd.DataFrame(columns=['pos_x', 'pos_y', 'cross_1', 'cross_2'])
+        self.counter = 0
+        self.saved_tv_items = None
+        self.select_flag = 0
+        self.last_selected_position = None
 
     def _generate_stage_position(self):
         if self.map_info is not None:
