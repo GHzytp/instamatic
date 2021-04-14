@@ -22,17 +22,21 @@ class ExperimentalTOMO(LabelFrame):
         frame = Frame(self)
         Label(frame, text='Exposure time (s):').grid(row=4, column=0, sticky='W')
         self.e_exposure_time = Spinbox(frame, textvariable=self.var_exposure_time, width=sbwidth, from_=0.1, to=10.0, increment=0.1)
-        self.e_exposure_time.grid(row=4, column=1, sticky='W', padx=10)
+        self.e_exposure_time.grid(row=4, column=1, sticky='W', padx=5)
 
-        Label(frame, text='Tilt range (deg):').grid(row=5, column=0, sticky='W')
+        Label(frame, text='Tilt range (deg):').grid(row=4, column=2, sticky='W')
         self.e_end_angle = Spinbox(frame, textvariable=self.var_tilt_range, width=sbwidth, from_=0, to=5.0, increment=0.1)
-        self.e_end_angle.grid(row=5, column=1, sticky='W', padx=10)
+        self.e_end_angle.grid(row=4, column=3, sticky='W', padx=5)
 
-        Label(frame, text='Step size (deg):').grid(row=6, column=0, sticky='W')
+        Label(frame, text='Step size (deg):').grid(row=4, column=4, sticky='W')
         self.e_stepsize = Spinbox(frame, textvariable=self.var_stepsize, width=sbwidth, from_=-3.0, to=3.0, increment=0.1)
-        self.e_stepsize.grid(row=6, column=1, sticky='W', padx=10)
+        self.e_stepsize.grid(row=4, column=5, sticky='W', padx=5)
 
-        frame.pack(side='top', fill='x', padx=10, pady=10)
+        Label(frame, text='Wait interval (s):').grid(row=5, column=0, sticky='W')
+        self.e_wait_interval = Spinbox(frame, textvariable=self.var_wait_interval, width=sbwidth, from_=0, to=20, increment=0.1)
+        self.e_wait_interval.grid(row=5, column=1, sticky='W', padx=5)
+
+        frame.pack(side='top', fill='x', padx=5, pady=5)
 
         frame = Frame(self)
         Label(frame, text='Output formats:').grid(row=5, columnspan=2, sticky='EW')
@@ -43,7 +47,7 @@ class ExperimentalTOMO(LabelFrame):
         frame.grid_columnconfigure(2, weight=1)
         frame.grid_columnconfigure(3, weight=1)
 
-        frame.pack(side='top', fill='x', padx=10, pady=10)
+        frame.pack(side='top', fill='x', padx=5, pady=5)
 
         frame = Frame(self)
         self.StartButton = Button(frame, text='Start Collection', command=self.start_collection)
@@ -58,13 +62,14 @@ class ExperimentalTOMO(LabelFrame):
         frame.columnconfigure(1, weight=1)
         frame.columnconfigure(2, weight=1)
 
-        frame.pack(side='bottom', fill='x', padx=10, pady=10)
+        frame.pack(side='bottom', fill='x', padx=5, pady=5)
 
     def init_vars(self):
         self.var_exposure_time = DoubleVar(value=1.0)
         #self.var_exposure_time.trace('w', self.check_exposure_time)
         self.var_tilt_range = DoubleVar(value=1.0)
         self.var_stepsize = DoubleVar(value=1.0)
+        self.var_wait_interval = DoubleVar(value=1.0)
 
         self.var_save_tiff = BooleanVar(value=True)
         self.var_save_mrc = BooleanVar(value=True)
@@ -115,6 +120,7 @@ class ExperimentalTOMO(LabelFrame):
         params = {'exposure_time': self.var_exposure_time.get(),
                   'tilt_range': self.var_tilt_range.get(),
                   'stepsize': self.var_stepsize.get(),
+                  'wait_interval': self.var_wait_interval.get(),
                   'task': task}
         return params
 
@@ -128,6 +134,7 @@ def acquire_data_TOMO(controller, **kwargs):
     exposure_time = kwargs['exposure_time']
     tilt_range = kwargs['tilt_range']
     stepsize = kwargs['stepsize']
+    wait_interval = kwargs['wait_interval']
 
     if task == 'start':
         flatfield = controller.module_io.get_flatfield()
@@ -137,9 +144,9 @@ def acquire_data_TOMO(controller, **kwargs):
 
         controller.tomo_exp = TOMO.Experiment(ctrl=controller.ctrl, path=expdir, log=controller.log,
                                             flatfield=flatfield)
-        controller.tomo_exp.start_collection(exposure_time=exposure_time, tilt_range=tilt_range, stepsize=stepsize)
+        controller.tomo_exp.start_collection(exposure_time=exposure_time, tilt_range=tilt_range, stepsize=stepsize, wait_interval=wait_interval)
     elif task == 'continue':
-        controller.tomo_exp.start_collection(exposure_time=exposure_time, tilt_range=tilt_range, stepsize=stepsize)    
+        controller.tomo_exp.start_collection(exposure_time=exposure_time, tilt_range=tilt_range, stepsize=stepsize, wait_interval=wait_interval)    
     elif task == 'stop':
         controller.tomo_exp.finalize()
         del controller.tomo_exp

@@ -52,7 +52,7 @@ class Experiment:
         self.rotation_axis = config.calibration.camera_rotation_vs_stage_xy
         self.wavelength = config.microscope.wavelength  # angstrom
 
-    def start_collection(self, exposure_time: float, tilt_range: float, stepsize: float):
+    def start_collection(self, exposure_time: float, tilt_range: float, stepsize: float, wait_interval: float):
         """Start or continue data collection for `tilt_range` degrees with
         steps given by `stepsize`, To finalize data collection and write data
         files, run `self.finalize`.
@@ -90,11 +90,10 @@ class Experiment:
 
         for i, angle in enumerate(tqdm(tilt_positions)):
             ctrl.stage.a = angle
+            time.sleep(wait_interval)
 
             j = i + self.offset
-
             img, h = self.ctrl.get_image(exposure_time)
-
             self.buffer.append((j, img, h))
 
         self.offset += len(tilt_positions)
@@ -206,7 +205,7 @@ class Experiment:
             print(f'Number of frames: {self.nframes}', file=f)
 
         img_conv = ImgConversion(buffer=self.buffer,
-                                 osc_angle=self.stepsize,
+                                 osc_angle=abs(self.stepsize),
                                  start_angle=self.start_angle,
                                  end_angle=self.end_angle,
                                  rotation_axis=self.rotation_axis,
