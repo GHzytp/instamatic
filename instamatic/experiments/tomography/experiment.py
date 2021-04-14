@@ -33,10 +33,8 @@ class Experiment:
 
         self.mrc_path = self.path / 'mrc'
         self.tiff_path = self.path / 'tiff'
-        self.tiff_image_path = self.path / 'tiff_image'
 
         self.tiff_path.mkdir(exist_ok=True, parents=True)
-        self.tiff_image_path.mkdir(exist_ok=True, parents=True)
         self.mrc_path.mkdir(exist_ok=True, parents=True)
 
         self.logger = log
@@ -44,16 +42,17 @@ class Experiment:
 
         self.flatfield = flatfield
 
-        self.offset = 1
+        self.offset = 0
         self.current_angle = None
         self.buffer = []
 
         self.img_ref = None
 
+        self.binsize = ctrl.cam.default_binsize
         self.rotation_axis = config.calibration.camera_rotation_vs_stage_xy
         self.wavelength = config.microscope.wavelength  # angstrom
 
-    def start_collection(self, exposure_time: float, end_angle: float, stepsize: float):
+    def start_collection(self, exposure_time: float, tilt_range: float, stepsize: float):
         """Start or continue data collection for `tilt_range` degrees with
         steps given by `stepsize`, To finalize data collection and write data
         files, run `self.finalize`.
@@ -68,48 +67,55 @@ class Experiment:
             Step size for the angle in degrees, controls the direction and can be positive or negative
         """
         self.spotsize = self.ctrl.spotsize
+        self.now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        self.logger.info(f'Data recording started at: {self.now}')
+        self.logger.info(f'Exposure time: {exposure_time} s, Tilt range: {tilt_range}, step size: {stepsize}')
+
         ctrl = self.ctrl
-        frametime = config.settings.default_frame_time
-        self.magnification = int(self.ctrl.magnification.value)
 
-        image_mode = ctrl.mode.state
-        if image_mode in ('D', 'LAD', 'diff'):
-            raise RuntimeError("Please set the microscope to IMAGE mode")
-
-        software_binsize = config.settings.software_binsize
-        if software_binsize is None:
-            self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][self.camera_length] * self.binsize 
-            self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize 
+        if stepsize < 0:
+            tilt_range = -abs(tilt_range)
         else:
-            self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][self.camera_length] * self.binsize * software_binsize 
-            self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize * software_binsize 
+            tilt_range = abs(tilt_range)
 
         if self.current_angle is None:
             self.start_angle = start_angle = ctrl.stage.a
         else:
             start_angle = self.current_angle + stepsize
 
-        if start_angle > end_angle:
-            stepsize = -stepsize
-        else:
-            stepsize = stepsize
-
-        self.now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        self.logger.info('Data recording started at: {self.now}')
-        self.logger.info(f'Exposure time: {exposure_time} s, start angle: {start_angle}, end angle: {end_angle}, step size: {stepsize}')
-
-        tilt_positions = np.arange(start_angle, end_angle, stepsize)
+        tilt_positions = np.arange(start_angle, start_angle + tilt_range, stepsize)
         print(f'\nStart_angle: {start_angle:.3f}')
-        # print "Angles:", tilt_positions
 
-        stagematrix = self.ctrl.get_stagematrix(binning=self.ctrl.cam.default_binsize, mag=self.magnification, mode=image_mode)
-
-        self.img_ref, h = self.ctrl.get_image(exposure_time)
-
-        isFocused = False
-        isAligned = False
+        image_mode = ctrl.mode.get()
 
         for i, angle in enumerate(tqdm(tilt_positions)):
+            ctrl.stage.a = angle
+
+            j = i + self.offset
+
+            img, h = self.ctrl.get_image(exposure_time)
+
+            self.buffer.append((j, img, h))
+
+        self.offset += len(tilt_positions)
+        self.nframes = j + 1
+
+        self.end_angle = end_angle = ctrl.stage.a
+
+        self.magnification = int(self.ctrl.magnification.get())
+        self.stepsize = stepsize
+        self.exposure_time = exposure_time
+
+        with open(self.path / 'summary.txt', 'a') as f:
+            print(f'{self.now}: Data collected from {start_angle:.2f} degree to {end_angle:.2f} degree in {len(tilt_positions)} frames.', file=f)
+            print(f'Data collected from {start_angle:.2f} degree to {end_angle:.2f} degree in {len(tilt_positions)} frames.')
+
+        self.logger.info('Data collected from {start_angle:.2f} degree to {end_angle:.2f} degree (magnification: {magnification} mm).')
+
+        self.current_angle = angle
+        print(f'Done, current angle = {self.current_angle:.2f} degrees')
+
+        '''
             ctrl.stage.a = angle
 
             j = i + self.offset
@@ -158,6 +164,7 @@ class Experiment:
 
         self.current_angle = angle
         print(f'Done, current angle = {self.current_angle:.2f} degrees')
+        '''
 
     def focus_image(self, img):
         """Return the distance of sample movement between the beam tilt"""
@@ -175,6 +182,14 @@ class Experiment:
         """
         if not hasattr(self, 'end_angle'):
             self.end_angle = self.ctrl.stage.a
+
+        software_binsize = config.settings.software_binsize
+        if software_binsize is None:
+            self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][self.magnification] * self.binsize 
+            self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize 
+        else:
+            self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][self.magnification] * self.binsize * software_binsize 
+            self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize * software_binsize 
 
         self.logger.info(f'Data saving path: {self.path}')
 
