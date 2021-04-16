@@ -51,6 +51,8 @@ class ImageGrabber:
         self.acquireInitiateEvent = threading.Event()
         self.acquireCompleteEvent = threading.Event()
         self.continuousCollectionEvent = threading.Event()
+        self.alignFrameEvent = threading.Event()
+        self.align_roi = None
 
     def run(self, queue):
         #i = 0
@@ -62,13 +64,16 @@ class ImageGrabber:
             while not self.stopEvent.is_set():
                 if self.acquireInitiateEvent.is_set():
                     self.acquireInitiateEvent.clear()
-                    if self.interface=="DM":
-                        frame = self.cam.get_from_buffer(queue, exposure=self.exposure, multiple=True, align=False)
+                    if self.interface == "DM":
+                        if self.alignFrameEvent.is_set():
+                            frame = self.cam.get_from_buffer(queue, exposure=self.exposure, multiple=True, align=True, align_roi=align_roi)
+                        else:
+                            frame = self.cam.get_from_buffer(queue, exposure=self.exposure, multiple=True, align=False)
                     else:
                         frame = self.cam.getImage(exposure=self.exposure)
                     self.callback(frame, acquire=True)
                 elif not self.continuousCollectionEvent.is_set():
-                    if self.interface=="DM":
+                    if self.interface == "DM":
                         #print(f"frametime: {self.frametime}")
                         frame = self.cam.get_from_buffer(queue, exposure=self.frametime)
                     else:
@@ -82,7 +87,7 @@ class ImageGrabber:
 
     def start_loop(self):
         """Obtaining frames from stream_buffer (after processing)"""
-        if not config.settings.simulate and self.interface=="DM":
+        if not config.settings.simulate and self.interface == "DM":
             self.thread = threading.Thread(target=self.run, args=(stream_buffer,), daemon=True)
         else:
             self.thread = threading.Thread(target=self.run, args=(None,), daemon=True)
@@ -193,6 +198,13 @@ class VideoStream:
 
     def close(self):
         self.grabber.stop()
+
+    def frame_align(self, align_roi):
+        self.grabber.alignFrameEvent.set()
+        self.grabber.align_roi = align_roi
+
+    def no_frame_align(self):
+        self.grabber.alignFrameEvent.clear()
 
     def block(self):
         self.grabber.continuousCollectionEvent.set()

@@ -11,6 +11,7 @@ import pyDMOneView as pyDM
 from instamatic import config
 from instamatic.utils import high_precision_timers
 from instamatic.image_utils import translate_image
+from scipy import ndimage
 
 high_precision_timers.enable()
 
@@ -94,7 +95,7 @@ class CameraDM:
         return pyDM.onAcquireImgStack(wait).squeeze()
         #return np.random.randint(65535, size=(self.dimensions[0], self.dimensions[1]))
 
-    def get_from_buffer(self, queue, exposure, multiple=False, align=False):
+    def get_from_buffer(self, queue, exposure, multiple=False, align=False, align_roi=None):
         '''
         multiple: bool
             Toggle to average multiple images or not
@@ -115,10 +116,18 @@ class CameraDM:
             else:
                 tmp_store = np.zeros((round(self.dimensions[0]/self.scale), round(self.dimensions[1]/self.scale)), dtype=np.float32) + arr
             for j in range(n-1):
-                tmp = queue.get()
                 if align:
-                    shift, error, phasediff = phase_cross_correlation(arr, tmp)
-                    tmp = translate_image(tmp, shift)
+                    tmp = queue.get()
+                    if align_roi is None:
+                        shift, error, phasediff = phase_cross_correlation(arr, tmp, upsample_factor=10)
+                    else:
+                        shift, error, phasediff = phase_cross_correlation(arr[align_roi[0][0]:align_roi[1][0], align_roi[0][1]:align_roi[1][1]], 
+                            tmp[align_roi[0][0]:align_roi[1][0], align_roi[0][1]:align_roi[1][1]], upsample_factor=10)
+                    print(shift)
+                    tmp = ndimage.shift(tmp, shift, output=np.uint16, order=3, mode='nearest')
+                    self.clear_buffer(queue)
+                else:
+                    tmp = queue.get()
                 tmp_store += tmp
             arr = tmp_store / n
             return arr.astype(np.uint16)

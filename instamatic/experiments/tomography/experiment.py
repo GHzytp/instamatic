@@ -93,7 +93,7 @@ class Experiment:
             time.sleep(wait_interval)
 
             j = i + self.offset
-            img, h = self.ctrl.get_image(exposure_time)
+            img, h = self.ctrl.get_image(exposure_time, align=True)
             self.buffer.append((j, img, h))
 
         self.offset += len(tilt_positions)

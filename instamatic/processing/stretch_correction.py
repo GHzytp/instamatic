@@ -27,7 +27,7 @@ def apply_transform_to_image(img, transform, center=None):
     shift = center - displacement
 
     # order=1; linear interpolation, anything higher may introduce artifacts
-    img_tf = interpolation.affine_transform(img, transform, offset=shift, mode='constant', order=1, cval=0.0)
+    img_tf = interpolation.affine_transform(img, transform, offset=shift, mode='nearest', order=3, cval=0.0)
     return img_tf
 
 
