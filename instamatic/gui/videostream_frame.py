@@ -202,6 +202,8 @@ class VideoStreamFrame(LabelFrame):
             self.overflow = overflow
             self.overflow_tk = overflow_tk
 
+            self.roi = None
+
             #self.panel = Label(master, image=image)
             #self.panel.image = image
             self.panel = Canvas(master, width=dimension[1], height=dimension[0])

@@ -31,12 +31,6 @@ class Experiment:
         self.ctrl = ctrl
         self.path = Path(path)
 
-        self.mrc_path = self.path / 'mrc'
-        self.tiff_path = self.path / 'tiff'
-
-        self.tiff_path.mkdir(exist_ok=True, parents=True)
-        self.mrc_path.mkdir(exist_ok=True, parents=True)
-
         self.logger = log
         self.camtype = ctrl.cam.name
 
@@ -52,7 +46,8 @@ class Experiment:
         self.rotation_axis = config.calibration.camera_rotation_vs_stage_xy
         self.wavelength = config.microscope.wavelength  # angstrom
 
-    def start_collection(self, exposure_time: float, tilt_range: float, stepsize: float, wait_interval: float):
+    def start_collection(self, exposure_time: float, tilt_range: float, stepsize: float, wait_interval: float, 
+                        align: bool, align_roi: bool, roi: list):
         """Start or continue data collection for `tilt_range` degrees with
         steps given by `stepsize`, To finalize data collection and write data
         files, run `self.finalize`.
@@ -93,7 +88,10 @@ class Experiment:
             time.sleep(wait_interval)
 
             j = i + self.offset
-            img, h = self.ctrl.get_image(exposure_time, align=True)
+            if align_roi:
+                img, h = self.ctrl.get_image(exposure_time, align=align, roi=roi)
+            else:
+                img, h = self.ctrl.get_image(exposure_time, align=align)
             self.buffer.append((j, img, h))
 
         self.offset += len(tilt_positions)
@@ -174,7 +172,7 @@ class Experiment:
         shift, error, phasediff = phase_cross_correlation(self.img_ref[::2,::2], img[::2,::2])
         return shift * 2
 
-    def finalize(self):
+    def finalize(self, write_tiff=True, write_mrc=True):
         """Finalize data collection after `self.start_collection` has been run.
 
         Write data in `self.buffer` to path given by `self.path`.
@@ -191,6 +189,9 @@ class Experiment:
             self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize * software_binsize 
 
         self.logger.info(f'Data saving path: {self.path}')
+
+        self.tiff_path = self.path / 'tiff' if write_tiff else None
+        self.mrc_path = self.path / 'mrc' if write_mrc else None
 
         with open(self.path / 'summary.txt', 'a') as f:
             print(f'Rotation range: {self.end_angle-self.start_angle:.2f} degrees', file=f)
@@ -221,8 +222,9 @@ class Experiment:
                                   mrc_path=self.mrc_path,
                                   workers=8)
 
-        print('Writing input files...')
-        img_conv.write_ed3d(self.mrc_path)
+        if self.mrc_path is not None:
+            print('Writing input files...')
+            img_conv.write_ed3d(self.mrc_path)
 
         print('Data Collection and Conversion Done.')
         print()

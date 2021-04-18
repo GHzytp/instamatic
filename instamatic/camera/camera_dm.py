@@ -95,7 +95,7 @@ class CameraDM:
         return pyDM.onAcquireImgStack(wait).squeeze()
         #return np.random.randint(65535, size=(self.dimensions[0], self.dimensions[1]))
 
-    def get_from_buffer(self, queue, exposure, multiple=False, align=False, align_roi=None):
+    def get_from_buffer(self, queue, exposure, multiple=False, align=False, roi=None):
         '''
         multiple: bool
             Toggle to average multiple images or not
@@ -118,11 +118,12 @@ class CameraDM:
             for j in range(n-1):
                 if align:
                     tmp = queue.get()
-                    if align_roi is None:
+                    if roi is None:
                         shift, error, phasediff = phase_cross_correlation(arr, tmp, upsample_factor=10)
                     else:
-                        shift, error, phasediff = phase_cross_correlation(arr[align_roi[0][0]:align_roi[1][0], align_roi[0][1]:align_roi[1][1]], 
-                            tmp[align_roi[0][0]:align_roi[1][0], align_roi[0][1]:align_roi[1][1]], upsample_factor=10)
+                        print(roi)
+                        shift, error, phasediff = phase_cross_correlation(arr[roi[0][0]:roi[1][0], roi[0][1]:roi[1][1]], 
+                            tmp[roi[0][0]:roi[1][0], roi[0][1]:roi[1][1]], upsample_factor=10)
                     print(shift)
                     tmp = ndimage.shift(tmp, shift, output=np.uint16, order=3, mode='nearest')
                     self.clear_buffer(queue)

@@ -52,7 +52,7 @@ class ImageGrabber:
         self.acquireCompleteEvent = threading.Event()
         self.continuousCollectionEvent = threading.Event()
         self.alignFrameEvent = threading.Event()
-        self.align_roi = None
+        self.roi = None
 
     def run(self, queue):
         #i = 0
@@ -66,7 +66,7 @@ class ImageGrabber:
                     self.acquireInitiateEvent.clear()
                     if self.interface == "DM":
                         if self.alignFrameEvent.is_set():
-                            frame = self.cam.get_from_buffer(queue, exposure=self.exposure, multiple=True, align=True, align_roi=align_roi)
+                            frame = self.cam.get_from_buffer(queue, exposure=self.exposure, multiple=True, align=True, roi=self.roi)
                         else:
                             frame = self.cam.get_from_buffer(queue, exposure=self.exposure, multiple=True, align=False)
                     else:
@@ -199,9 +199,9 @@ class VideoStream:
     def close(self):
         self.grabber.stop()
 
-    def frame_align(self, align_roi):
+    def frame_align(self, roi):
         self.grabber.alignFrameEvent.set()
-        self.grabber.align_roi = align_roi
+        self.grabber.roi = roi
 
     def no_frame_align(self):
         self.grabber.alignFrameEvent.clear()

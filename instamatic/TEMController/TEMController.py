@@ -661,7 +661,7 @@ class TEMController:
                   verbose: bool = False,
                   header_keys: Tuple[str] = None,
                   align: bool = False,
-                  align_roi: list = None,
+                  roi: list = None,
                   ) -> Tuple[np.ndarray, dict]:
         """Retrieve image as numpy array from camera. If the exposure and
         binsize are not given, the default values are read from the config
@@ -712,7 +712,7 @@ class TEMController:
         h['ImageGetTimeStart'] = time.perf_counter()
 
         if align and self.cam.cam.interface == 'DM':
-            self.cam.frame_align(align_roi)
+            self.cam.frame_align(roi)
             arr = self.get_rotated_image(exposure=exposure, binsize=binsize)
             self.cam.no_frame_align()
         else:
