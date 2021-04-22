@@ -608,11 +608,11 @@ class FEIMicroscope:
 
     def getBeamTilt(self):
         """rotation center in FEI. 5ms per call. Units: degree"""
-        return self.getRotationCenter()
+        return self.getImageBeamTilt()
 
     def setBeamTilt(self, x=None, y=None):
         """rotation center in FEI. 9.8ms per call. Units: degree"""
-        self.setRotationCenter(x, y)
+        self.setImageBeamTilt(x, y)
         
     def getImageShift1(self):
         """User image shift. 5ms per call

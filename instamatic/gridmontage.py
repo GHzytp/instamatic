@@ -127,7 +127,7 @@ class GridMontage:
 
         ctrl.acquire_at_items(self.stagecoords,
                               acquire=acquire_image,
-                              pre_acquire=eliminate_backlash,
+                              pre_acquire=None,
                               post_acquire=None)
 
         self.buffer = buffer

@@ -172,7 +172,7 @@ class MainFrame:
 
     def focus_out(self, event):
         if config.camera.interface == 'DM':
-            if event.widget == self.root and self.counter < 3:
+            if event.widget == self.root and self.counter < 1:
                 messagebox.showinfo("Reminder", 
                     f"Don't use digital micrograph to collect images when {instamatic.__long_title__} is running.")
                 self.counter += 1

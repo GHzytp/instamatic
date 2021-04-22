@@ -244,7 +244,7 @@ class SimuMicroscope:
     def getDefocus(self) -> float:
         return self.ObjFocus_value
 
-    def setDefocus(self, value: int):
+    def setDefocus(self, value: int, confirm_mode: bool = True):
         self.ObjFocus_value = value
 
     def getHTValue(self) -> float:

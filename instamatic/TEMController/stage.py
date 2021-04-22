@@ -220,6 +220,29 @@ class Stage:
         self.a = a_center
         print(f'Print z={self.z:.2f}')
 
+    def set_z_with_backlash_correction(self, z: int = None, step: float = 5000, settle_delay: float = 0.200):
+        wait = True
+        self.set(z=z-step, wait=wait)
+        if settle_delay:
+            time.sleep(0.05)
+
+        self.set(z=z, wait=wait)
+        if settle_delay:
+            time.sleep(settle_delay)
+
+    def eliminate_backlash_z(self, step: float = 5000, settle_delay: float = 0.200):
+        """Eliminate backlash by in XY by moving the stage away from the
+        current position, and approaching it from the common direction. Uses
+        `set_xy_with_backlash_correction` internally.
+
+        step: float,
+            stepsize in nm
+        settle_delay: float,
+            delay between movements in seconds to allow the stage to settle
+        """
+        stage = self.get()
+        self.set_z_with_backlash_correction(z=stage.z, step=step, settle_delay=settle_delay)
+
     def set_xy_with_backlash_correction(self, x: int = None, y: int = None, step: float = 5000, settle_delay: float = 0.200) -> None:
         """Move to new x/y position with backlash correction. This is done by
         approaching the target x/y position always from the same direction.
@@ -288,7 +311,7 @@ class Stage:
         if settle_delay:
             time.sleep(settle_delay)
 
-    def eliminate_backlash_xy(self, step: float = 10000, settle_delay: float = 0.200) -> None:
+    def eliminate_backlash_xy(self, step: float = 5000, settle_delay: float = 0.200) -> None:
         """Eliminate backlash by in XY by moving the stage away from the
         current position, and approaching it from the common direction. Uses
         `set_xy_with_backlash_correction` internally.

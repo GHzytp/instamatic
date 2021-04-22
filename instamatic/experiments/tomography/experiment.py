@@ -1,6 +1,7 @@
 import datetime
 import os
 import time
+import threading
 from pathlib import Path
 
 import numpy as np
@@ -46,6 +47,13 @@ class Experiment:
         self.rotation_axis = config.calibration.camera_rotation_vs_stage_xy
         self.wavelength = config.microscope.wavelength  # angstrom
 
+    def obtain_image(self, exposure_time, align, align_roi, roi):
+        if align_roi:
+            img, h = self.ctrl.get_image(exposure_time, align=align, roi=roi)
+        else:
+            img, h = self.ctrl.get_image(exposure_time, align=align)
+        return img, h
+
     def start_collection(self, exposure_time: float, tilt_range: float, stepsize: float, wait_interval: float, 
                         align: bool, align_roi: bool, roi: list):
         """Start or continue data collection for `tilt_range` degrees with
@@ -78,20 +86,16 @@ class Experiment:
         else:
             start_angle = self.current_angle + stepsize
 
-        tilt_positions = np.arange(start_angle, start_angle + tilt_range, stepsize)
+        tilt_positions = np.arange(start_angle + stepsize, start_angle + tilt_range + stepsize, stepsize)
         print(f'\nStart_angle: {start_angle:.3f}')
 
         image_mode = ctrl.mode.get()
 
         for i, angle in enumerate(tqdm(tilt_positions)):
-            ctrl.stage.a = angle
             time.sleep(wait_interval)
-
             j = i + self.offset
-            if align_roi:
-                img, h = self.ctrl.get_image(exposure_time, align=align, roi=roi)
-            else:
-                img, h = self.ctrl.get_image(exposure_time, align=align)
+            img, h = self.obtain_image(exposure_time, align, align_roi, roi)
+            ctrl.stage.a = angle
             self.buffer.append((j, img, h))
 
         self.offset += len(tilt_positions)
@@ -112,7 +116,121 @@ class Experiment:
         self.current_angle = angle
         print(f'Done, current angle = {self.current_angle:.2f} degrees')
 
-        '''
+    def start_auto_focus(self, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, 
+                        roi: list, cs: float, defocus: int, beam_tilt: float):
+        # Applying defocus
+        self.ctrl.objfocus.set(-50000)
+        # Acquiring image at negative beam tilt
+        self.ctrl.deflector.setBeamTilt(-beam_tilt)
+        time.sleep(wait_interval)
+        img_negative_1, h = self.obtain_image(exposure_time, align, align_roi, roi)
+        # Acquiring image at positive beam tilt
+        self.ctrl.deflector.setBeamTilt(beam_tilt)
+        time.sleep(wait_interval)
+        img_positive, h = self.obtain_image(exposure_time, align, align_roi, roi)
+        # Acquiring image at negative beam tilt
+        self.ctrl.deflector.setBeamTilt(-beam_tilt)
+        time.sleep(wait_interval)
+        img_negative_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
+        # Measuring shift...
+        shift, error, phasediff = phase_cross_correlation(img_positive, img_negative_1, upsample_factor=10)
+        print(f"Beam tilt {-beam_tilt} -> {beam_tilt}: {shift*h['ImagePixelsize']}")
+        # Moving z
+        # self.ctrl.stage.set_z_with_backlash_correction(z=)
+        # Applying defocus
+        self.ctrl.objfocus.set(-50000)
+        # Acquiring image at negative beam tilt
+        self.ctrl.deflector.setBeamTilt(-beam_tilt)
+        time.sleep(wait_interval)
+        img_negative_1, h = self.obtain_image(exposure_time, align, align_roi, roi)
+        # Acquiring image at positive beam tilt
+        self.ctrl.deflector.setBeamTilt(beam_tilt)
+        time.sleep(wait_interval)
+        img_positive, h = self.obtain_image(exposure_time, align, align_roi, roi)
+        # Acquiring image at negative beam tilt
+        self.ctrl.deflector.setBeamTilt(-beam_tilt)
+        time.sleep(wait_interval)
+        img_negative_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
+        # Measuring shift...
+        shift, error, phasediff = phase_cross_correlation(img_positive, img_negative_1, upsample_factor=10)
+        print(f"Beam tilt {-beam_tilt} -> {beam_tilt}: {shift*h['ImagePixelsize']}")
+
+    def start_auto_eucentric_height(self, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, 
+                        roi: list, defocus: int, stage_tilt: float):
+        # Applying defocus
+        self.ctrl.objfocus.set(-50000)
+        # Acquiring image at 0°
+        self.ctrl.stage.a = 0
+        self.ctrl.stage.eliminate_backlash_a(target_angle=stage_tilt)
+        self.ctrl.stage.eliminate_backlash_z()
+        time.sleep(wait_interval)
+        img_0_1, h = self.obtain_image(exposure_time, align, align_roi, roi)
+        # Acquiring image at tilt: stage_tilt
+        self.ctrl.stage.a = stage_tilt
+        time.sleep(wait_interval)
+        img_tilt_1, h = self.obtain_image(exposure_time, align, align_roi, roi)
+        # Measuring shift...
+        shift, error, phasediff = phase_cross_correlation(img_tilt_1, img_0_1, upsample_factor=10)
+        print(f"0 -> {stage_tilt}: {shift*h['ImagePixelsize']}")
+        # Moving z
+        # self.ctrl.stage.set_z_with_backlash_correction(z=)
+        # Acquiring image at tilt: 3*stage_tilt
+        self.ctrl.stage.a = stage_tilt * 3
+        time.sleep(wait_interval)
+        img_tilt_2_1, h = self.obtain_image(exposure_time, align, align_roi, roi)
+        # Acquiring image at tilt: -3*stage_tilt
+        self.ctrl.stage.eliminate_backlash_a(target_angle=-stage_tilt*3)
+        self.ctrl.stage.a = - stage_tilt * 3
+        time.sleep(wait_interval)
+        img_tilt_2_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
+        # Measuring shift...
+        shift, error, phasediff = phase_cross_correlation(img_tilt_2_2, img_tilt_2_1, upsample_factor=10)
+        print(f"{stage_tilt*3} -> {-stage_tilt*3}: {shift*h['ImagePixelsize']}")
+        # Moving z
+        # self.ctrl.stage.set_z_with_backlash_correction(z=)
+        # Moving back to 0 degree for drift measurement
+        self.ctrl.stage.a = 0
+        time.sleep(wait_interval)
+        img_0_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
+        shift, error, phasediff = phase_cross_correlation(img_0_2, img_0_1, upsample_factor=10)
+        print(f"0 -> 0: {shift*h['ImagePixelsize']}")
+
+
+    def start_auto_collection(self, exposure_time: float, end_angle: float, stepsize: float, wait_interval: float, 
+                        align: bool, align_roi: bool, roi: list, write_tiff: bool, write_mrc: bool, 
+                        pause_event: threading.Event, stop_event: threading.Event):
+        """Start automatic data collection from current angle to end angle with
+        steps given by `stepsize`.
+
+        exposure_time:
+            Exposure time for each image in seconds
+        stepsize:
+            Step size for the angle in degrees, controls the direction and can be positive or negative
+        """
+        self.spotsize = self.ctrl.spotsize
+        self.now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        self.logger.info(f'Data recording started at: {self.now}')
+        self.logger.info(f'Exposure time: {exposure_time} s, End angle: {end_angle}, step size: {stepsize}')
+
+        ctrl = self.ctrl
+
+        self.start_angle = start_angle = ctrl.stage.a
+
+        if stepsize < 0:
+            if end_angle >= start_angle:
+                return 0
+        elif stepsize == 0:
+            return 0
+        else:
+            if end_angle <= start_angle:
+                return 0
+
+        tilt_positions = np.arange(start_angle, end_angle, stepsize)
+        print(f'\nStart_angle: {start_angle:.3f}')
+
+        image_mode = ctrl.mode.get()
+
+        for i, angle in enumerate(tqdm(tilt_positions)):
             ctrl.stage.a = angle
 
             j = i + self.offset
@@ -161,7 +279,7 @@ class Experiment:
 
         self.current_angle = angle
         print(f'Done, current angle = {self.current_angle:.2f} degrees')
-        '''
+
 
     def focus_image(self, img):
         """Return the distance of sample movement between the beam tilt"""
