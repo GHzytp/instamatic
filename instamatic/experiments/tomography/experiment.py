@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 from skimage.registration import phase_cross_correlation
 from tqdm.auto import tqdm
+from tkinter import messagebox
 
 from instamatic import config
 from instamatic.formats import write_tiff
@@ -30,7 +31,10 @@ class Experiment:
     def __init__(self, ctrl, path: str = None, log=None, flatfield=None):
         super().__init__()
         self.ctrl = ctrl
-        self.path = Path(path)
+        try:
+            self.path = Path(path)
+        except:
+            self.path = Path('.')
 
         self.logger = log
         self.camtype = ctrl.cam.name
@@ -116,49 +120,66 @@ class Experiment:
         self.current_angle = angle
         print(f'Done, current angle = {self.current_angle:.2f} degrees')
 
+
     def start_auto_focus(self, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, 
                         roi: list, cs: float, defocus: int, beam_tilt: float):
+        """Auto focus method used in FEI TEM Tomography. D = 2Mb(f+cs*b^2)
+        Formula from https://www.sciencedirect.com/science/article/abs/pii/030439918790146X
+        """
         # Applying defocus
-        self.ctrl.objfocus.set(-50000)
+        self.ctrl.objfocus.set(defocus)
         # Acquiring image at negative beam tilt
-        self.ctrl.deflector.setBeamTilt(-beam_tilt)
+        self.ctrl.beamtilt.x = -beam_tilt
         time.sleep(wait_interval)
         img_negative_1, h = self.obtain_image(exposure_time, align, align_roi, roi)
         # Acquiring image at positive beam tilt
-        self.ctrl.deflector.setBeamTilt(beam_tilt)
+        self.ctrl.beamtilt.x = beam_tilt
         time.sleep(wait_interval)
         img_positive, h = self.obtain_image(exposure_time, align, align_roi, roi)
         # Acquiring image at negative beam tilt
-        self.ctrl.deflector.setBeamTilt(-beam_tilt)
+        self.ctrl.beamtilt.x = -beam_tilt
         time.sleep(wait_interval)
         img_negative_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
         # Measuring shift...
-        shift, error, phasediff = phase_cross_correlation(img_positive, img_negative_1, upsample_factor=10)
-        print(f"Beam tilt {-beam_tilt} -> {beam_tilt}: {shift*h['ImagePixelsize']}")
-        # Moving z
-        # self.ctrl.stage.set_z_with_backlash_correction(z=)
-        # Applying defocus
-        self.ctrl.objfocus.set(-50000)
-        # Acquiring image at negative beam tilt
-        self.ctrl.deflector.setBeamTilt(-beam_tilt)
-        time.sleep(wait_interval)
-        img_negative_1, h = self.obtain_image(exposure_time, align, align_roi, roi)
-        # Acquiring image at positive beam tilt
-        self.ctrl.deflector.setBeamTilt(beam_tilt)
-        time.sleep(wait_interval)
-        img_positive, h = self.obtain_image(exposure_time, align, align_roi, roi)
-        # Acquiring image at negative beam tilt
-        self.ctrl.deflector.setBeamTilt(-beam_tilt)
-        time.sleep(wait_interval)
-        img_negative_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
-        # Measuring shift...
-        shift, error, phasediff = phase_cross_correlation(img_positive, img_negative_1, upsample_factor=10)
-        print(f"Beam tilt {-beam_tilt} -> {beam_tilt}: {shift*h['ImagePixelsize']}")
+        shift_focus, error, phasediff = phase_cross_correlation(img_positive, img_negative_1, upsample_factor=10)
+        shift_focus = shift_focus*h['ImagePixelsize']
+        print(f"Beam tilt {-beam_tilt} -> {beam_tilt}: {shift_focus*h['ImagePixelsize']}")
+        shift_drift, error, phasediff = phase_cross_correlation(img_negative_2, img_negative_1, upsample_factor=10)
+        print(f"Drift {-beam_tilt} -> {-beam_tilt}: {np.linalg.norm(shift_drift)*h['ImagePixelsize']}")
+        # Measured defocus
+        delta_defocus = np.linalg.norm(shift_focus) / 2 / np.tan(np.deg2rad(beam_tilt)) - cs * 1e6 * np.tan(np.deg2rad(beam_tilt))**2
+        print(f'Meansured defocus: {delta_defocus}')
+
+        if messagebox.askokcancel("Continue", f"Change of focus is {delta_defocus}. Change the defocus and continue?"):
+            # Applying defocus
+            self.ctrl.objfocus.set(defocus)
+            # Acquiring image at negative beam tilt
+            self.ctrl.beamtilt.x = -beam_tilt
+            time.sleep(wait_interval)
+            img_negative_1, h = self.obtain_image(exposure_time, align, align_roi, roi)
+            # Acquiring image at positive beam tilt
+            self.ctrl.beamtilt.x = beam_tilt
+            time.sleep(wait_interval)
+            img_positive, h = self.obtain_image(exposure_time, align, align_roi, roi)
+            # Acquiring image at negative beam tilt
+            self.ctrl.beamtilt.x = -beam_tilt
+            time.sleep(wait_interval)
+            img_negative_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
+            # Measuring shift...
+            shift_focus, error, phasediff = phase_cross_correlation(img_positive, img_negative_1, upsample_factor=10)
+            shift_focus = shift_focus*h['ImagePixelsize']
+            print(f"Beam tilt {-beam_tilt} -> {beam_tilt}: {shift_focus}")
+            shift_drift, error, phasediff = phase_cross_correlation(img_negative_2, img_negative_1, upsample_factor=10)
+            print(f"Drift {-beam_tilt} -> {-beam_tilt}: {np.linalg.norm(shift_drift) * h['ImagePixelsize']}")
+            # Measured defocus
+            delta_defocus = np.linalg.norm(shift_focus) / 2 / np.tan(np.deg2rad(beam_tilt)) - cs * 1e6 * np.tan(np.deg2rad(beam_tilt))**2
+            print(f'Meansured defocus: {delta_defocus}')
+            self.ctrl.objfocus.set(defocus)
 
     def start_auto_eucentric_height(self, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, 
                         roi: list, defocus: int, stage_tilt: float):
-        # Applying defocus
-        self.ctrl.objfocus.set(-50000)
+        """Find eucentric height automatically using the method in FEI TEM Tomography"""
+        self.ctrl.objfocus.set(defocus)
         # Acquiring image at 0°
         self.ctrl.stage.a = 0
         self.ctrl.stage.eliminate_backlash_a(target_angle=stage_tilt)
@@ -171,29 +192,34 @@ class Experiment:
         img_tilt_1, h = self.obtain_image(exposure_time, align, align_roi, roi)
         # Measuring shift...
         shift, error, phasediff = phase_cross_correlation(img_tilt_1, img_0_1, upsample_factor=10)
-        print(f"0 -> {stage_tilt}: {shift*h['ImagePixelsize']}")
+        print(f"Stage tilt 0 -> {stage_tilt}: {shift*h['ImagePixelsize']}")
+        delta_z = np.linalg.norm(shift) / np.tan(np.deg2rad(stage_tilt))
+        print(f'Meansured height change: {delta_z}')
         # Moving z
-        # self.ctrl.stage.set_z_with_backlash_correction(z=)
-        # Acquiring image at tilt: 3*stage_tilt
-        self.ctrl.stage.a = stage_tilt * 3
-        time.sleep(wait_interval)
-        img_tilt_2_1, h = self.obtain_image(exposure_time, align, align_roi, roi)
-        # Acquiring image at tilt: -3*stage_tilt
-        self.ctrl.stage.eliminate_backlash_a(target_angle=-stage_tilt*3)
-        self.ctrl.stage.a = - stage_tilt * 3
-        time.sleep(wait_interval)
-        img_tilt_2_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
-        # Measuring shift...
-        shift, error, phasediff = phase_cross_correlation(img_tilt_2_2, img_tilt_2_1, upsample_factor=10)
-        print(f"{stage_tilt*3} -> {-stage_tilt*3}: {shift*h['ImagePixelsize']}")
-        # Moving z
-        # self.ctrl.stage.set_z_with_backlash_correction(z=)
-        # Moving back to 0 degree for drift measurement
-        self.ctrl.stage.a = 0
-        time.sleep(wait_interval)
-        img_0_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
-        shift, error, phasediff = phase_cross_correlation(img_0_2, img_0_1, upsample_factor=10)
-        print(f"0 -> 0: {shift*h['ImagePixelsize']}")
+        if messagebox.askokcancel("Continue", f"Change of z height is {delta_z}. Move stage and continue?"):
+            self.ctrl.stage.move_z_with_backlash_correction(z=delta_z)
+            # Acquiring image at tilt: 3*stage_tilt
+            self.ctrl.stage.a = stage_tilt * 3
+            time.sleep(wait_interval)
+            img_tilt_2_1, h = self.obtain_image(exposure_time, align, align_roi, roi)
+            # Acquiring image at tilt: -3*stage_tilt
+            self.ctrl.stage.a = - stage_tilt * 3
+            self.ctrl.stage.eliminate_backlash_a(target_angle=0)
+            time.sleep(wait_interval)
+            img_tilt_2_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
+            # Measuring shift...
+            shift, error, phasediff = phase_cross_correlation(img_tilt_2_2, img_tilt_2_1, upsample_factor=10)
+            print(f"Stage tilt {stage_tilt*3} -> {-stage_tilt*3}: {shift * h['ImagePixelsize']}")
+            delta_z = np.linalg.norm(shift) / 2 / np.tan(np.deg2rad(stage_tilt*3))
+            print(f'Meansured height change: {delta_z}')
+            # Moving z
+            self.ctrl.stage.move_z_with_backlash_correction(z=delta_z)
+            # Moving back to 0 degree for drift measurement
+            self.ctrl.stage.a = 0
+            time.sleep(wait_interval)
+            img_0_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
+            shift, error, phasediff = phase_cross_correlation(img_0_2, img_0_1, upsample_factor=10)
+            print(f"0 -> 0: {np.linalg.norm(shift)*h['ImagePixelsize']}")
 
 
     def start_auto_collection(self, exposure_time: float, end_angle: float, stepsize: float, wait_interval: float, 

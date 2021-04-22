@@ -230,6 +230,20 @@ class Stage:
         if settle_delay:
             time.sleep(settle_delay)
 
+    def move_z_with_backlash_correction(self, shift_z: int = None, step: float = 5000, settle_delay: float = 0.200):
+        wait = True
+        stage = self.get()
+
+        target_z = stage.z + shift_z
+
+        self.set(z=target_z-step, wait=wait)
+        if settle_delay:
+            time.sleep(0.05)
+
+        self.set(z=target_z, wait=wait)
+        if settle_delay:
+            time.sleep(settle_delay)
+
     def eliminate_backlash_z(self, step: float = 5000, settle_delay: float = 0.200):
         """Eliminate backlash by in XY by moving the stage away from the
         current position, and approaching it from the common direction. Uses
@@ -285,25 +299,15 @@ class Stage:
 
         if shift_x:
             target_x = stage.x + shift_x
-            if target_x > stage.x:
-                pre_x = stage.x - step
-            elif target_x < stage.x:
-                pre_x = stage.x + step
         else:
-            pre_x = None
             target_x = None
 
         if shift_y:
             target_y = stage.y + shift_y
-            if target_y > stage.y:
-                pre_y = stage.y - step
-            elif target_y < stage.y:
-                pre_y = stage.y + step
         else:
-            pre_y = None
             target_y = None
 
-        self.set(x=pre_x, y=pre_y)
+        self.set(x=target_x-step, y=target_y-step)
         if settle_delay:
             time.sleep(settle_delay)
 
