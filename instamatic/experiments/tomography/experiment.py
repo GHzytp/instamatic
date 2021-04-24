@@ -46,6 +46,7 @@ class Experiment:
         self.buffer = []
 
         self.img_ref = None
+        self.num_beam_tilt = 0
 
         self.binsize = ctrl.cam.default_binsize
         self.rotation_axis = config.calibration.camera_rotation_vs_stage_xy
@@ -73,12 +74,15 @@ class Experiment:
         stepsize:
             Step size for the angle in degrees, controls the direction and can be positive or negative
         """
+        ctrl = self.ctrl
+        image_mode = ctrl.mode.get()
+        if image_mode in ('diff', 'D'):
+            raise RuntimeError('Must in imaging mode to perform tomogrpahy.')
+
         self.spotsize = self.ctrl.spotsize
         self.now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         self.logger.info(f'Data recording started at: {self.now}')
         self.logger.info(f'Exposure time: {exposure_time} s, Tilt range: {tilt_range}, step size: {stepsize}')
-
-        ctrl = self.ctrl
 
         if stepsize < 0:
             tilt_range = -abs(tilt_range)
@@ -87,13 +91,12 @@ class Experiment:
 
         if self.current_angle is None:
             self.start_angle = start_angle = ctrl.stage.a
+            ctrl.stage.eliminate_backlash_a(target_angle=start_angle+tilt_range)
         else:
             start_angle = self.current_angle + stepsize
 
         tilt_positions = np.arange(start_angle + stepsize, start_angle + tilt_range + stepsize, stepsize)
         print(f'\nStart_angle: {start_angle:.3f}')
-
-        image_mode = ctrl.mode.get()
 
         for i, angle in enumerate(tqdm(tilt_positions)):
             time.sleep(wait_interval)
@@ -126,6 +129,9 @@ class Experiment:
         """Auto focus method used in FEI TEM Tomography. D = 2Mb(f+cs*b^2)
         Formula from https://www.sciencedirect.com/science/article/abs/pii/030439918790146X
         """
+        image_mode = self.ctrl.mode.get()
+        if image_mode in ('diff', 'D'):
+            raise RuntimeError('Must in imaging mode to perform auto focus.')
         # Applying defocus
         self.ctrl.objfocus.set(defocus)
         # Acquiring image at negative beam tilt
@@ -141,10 +147,10 @@ class Experiment:
         time.sleep(wait_interval)
         img_negative_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
         # Measuring shift...
-        shift_focus, error, phasediff = phase_cross_correlation(img_positive, img_negative_1, upsample_factor=10)
-        shift_focus = shift_focus*h['ImagePixelsize']
+        shift_focus = self.calc_shift_images(img_negative_1, img_positive, align_roi, roi)
+        shift_focus = shift_focus * h['ImagePixelsize']
         print(f"Beam tilt {-beam_tilt} -> {beam_tilt}: {shift_focus*h['ImagePixelsize']}")
-        shift_drift, error, phasediff = phase_cross_correlation(img_negative_2, img_negative_1, upsample_factor=10)
+        shift_drift = self.calc_shift_images(img_negative_1, img_negative_2, align_roi, roi)
         print(f"Drift {-beam_tilt} -> {-beam_tilt}: {np.linalg.norm(shift_drift)*h['ImagePixelsize']}")
         # Measured defocus
         delta_defocus = np.linalg.norm(shift_focus) / 2 / np.tan(np.deg2rad(beam_tilt)) - cs * 1e6 * np.tan(np.deg2rad(beam_tilt))**2
@@ -166,10 +172,10 @@ class Experiment:
             time.sleep(wait_interval)
             img_negative_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
             # Measuring shift...
-            shift_focus, error, phasediff = phase_cross_correlation(img_positive, img_negative_1, upsample_factor=10)
-            shift_focus = shift_focus*h['ImagePixelsize']
+            shift_focus = self.calc_shift_images(img_negative_1, img_positive, align_roi, roi)
+            shift_focus = shift_focus * h['ImagePixelsize']
             print(f"Beam tilt {-beam_tilt} -> {beam_tilt}: {shift_focus}")
-            shift_drift, error, phasediff = phase_cross_correlation(img_negative_2, img_negative_1, upsample_factor=10)
+            shift_drift = self.calc_shift_images(img_negative_1, img_negative_2, align_roi, roi)
             print(f"Drift {-beam_tilt} -> {-beam_tilt}: {np.linalg.norm(shift_drift) * h['ImagePixelsize']}")
             # Measured defocus
             delta_defocus = np.linalg.norm(shift_focus) / 2 / np.tan(np.deg2rad(beam_tilt)) - cs * 1e6 * np.tan(np.deg2rad(beam_tilt))**2
@@ -179,6 +185,9 @@ class Experiment:
     def start_auto_eucentric_height(self, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, 
                         roi: list, defocus: int, stage_tilt: float):
         """Find eucentric height automatically using the method in FEI TEM Tomography"""
+        image_mode = self.ctrl.mode.get()
+        if image_mode in ('diff', 'D'):
+            raise RuntimeError('Must in imaging mode to perform auto eucentric height.')
         self.ctrl.objfocus.set(defocus)
         # Acquiring image at 0°
         self.ctrl.stage.a = 0
@@ -191,7 +200,7 @@ class Experiment:
         time.sleep(wait_interval)
         img_tilt_1, h = self.obtain_image(exposure_time, align, align_roi, roi)
         # Measuring shift...
-        shift, error, phasediff = phase_cross_correlation(img_tilt_1, img_0_1, upsample_factor=10)
+        shift = self.calc_shift_images(img_0_1, img_tilt_1, align_roi, roi)
         print(f"Stage tilt 0 -> {stage_tilt}: {shift*h['ImagePixelsize']}")
         delta_z = np.linalg.norm(shift) / np.tan(np.deg2rad(stage_tilt))
         print(f'Meansured height change: {delta_z}')
@@ -208,7 +217,7 @@ class Experiment:
             time.sleep(wait_interval)
             img_tilt_2_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
             # Measuring shift...
-            shift, error, phasediff = phase_cross_correlation(img_tilt_2_2, img_tilt_2_1, upsample_factor=10)
+            shift = self.calc_shift_images(img_tilt_2_1, img_tilt_2_2, align_roi, roi)
             print(f"Stage tilt {stage_tilt*3} -> {-stage_tilt*3}: {shift * h['ImagePixelsize']}")
             delta_z = np.linalg.norm(shift) / 2 / np.tan(np.deg2rad(stage_tilt*3))
             print(f'Meansured height change: {delta_z}')
@@ -218,13 +227,12 @@ class Experiment:
             self.ctrl.stage.a = 0
             time.sleep(wait_interval)
             img_0_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
-            shift, error, phasediff = phase_cross_correlation(img_0_2, img_0_1, upsample_factor=10)
+            shift = self.calc_shift_images(img_0_1, img_0_2, align_roi, roi)
             print(f"0 -> 0: {np.linalg.norm(shift)*h['ImagePixelsize']}")
 
 
-    def start_auto_collection(self, exposure_time: float, end_angle: float, stepsize: float, wait_interval: float, 
-                        align: bool, align_roi: bool, roi: list, write_tiff: bool, write_mrc: bool, 
-                        pause_event: threading.Event, stop_event: threading.Event):
+    def start_auto_collection_stage_tilt(self, exposure_time: float, end_angle: float, stepsize: float, wait_interval: float, 
+                        align: bool, align_roi: bool, roi: list, continue_event: threading.Event, stop_event: threading.Event):
         """Start automatic data collection from current angle to end angle with
         steps given by `stepsize`.
 
@@ -233,12 +241,101 @@ class Experiment:
         stepsize:
             Step size for the angle in degrees, controls the direction and can be positive or negative
         """
+        ctrl = self.ctrl
+        image_mode = ctrl.mode.get()
+        if image_mode in ('diff', 'D'):
+            raise RuntimeError('Must in imaging mode to perform automatic tomogrpahy.')
+
+        self.spotsize = self.ctrl.spotsize
+        self.now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        self.logger.info(f'Data recording started at: {self.now}')
+        self.logger.info(f'Exposure time: {exposure_time} s, End angle: {end_angle}, step size: {stepsize}')
+        
+        self.start_angle = start_angle = ctrl.stage.a
+
+        if stepsize < 0:
+            if end_angle >= start_angle:
+                return 0
+        elif stepsize == 0:
+            return 0
+        else:
+            if end_angle <= start_angle:
+                return 0
+
+        ctrl.stage.eliminate_backlash_a(target_angle=end_angle)
+        beam_shift = np.array([0, 0])
+
+        tilt_positions = np.arange(start_angle, end_angle, stepsize)
+        print(f'\nStart_angle: {start_angle:.3f}')
+
+        for i, angle in enumerate(tqdm(tilt_positions)):
+            continue_event.wait()
+
+            if stop_event.set():
+                break
+
+            ctrl.stage.a = angle          
+
+            img, h = self.obtain_image(exposure_time, align, align_roi, roi)
+
+            if i == 0:
+                img_ref = img
+
+            # suppose eccentric height is near 0 degree
+            
+            shift = self.calc_shift_images(img_ref, img, align_roi, roi) # down y+, right x+
+            shift = shift * h['ImagePixelsize']
+            beam_shift += shift
+            
+            if np.linalg.norm(beam_shift) >= 2000:
+                x,y = self.ctrl.stage.xy
+                self.ctrl.stage.set(x=x+beam_shift[1], y=y+beam_shift[0]) # almost up y+, right x+
+                beam_shift = np.array([0, 0])
+
+            self.ctrl.imageshift2.set(beam_shift[1], beam_shift[0]) # almost up y+, right x+
+
+            self.buffer.append((i, img, h))
+
+        self.nframes = i + 1
+
+        self.end_angle = end_angle = ctrl.stage.a
+
+        self.stepsize = stepsize
+        self.exposure_time = exposure_time
+
+        self.current_angle = angle
+        print(f'Done, current angle = {self.current_angle:.2f} degrees')
+
+    def start_auto_collection_stage_beam_tilt(self, exposure_time: float, end_angle: float, stepsize: float, wait_interval: float, 
+                        align: bool, align_roi: bool, roi: list, continue_event: threading.Event, stop_event: threading.Event, num_beam_tilt):
+        """Start automatic data collection from current angle to end angle combined with stage tilt and beam tilt.
+
+        exposure_time:
+            Exposure time for each image in seconds
+        stepsize:
+            Step size for the angle in degrees, controls the direction and can be positive or negative
+        """
+        ctrl = self.ctrl
+        image_mode = ctrl.mode.get()
+        if image_mode in ('diff', 'D'):
+            raise RuntimeError('Must in imaging mode to perform automatic tomogrpahy.')
+
         self.spotsize = self.ctrl.spotsize
         self.now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         self.logger.info(f'Data recording started at: {self.now}')
         self.logger.info(f'Exposure time: {exposure_time} s, End angle: {end_angle}, step size: {stepsize}')
 
-        ctrl = self.ctrl
+        counter = 0
+        self.num_beam_tilt = num_beam_tilt
+        if self.num_beam_tilt % 2 != 0:
+            raise RuntimeError('The number of beam tilt must be a even number.')
+        beam_tilt_list = []
+        for i in range(self.num_beam_tilt):
+            if i < self.num_beam_tilt // 2:
+                beam_tilt_list.append((i - self.num_beam_tilt // 2) * self.stepsize)
+            else:
+                beam_tilt_list.append((i - self.num_beam_tilt // 2 + 1) * self.stepsize)
+        
 
         self.start_angle = start_angle = ctrl.stage.a
 
@@ -251,46 +348,50 @@ class Experiment:
             if end_angle <= start_angle:
                 return 0
 
-        tilt_positions = np.arange(start_angle, end_angle, stepsize)
-        print(f'\nStart_angle: {start_angle:.3f}')
+        ctrl.stage.eliminate_backlash_a(target_angle=end_angle)
+        beam_shift = np.array([0, 0])
+        img_tilted = []
 
-        image_mode = ctrl.mode.get()
+        tilt_positions = np.arange(start_angle, end_angle, stepsize*(self.num_beam_tilt+1))
+        print(f'\nStart_angle: {start_angle-(self.num_beam_tilt/2)*self.stepsize:.3f}')
 
         for i, angle in enumerate(tqdm(tilt_positions)):
-            ctrl.stage.a = angle
+            continue_event.wait()
 
-            j = i + self.offset
-            while not isFocused:
-                img, h = self.ctrl.get_image(frametime)
-                focus_pos_diff = self.focus_image(img)
-                if focus_pos_diff[0]**2 + focus_pos_diff[1]**2 < 30:
-                    isFocused=True
+            if stop_event.set():
+                break
 
-            while not isAligned:
-                current_x, current_y = ctrl.stage.xy
-                img, h = self.ctrl.get_image(frametime)
-                pixel_shift = self.align_image(img)
-                stage_shift = np.dot(pixel_shift, stagematrix)
-                stage_shift[0] = -stage_shift[0]  # match TEM Coordinate system
-                ctrl.stage.xy = current_x + stage_shift[0], current_y + stage_shift[1]
-                if pixel_shift[0]**2 + pixel_shift[1]**2 < 6:
-                    isAligned=True
+            ctrl.stage.a = angle          
 
-            img, h = self.ctrl.get_image(exposure_time)
+            img_0, h = self.obtain_image(exposure_time, align, align_roi, roi)
+            self.buffer.append((counter, img_0, h))
+            counter += 1
+
+            for beam_tilt in beam_tilt_list:
+                self.ctrl.beamtilt.set(y=beam_tilt)
+                img, h = self.obtain_image(exposure_time, align, align_roi, roi)
+                self.buffer.append((counter, img, h))
+                img_tilted.append(img)
+                counter += 1
+
+            if i == 0:
+                img_ref = img_0
 
             # suppose eccentric height is near 0 degree
-            if abs(angle) >= 50 and i % 2 == 1: 
-                isFocused = False
-            elif abs(angle) >= 25 and i % 5 == 4:
-                isFocused = False
-            elif abs(angle) >= 0 and i % 9 == 8:
-                isFocused = False
-            isAligned = False
+            
+            shift = self.calc_shift_images(img_ref, img, align_roi, roi) # down y+, right x+
+            shift = shift * h['ImagePixelsize']
+            beam_shift += shift
+            
+            if np.linalg.norm(beam_shift) >= 2000:
+                x,y = self.ctrl.stage.xy
+                self.ctrl.stage.set(x=x+beam_shift[1], y=y+beam_shift[0]) # almost up y+, right x+
+                beam_shift = np.array([0, 0])
 
-            self.buffer.append((j, img, h))
+            self.ctrl.imageshift2.set(beam_shift[1], beam_shift[0]) # almost up y+, right x+
+            img_tilted = []
 
-        self.offset += len(tilt_positions)
-        self.nframes = j
+        self.nframes = (i + 1) * (self.num_beam_tilt + 1)
 
         self.end_angle = end_angle = ctrl.stage.a
 
@@ -311,14 +412,16 @@ class Experiment:
         """Return the distance of sample movement between the beam tilt"""
         return 0, 0
 
-    def align_image(self, img):
+    def calc_shift_images(self, img, img_ref, align_roi, roi):
         """Return the distance between the collected image and the reference image. 1024*1024 image will take 124ms. So subsampling to 512*512. Takes around 23ms"""
-        shift, error, phasediff = phase_cross_correlation(self.img_ref[::2,::2], img[::2,::2])
-        return shift * 2
+        if align_roi:
+            shift, error, phasediff = phase_cross_correlation(img[roi[0][0]:roi[1][0], roi[0][1]:roi[1][1]], img_ref[roi[0][0]:roi[1][0], roi[0][1]:roi[1][1]], upsample_factor=10)
+        else:
+            shift, error, phasediff = phase_cross_correlation(img, img_ref, upsample_factor=10)
+        return shift 
 
     def finalize(self, write_tiff=True, write_mrc=True):
         """Finalize data collection after `self.start_collection` has been run.
-
         Write data in `self.buffer` to path given by `self.path`.
         """
         if not hasattr(self, 'end_angle'):
@@ -338,7 +441,7 @@ class Experiment:
         self.mrc_path = self.path / 'mrc' if write_mrc else None
 
         with open(self.path / 'summary.txt', 'a') as f:
-            print(f'Rotation range: {self.end_angle-self.start_angle:.2f} degrees', file=f)
+            print(f'Rotation range: {self.end_angle-self.start_angle+2*(self.num_beam_tilt/2)*self.stepsize:.2f} degrees', file=f)
             print(f'Exposure Time: {self.exposure_time:.3f} s', file=f)
             print(f'Spot Size: {self.spotsize}', file=f)
             print(f'Magnification: {self.magnification}', file=f)
@@ -351,8 +454,8 @@ class Experiment:
 
         img_conv = ImgConversion(buffer=self.buffer,
                                  osc_angle=abs(self.stepsize),
-                                 start_angle=self.start_angle,
-                                 end_angle=self.end_angle,
+                                 start_angle=self.start_angle-(self.num_beam_tilt/2)*self.stepsize,
+                                 end_angle=self.end_angle+(self.num_beam_tilt/2)*self.stepsize,
                                  rotation_axis=self.rotation_axis,
                                  acquisition_time=self.exposure_time,
                                  flatfield=self.flatfield,
