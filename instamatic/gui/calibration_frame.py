@@ -38,6 +38,7 @@ class CalibrationFrame(LabelFrame):
         self.counter = 0
         self.binsize = self.ctrl.cam.default_binsize
         self.software_binsize = config.settings.software_binsize
+        self.wait_interval = 1
 
         self.cam_buffer = []
 
@@ -397,6 +398,8 @@ class CalibrationFrame(LabelFrame):
     @suppress_stderr
     def beamshift_calib(self):
         try:
+            state = self.ctrl.mode.state
+
             exposure = self.var_exposure_time.get()
             grid_size = self.var_grid_size.get()
             step_size = self.var_step_size.get()
@@ -407,12 +410,16 @@ class CalibrationFrame(LabelFrame):
             x_cent, y_cent = beamshift_cent = np.array(self.ctrl.beamshift.get())
 
             magnification = self.ctrl.magnification.get()
-            #step_size = 2500.0 / magnification * step_size
+            magnification = self.ctrl.magnification.get()
+            if self.software_binsize is None:
+                pixelsize = config.calibration[state]['pixelsize'][magnification] * self.binsize #nm->um
+            else:
+                pixelsize = config.calibration[state]['pixelsize'][magnification] * self.binsize * self.software_binsize
 
             self.lb_coll0.config(text=f'Beam Shift calibration started. Gridsize: {grid_size} | Stepsize: {step_size:.2f}')
             img_cent, scale = autoscale(img_cent)
 
-            pixel_cent = find_beam_center(img_cent) * self.binsize / scale
+            pixel_cent = find_beam_center(img_cent) / scale
             print('Beamshift: x={} | y={}'.format(*beamshift_cent))
             print('Pixel: x={} | y={}'.format(*pixel_cent))
 
@@ -427,6 +434,7 @@ class CalibrationFrame(LabelFrame):
             with tqdm(total=100, ncols=60, bar_format='{l_bar}{bar}') as pbar:
                 for dx, dy in np.stack([x_grid, y_grid]).reshape(2, -1).T:
                     self.ctrl.beamshift.set(x=x_cent + dx, y=y_cent + dy)
+                    time.sleep(self.wait_interval)
                     self.lb_coll1.config(text=str(pbar))
                     outfile = self.beamshift_calib_path / f'calib_beamshift_{i:04d}'
 
@@ -445,18 +453,18 @@ class CalibrationFrame(LabelFrame):
 
             self.ctrl.beamshift.set(*beamshift_cent) # reset beam to center
 
-            shifts = np.array(shifts) * self.binsize / scale
+            shifts = np.array(shifts) / scale
             beampos = np.array(beampos) - np.array(beamshift_cent)
 
             fit_result = fit_affine_transformation(shifts, beampos, rotation=True, scaling=True, translation=True)
             r = fit_result.r
             t = fit_result.t
             r_i = np.linalg.inv(r)
-            beampos_ = np.dot(beampos-t, r_i)
+            shifts_ = np.dot(beampos-t, r_i)
             self.lb_coll0.config(text='Beam Shift calibration finished. Please click Beam Shift Calib again to plot.')
 
             with open(self.beamshift_calib_path / 'calib_beamshift.pickle', 'wb') as f:
-                pickle.dump([r, t, shifts, beampos_], f)
+                pickle.dump([r, t, shifts, shifts_], f)
 
             dct = {}
             dct['shifts'] = shifts.tolist()
@@ -464,7 +472,8 @@ class CalibrationFrame(LabelFrame):
             dct['rotation'] = r.tolist()
             dct['translation'] = t.tolist()
             dct['rotation_inv'] = r_i.tolist()
-            dct['pred_beampos'] = beampos_.tolist()
+            dct['pred_shifts'] = shifts_.tolist()
+            dct['reference_pixel'] = pixel_cent.tolist()
 
             with open (self.beamshift_calib_path / 'calib_beamshift.yaml', 'w') as f:
                 yaml.dump(dct, f)
@@ -495,9 +504,9 @@ class CalibrationFrame(LabelFrame):
                 self.click = 2
             elif self.click == 2:
                 with open(self.beamshift_calib_path / 'calib_beamshift.pickle', 'rb') as f:
-                    r, t, shifts, beampos = pickle.load(f)
+                    r, t, shifts, predicted_shifts = pickle.load(f)
                 self.ax.scatter(*shifts.T, marker='>', label='Observed')
-                self.ax.scatter(*beampos.T, marker='<', label='Theoretical')
+                self.ax.scatter(*predicted_shifts.T, marker='<', label='Theoretical')
                 self.ax.legend()
                 self.canvas.draw()
                 self.lb_coll0.config(text='Thoery vs observed plotted.')
@@ -512,6 +521,8 @@ class CalibrationFrame(LabelFrame):
     @suppress_stderr
     def beamtilt_calib(self):
         try:
+            state = self.ctrl.mode.state
+
             exposure = self.var_exposure_time.get()
             grid_size = self.var_grid_size.get()
             step_size = self.var_step_size.get()
@@ -522,12 +533,16 @@ class CalibrationFrame(LabelFrame):
             x_cent, y_cent = beamtilt_cent = np.array(self.ctrl.beamtilt.get())
 
             magnification = self.ctrl.magnification.get()
-            #step_size = 2500.0 / magnification * step_size
+            
+            if self.software_binsize is None:
+                pixelsize = config.calibration[state]['pixelsize'][magnification] * self.binsize #nm->um
+            else:
+                pixelsize = config.calibration[state]['pixelsize'][magnification] * self.binsize * self.software_binsize
 
             self.lb_coll0.config(text=f'Beam Tilt calibration started. Gridsize: {grid_size} | Stepsize: {step_size:.2f}')
             img_cent, scale = autoscale(img_cent)
 
-            pixel_cent = find_beam_center(img_cent) * self.binsize / scale
+            pixel_cent = find_beam_center(img_cent) / scale
             print('Beamtilt: x={} | y={}'.format(*beamtilt_cent))
             print('Pixel: x={} | y={}'.format(*pixel_cent))
 
@@ -542,6 +557,7 @@ class CalibrationFrame(LabelFrame):
             with tqdm(total=100, ncols=60, bar_format='{l_bar}{bar}') as pbar:
                 for dx, dy in np.stack([x_grid, y_grid]).reshape(2, -1).T:
                     self.ctrl.beamtilt.set(x=x_cent + dx, y=y_cent + dy)
+                    time.sleep(self.wait_interval)
                     self.lb_coll1.config(text=str(pbar))
                     outfile = self.beamtilt_calib_path / f'calib_beamshift_{i:04d}'
 
@@ -560,18 +576,18 @@ class CalibrationFrame(LabelFrame):
 
             self.ctrl.beamtilt.set(*beamtilt_cent) # reset beam to center
 
-            shifts = np.array(shifts) * self.binsize / scale
+            shifts = np.array(shifts) * pixelsize / scale
             beampos = np.array(beampos) - np.array(beamtilt_cent)
 
             fit_result = fit_affine_transformation(shifts, beampos, rotation=True, scaling=True, translation=True)
             r = fit_result.r
             t = fit_result.t
             r_i = np.linalg.inv(r)
-            beampos_ = np.dot(beampos-t, r_i)
+            shifts_ = np.dot(beampos-t, r_i)
             self.lb_coll0.config(text='Beam Tilt calibration finished. Please click Beam Tilt Calib again to plot.')
 
             with open(self.beamtilt_calib_path / 'calib_beamtilt.pickle', 'wb') as f:
-                pickle.dump([r, t, shifts, beampos_], f)
+                pickle.dump([r, t, shifts, shifts_], f)
 
             dct = {}
             dct['shifts'] = shifts.tolist()
@@ -579,7 +595,8 @@ class CalibrationFrame(LabelFrame):
             dct['rotation'] = r.tolist()
             dct['translation'] = t.tolist()
             dct['rotation_inv'] = r_i.tolist()
-            dct['pred_beampos'] = beampos_.tolist()
+            dct['pred_shifts'] = shifts_.tolist()
+            dct['reference_pixel'] = pixel_cent.tolist()
 
             with open (self.beamtilt_calib_path / 'calib_beamtilt.yaml', 'w') as f:
                 yaml.dump(dct, f)
@@ -610,9 +627,9 @@ class CalibrationFrame(LabelFrame):
                 self.click = 2
             elif self.click == 2:
                 with open(self.beamtilt_calib_path / 'calib_beamtilt.pickle', 'rb') as f:
-                    r, t, shifts, beampos = pickle.load(f)
+                    r, t, shifts, predicted_shifts = pickle.load(f)
                 self.ax.scatter(*shifts.T, marker='>', label='Observed')
-                self.ax.scatter(*beampos.T, marker='<', label='Theoretical')
+                self.ax.scatter(*predicted_shifts.T, marker='<', label='Theoretical')
                 self.ax.legend()
                 self.canvas.draw()
                 self.lb_coll0.config(text='Thoery vs observed plotted.')
@@ -627,6 +644,8 @@ class CalibrationFrame(LabelFrame):
     @suppress_stderr
     def IS1_calib(self):
         try:
+            state = self.ctrl.mode.state
+
             exposure = self.var_exposure_time.get()
             grid_size = self.var_grid_size.get()
             step_size = self.var_step_size.get()
@@ -637,12 +656,16 @@ class CalibrationFrame(LabelFrame):
             x_cent, y_cent = IS1_cent = np.array(self.ctrl.imageshift1.get())
 
             magnification = self.ctrl.magnification.get()
-            #step_size = 2500.0 / magnification * step_size
+
+            if self.software_binsize is None:
+                pixelsize = config.calibration[state]['pixelsize'][magnification] * self.binsize #nm->um
+            else:
+                pixelsize = config.calibration[state]['pixelsize'][magnification] * self.binsize * self.software_binsize
 
             self.lb_coll0.config(text=f'Image Shift 1 calibration started. Gridsize: {grid_size} | Stepsize: {step_size:.2f}')
             img_cent, scale = autoscale(img_cent)
 
-            pixel_cent = find_beam_center(img_cent) * self.binsize / scale
+            pixel_cent = find_beam_center(img_cent) / scale
             print('IS1: x={} | y={}'.format(*IS1_cent))
             print('Pixel: x={} | y={}'.format(*pixel_cent))
 
@@ -657,6 +680,7 @@ class CalibrationFrame(LabelFrame):
             with tqdm(total=100, ncols=60, bar_format='{l_bar}{bar}') as pbar:
                 for dx, dy in np.stack([x_grid, y_grid]).reshape(2, -1).T:
                     self.ctrl.imageshift1.set(x=x_cent + dx, y=y_cent + dy)
+                    time.sleep(self.wait_interval)
                     self.lb_coll1.config(text=str(pbar))
                     outfile = self.IS1_calib_path / f'calib_IS1_{i:04d}'
 
@@ -675,18 +699,18 @@ class CalibrationFrame(LabelFrame):
 
             self.ctrl.imageshift1.set(*IS1_cent) # reset beam to center
 
-            shifts = np.array(shifts) * self.binsize / scale
+            shifts = np.array(shifts) * pixelsize / scale
             beampos = np.array(beampos) - np.array(IS1_cent)
 
             fit_result = fit_affine_transformation(shifts, beampos, rotation=True, scaling=True, translation=True)
             r = fit_result.r
             t = fit_result.t
             r_i = np.linalg.inv(r)
-            beampos_ = np.dot(beampos-t, r_i)
+            shifts_ = np.dot(beampos-t, r_i)
             self.lb_coll0.config(text='Image Shift 1 calibration finished. Please click IS1 Calib again to plot.')
 
             with open(self.IS1_calib_path / 'calib_IS1.pickle', 'wb') as f:
-                pickle.dump([r, t, shifts, beampos_], f)
+                pickle.dump([r, t, shifts, shifts_], f)
 
             dct = {}
             dct['shifts'] = shifts.tolist()
@@ -694,7 +718,8 @@ class CalibrationFrame(LabelFrame):
             dct['rotation'] = r.tolist()
             dct['translation'] = t.tolist()
             dct['rotation_inv'] = r_i.tolist()
-            dct['pred_beampos'] = beampos_.tolist()
+            dct['pred_shifts'] = shifts_.tolist()
+            dct['reference_pixel'] = pixel_cent.tolist()
 
             with open (self.IS1_calib_path / 'calib_IS1.yaml', 'w') as f:
                 yaml.dump(dct, f)
@@ -725,9 +750,9 @@ class CalibrationFrame(LabelFrame):
                 self.click = 2
             elif self.click == 2:
                 with open(self.IS1_calib_path / 'calib_IS1.pickle', 'rb') as f:
-                    r, t, shifts, beampos = pickle.load(f)
+                    r, t, shifts, predicted_shifts = pickle.load(f)
                 self.ax.scatter(*shifts.T, marker='>', label='Observed')
-                self.ax.scatter(*beampos.T, marker='<', label='Theoretical')
+                self.ax.scatter(*predicted_shifts.T, marker='<', label='Theoretical')
                 self.ax.legend()
                 self.canvas.draw()
                 self.lb_coll0.config(text='Thoery vs observed plotted.')
@@ -742,6 +767,8 @@ class CalibrationFrame(LabelFrame):
     @suppress_stderr
     def IS2_calib(self):
         try:
+            state = self.ctrl.mode.state
+            
             exposure = self.var_exposure_time.get()
             grid_size = self.var_grid_size.get()
             step_size = self.var_step_size.get()
@@ -752,12 +779,15 @@ class CalibrationFrame(LabelFrame):
             x_cent, y_cent = IS2_cent = np.array(self.ctrl.imageshift2.get())
 
             magnification = self.ctrl.magnification.get()
-            #step_size = 2500.0 / magnification * step_size
+            if self.software_binsize is None:
+                pixelsize = config.calibration[state]['pixelsize'][magnification] * self.binsize #nm->um
+            else:
+                pixelsize = config.calibration[state]['pixelsize'][magnification] * self.binsize * self.software_binsize
 
             self.lb_coll0.config(text=f'Image Shift 2 calibration started. Gridsize: {grid_size} | Stepsize: {step_size:.2f}')
             img_cent, scale = autoscale(img_cent)
 
-            pixel_cent = find_beam_center(img_cent) * self.binsize / scale
+            pixel_cent = find_beam_center(img_cent) / scale
             print('IS2: x={} | y={}'.format(*IS2_cent))
             print('Pixel: x={} | y={}'.format(*pixel_cent))
 
@@ -772,6 +802,7 @@ class CalibrationFrame(LabelFrame):
             with tqdm(total=100, ncols=60, bar_format='{l_bar}{bar}') as pbar:
                 for dx, dy in np.stack([x_grid, y_grid]).reshape(2, -1).T:
                     self.ctrl.imageshift2.set(x=x_cent + dx, y=y_cent + dy)
+                    time.sleep(self.wait_interval)
                     self.lb_coll1.config(text=str(pbar))
                     outfile = self.IS2_calib_path / f'calib_IS2_{i:04d}'
 
@@ -790,18 +821,18 @@ class CalibrationFrame(LabelFrame):
 
             self.ctrl.imageshift2.set(*IS2_cent) # reset beam to center
 
-            shifts = np.array(shifts) * self.binsize / scale
+            shifts = np.array(shifts) * pixelsize / scale
             beampos = np.array(beampos) - np.array(IS2_cent)
 
             fit_result = fit_affine_transformation(shifts, beampos, rotation=True, scaling=True, translation=True)
             r = fit_result.r
             t = fit_result.t
             r_i = np.linalg.inv(r)
-            beampos_ = np.dot(beampos-t, r_i)
+            shifts_ = np.dot(beampos-t, r_i)
             self.lb_coll0.config(text='Image Shift 2 calibration finished. Please click IS2 Calib again to plot.')
 
             with open(self.IS2_calib_path / 'calib_IS2.pickle', 'wb') as f:
-                pickle.dump([r, t, shifts, beampos_], f)
+                pickle.dump([r, t, shifts, shifts_], f)
 
             dct = {}
             dct['shifts'] = shifts.tolist()
@@ -809,7 +840,8 @@ class CalibrationFrame(LabelFrame):
             dct['rotation'] = r.tolist()
             dct['translation'] = t.tolist()
             dct['rotation_inv'] = r_i.tolist()
-            dct['pred_beampos'] = beampos_.tolist()
+            dct['pred_shifts'] = shifts_.tolist()
+            dct['reference_pixel'] = pixel_cent.tolist()
 
             with open (self.IS2_calib_path / 'calib_IS2.yaml', 'w') as f:
                 yaml.dump(dct, f)
@@ -840,9 +872,9 @@ class CalibrationFrame(LabelFrame):
                 self.click = 2
             elif self.click == 2:
                 with open(self.IS2_calib_path / 'calib_IS2.pickle', 'rb') as f:
-                    r, t, shifts, beampos = pickle.load(f)
+                    r, t, shifts, predicted_shifts = pickle.load(f)
                 self.ax.scatter(*shifts.T, marker='>', label='Observed')
-                self.ax.scatter(*beampos.T, marker='<', label='Theoretical')
+                self.ax.scatter(*predicted_shifts.T, marker='<', label='Theoretical')
                 self.ax.legend()
                 self.canvas.draw()
                 self.lb_coll0.config(text='Thoery vs observed plotted.')
@@ -872,15 +904,15 @@ class CalibrationFrame(LabelFrame):
             x_cent, y_cent = diffshift_cent = np.array(self.ctrl.diffshift.get())
 
             magnification = self.ctrl.magnification.get()
-            #step_size = 2500.0 / magnification * step_size
+            if self.software_binsize is None:
+                pixelsize = config.calibration[state]['pixelsize'][magnification] * self.binsize # A-1/pixel
+            else:
+                pixelsize = config.calibration[state]['pixelsize'][magnification] * self.binsize * self.software_binsize
 
             self.lb_coll0.config(text=f'Diff Shift calibration started. Gridsize: {grid_size} | Stepsize: {step_size:.2f}')
             img_cent, scale = autoscale(img_cent)
 
-            if self.software_binsize is None:
-                pixel_cent = find_beam_center(img_cent) * self.binsize / scale
-            else:
-                pixel_cent = find_beam_center(img_cent) * self.binsize * self.software_binsize / scale
+            pixel_cent = find_beam_center(img_cent) / scale
             print('Diffshift: x={} | y={}'.format(*diffshift_cent))
             print('Pixel: x={} | y={}'.format(*pixel_cent))
 
@@ -895,6 +927,7 @@ class CalibrationFrame(LabelFrame):
             with tqdm(total=100, ncols=60, bar_format='{l_bar}{bar}') as pbar:
                 for dx, dy in np.stack([x_grid, y_grid]).reshape(2, -1).T:
                     self.ctrl.diffshift.set(x=x_cent + dx, y=y_cent + dy)
+                    time.sleep(self.wait_interval)
                     self.lb_coll1.config(text=str(pbar))
                     outfile = self.diffshift_calib_path / f'calib_diffshift_{i:04d}'
 
@@ -913,21 +946,18 @@ class CalibrationFrame(LabelFrame):
 
             self.ctrl.diffshift.set(*diffshift_cent) # reset beam to center
 
-            if self.software_binsize is None:
-                shifts = np.array(shifts) * self.binsize / scale
-            else:
-                shifts = np.array(shifts) * self.binsize * self.software_binsize / scale
+            shifts = np.array(shifts) * pixelsize
             beampos = np.array(beampos) - np.array(diffshift_cent)
 
             fit_result = fit_affine_transformation(shifts, beampos, rotation=True, scaling=True, translation=True)
             r = fit_result.r
             t = fit_result.t
             r_i = np.linalg.inv(r)
-            beampos_ = np.dot(beampos-t, r_i)
+            shifts_ = np.dot(beampos-t, r_i)
             self.lb_coll0.config(text='Diff Shift calibration finished. Please click Diff Shift Calib again to plot.')
 
             with open(self.diffshift_calib_path / 'calib_diffshift.pickle', 'wb') as f:
-                pickle.dump([r, t, shifts, beampos_, pixel_cent], f)
+                pickle.dump([r, t, shifts, shifts_, pixel_cent], f)
 
             dct = {}
             dct['shifts'] = shifts.tolist()
@@ -935,7 +965,7 @@ class CalibrationFrame(LabelFrame):
             dct['rotation'] = r.tolist()
             dct['translation'] = t.tolist()
             dct['rotation_inv'] = r_i.tolist()
-            dct['pred_beampos'] = beampos_.tolist()
+            dct['pred_shifts'] = shifts_.tolist()
             dct['reference_pixel'] = pixel_cent.tolist()
 
             with open (self.diffshift_calib_path / 'calib_diffshift.yaml', 'w') as f:
@@ -967,9 +997,9 @@ class CalibrationFrame(LabelFrame):
                 self.click = 2
             elif self.click == 2:
                 with open(self.diffshift_calib_path / 'calib_diffshift.pickle', 'rb') as f:
-                    r, t, shifts, beampos = pickle.load(f)
+                    r, t, shifts, predicted_shifts = pickle.load(f)
                 self.ax.scatter(*shifts.T, marker='>', label='Observed')
-                self.ax.scatter(*beampos.T, marker='<', label='Theoretical')
+                self.ax.scatter(*predicted_shifts.T, marker='<', label='Theoretical')
                 self.ax.legend()
                 self.canvas.draw()
                 self.lb_coll0.config(text='Thoery vs observed plotted.')
@@ -1040,8 +1070,8 @@ class CalibrationFrame(LabelFrame):
 
             self.ctrl.stage.xy = stage_cent # reset beam to center
 
-            shifts = np.array(shifts) * self.binsize / scale
-            stagepos = (np.array(stagepos) - stage_cent) / pixelsize # transform from nm to pixel, coordinate: up and right bigger, different from image coordinate (down and right bigger)
+            shifts = np.array(shifts) * pixelsize / scale
+            stagepos = np.array(stagepos) - stage_cent # transform from nm to pixel, coordinate: up and right bigger, different from image coordinate (down and right bigger)
 
             fit_result = fit_affine_transformation(shifts, stagepos, rotation=True, scaling=True, translation=False)
             r = fit_result.r
@@ -1063,6 +1093,7 @@ class CalibrationFrame(LabelFrame):
             dct['rotation_inv'] = r_i.tolist()
             dct['pred_shifts'] = shifts_.tolist()
             dct['stage_matrix'] = stage_matrix.tolist()
+            dct['stage_center'] = stage_cent.tolist()
 
             with open (self.stage_calib_path / 'calib_stage.yaml', 'w') as f:
                 yaml.dump(dct, f)

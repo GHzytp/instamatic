@@ -181,6 +181,7 @@ class Experiment:
             delta_defocus = np.linalg.norm(shift_focus) / 2 / np.tan(np.deg2rad(beam_tilt)) - cs * 1e6 * np.tan(np.deg2rad(beam_tilt))**2
             print(f'Meansured defocus: {delta_defocus}')
             self.ctrl.objfocus.set(defocus)
+            self.ctrl.beamtilt.x = 0
 
     def start_auto_eucentric_height(self, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, 
                         roi: list, defocus: int, stage_tilt: float):
@@ -206,7 +207,7 @@ class Experiment:
         print(f'Meansured height change: {delta_z}')
         # Moving z
         if messagebox.askokcancel("Continue", f"Change of z height is {delta_z}. Move stage and continue?"):
-            self.ctrl.stage.move_z_with_backlash_correction(z=delta_z)
+            self.ctrl.stage.move_z_with_backlash_correction(shift_z=delta_z)
             # Acquiring image at tilt: 3*stage_tilt
             self.ctrl.stage.a = stage_tilt * 3
             time.sleep(wait_interval)
@@ -222,7 +223,7 @@ class Experiment:
             delta_z = np.linalg.norm(shift) / 2 / np.tan(np.deg2rad(stage_tilt*3))
             print(f'Meansured height change: {delta_z}')
             # Moving z
-            self.ctrl.stage.move_z_with_backlash_correction(z=delta_z)
+            self.ctrl.stage.move_z_with_backlash_correction(shift_z=delta_z)
             # Moving back to 0 degree for drift measurement
             self.ctrl.stage.a = 0
             time.sleep(wait_interval)

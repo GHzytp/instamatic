@@ -25,6 +25,14 @@ class ExperimentalCtrl(LabelFrame):
         self.init_vars()
 
         frame = Frame(self)
+        Label(frame, text='Target Z', width=15).grid(row=0, column=0, sticky='EW')
+        e_z_offset = Spinbox(frame, width=10, textvariable=self.var_target_z, from_=-90, to=90, increment=5)
+        e_z_offset.grid(row=0, column=1, sticky='EW')
+        Label(frame, text='Delta Z').grid(row=0, column=2, sticky='EW')
+        e_delta_z = Spinbox(frame, width=10, textvariable=self.var_delta_z, from_=-90, to=90, increment=5)
+        e_delta_z.grid(row=0, column=3, sticky='EW')
+        b_find_eucentric_height = Button(frame, text='Eucentric', command=self.find_eucentric_height)
+        b_find_eucentric_height.grid(row=0, column=4, sticky='W')
 
         Label(frame, text='Alpha Angle', width=15).grid(row=1, column=0, sticky='W')
         Label(frame, text='Wobbler (±)', width=15).grid(row=2, column=0, sticky='W')
@@ -37,14 +45,11 @@ class ExperimentalCtrl(LabelFrame):
         b_alpha_angle_get = Button(frame, text='Get', command=self.get_alpha_angle)
         b_alpha_angle_get.grid(row=1, column=3, sticky='W')
 
-        b_find_eucentric_height = Button(frame, text='Eucentric', command=self.find_eucentric_height)
-        b_find_eucentric_height.grid(row=1, column=4, sticky='W')
-
         if self.ctrl.tem.interface != "fei":
             b_stage_stop = Button(frame, text='Stop stage', command=self.stage_stop)
-            b_stage_stop.grid(row=1, column=6, sticky='W')
+            b_stage_stop.grid(row=1, column=4, sticky='W')
 
-        cb_nowait = Checkbutton(frame, text='Wait for stage', variable=self.var_stage_wait)
+        cb_nowait = Checkbutton(frame, text='Wait stage', variable=self.var_stage_wait)
         cb_nowait.grid(row=1, column=5, sticky='W')
 
         e_alpha_wobbler = Spinbox(frame, width=10, textvariable=self.var_alpha_wobbler, from_=-90, to=90, increment=1)
@@ -336,6 +341,8 @@ class ExperimentalCtrl(LabelFrame):
         frame.pack(side='top', fill='x', padx=10, pady=10)
 
     def init_vars(self):
+        self.var_target_z = IntVar(value=0)
+        self.var_delta_z = IntVar(value=10000)
         self.var_alpha_angle = DoubleVar(value=0.0)
 
         self.var_mode = StringVar(value=self.mode)
@@ -706,7 +713,9 @@ class ExperimentalCtrl(LabelFrame):
         self.triggerEvent.set()
 
     def find_eucentric_height(self):
-        self.q.put(('ctrl', {'task': 'find_eucentric_height'}))
+        self.q.put(('ctrl', {'task': 'find_eucentric_height',
+                             'target_z': self.var_target_z.get(),
+                             'dz': self.var_delta_z.get()}))
         self.triggerEvent.set()
 
     def toggle_diff_defocus(self):

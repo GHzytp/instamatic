@@ -386,7 +386,9 @@ class TEMController:
 
     def find_eucentric_height(self, tilt: float = 5,
                               steps: int = 5,
+                              target_z: int = 0,
                               dz: int = 50_000,
+                              interval: float = 1.0,
                               apply: bool = True,
                               verbose: bool = True) -> float:
         """Automated routine to find the eucentric height, accurate up to ~1 um
@@ -421,19 +423,22 @@ class TEMController:
         """
         def one_cycle(tilt: float = 5, sign=1) -> list:
             angle1 = -tilt * sign
-            self.stage.a = angle1
-            img1 = self.get_rotated_image()
-
             angle2 = +tilt * sign
+            self.stage.a = angle1
+            self.stage.eliminate_backlash_a(angle2)
+            time.sleep(interval)
+            img1, h = self.get_image(align=True)
+
             self.stage.a = angle2
-            img2 = self.get_rotated_image()
+            time.sleep(interval)
+            img2, h = self.get_image(align=True)
 
             if sign < 1:
                 img2, img1 = img1, img2
 
             shift, error, phasediff = phase_cross_correlation(img1, img2, upsample_factor=10)
 
-            return shift
+            return shift, h
 
         self.stage.a = 0
         # self.stage.z = 0 # for testing
@@ -441,17 +446,18 @@ class TEMController:
         zc = self.stage.z
         print(f'Current z = {zc:.1f} nm')
 
-        zs = zc + np.linspace(-dz, dz, steps)
+        zs = np.linspace(-dz+target_z, dz+target_z, steps)
         shifts = []
 
         sign = 1
 
         for i, z in enumerate(zs):
-            self.stage.z = z
+            self.stage.set_z_with_backlash_correction(z=z)
+            time.sleep(interval)
             if verbose:
                 print(f'z = {z:.1f} nm')
 
-            di = one_cycle(tilt=tilt, sign=sign)
+            di, h = one_cycle(tilt=tilt, sign=sign)
             shifts.append(di)
 
             sign *= -1
@@ -459,6 +465,9 @@ class TEMController:
         mean_shift = shifts[-1] + shifts[0]
         mean_shift = mean_shift / np.linalg.norm(mean_shift)
         ds = np.dot(shifts, mean_shift)
+        #ds = ds * h['ImagePixelsize']
+        print(f'shifts: {shifts}')
+        print(f'ds: {ds}')
 
         p = np.polyfit(zs, ds, 1)  # linear fit
         alpha, beta = p
@@ -467,7 +476,8 @@ class TEMController:
 
         print(f'alpha={alpha:.2f} | beta={beta:.2f} => z0={z0:.1f} nm')
         if apply:
-            self.stage.set(a=0, z=z0)
+            self.stage.a = 0
+            self.stage.set_z_with_backlash_correction(z=z0)
 
         return z0
 
