@@ -232,7 +232,8 @@ class Experiment:
 
 
     def start_auto_collection_stage_tilt(self, exposure_time: float, end_angle: float, stepsize: float, wait_interval: float, 
-                        align: bool, align_roi: bool, roi: list, continue_event: threading.Event, stop_event: threading.Event):
+                        align: bool, align_roi: bool, roi: list, continue_event: threading.Event, stop_event: threading.Event,
+                        watershed_angle: float, high_angle_interval: int, low_angle_interval: int):
         """Start automatic data collection from current angle to end angle with
         steps given by `stepsize`.
 
@@ -307,7 +308,8 @@ class Experiment:
         print(f'Done, current angle = {self.current_angle:.2f} degrees')
 
     def start_auto_collection_stage_beam_tilt(self, exposure_time: float, end_angle: float, stepsize: float, wait_interval: float, 
-                        align: bool, align_roi: bool, roi: list, continue_event: threading.Event, stop_event: threading.Event, num_beam_tilt):
+                        align: bool, align_roi: bool, roi: list, continue_event: threading.Event, stop_event: threading.Event, num_beam_tilt: int,
+                        watershed_angle: float, high_angle_interval: int, low_angle_interval: int):
         """Start automatic data collection from current angle to end angle combined with stage tilt and beam tilt.
 
         exposure_time:
@@ -357,7 +359,6 @@ class Experiment:
 
         for i, angle in enumerate(tqdm(tilt_positions)):
             continue_event.wait()
-
             if stop_event.set():
                 break
 
@@ -377,8 +378,7 @@ class Experiment:
             if i == 0:
                 img_ref = img_0
 
-            # suppose eccentric height is near 0 degree
-            
+            # suppose eccentric height is near 0 degree, adjust beam position or stage position
             shift = self.calc_shift_images(img_ref, img, align_roi, roi) # down y+, right x+
             shift = shift * h['ImagePixelsize']
             beam_shift += shift
@@ -389,6 +389,8 @@ class Experiment:
                 beam_shift = np.array([0, 0])
 
             self.ctrl.imageshift2.set(beam_shift[1], beam_shift[0]) # almost up y+, right x+
+
+            # adjust defocus
             img_tilted = []
 
         self.nframes = (i + 1) * (self.num_beam_tilt + 1)

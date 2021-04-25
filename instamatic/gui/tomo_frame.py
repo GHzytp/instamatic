@@ -388,6 +388,9 @@ def acquire_data_TOMO_auto(controller, **kwargs):
     roi = kwargs['roi']
     continue_event = kwargs['continue_event']
     stop_event = kwargs['stop_event']
+    watershed_angle = params['watershed_angle']
+    high_angle_interval = params['high_angle_interval']
+    low_angle_interval = params['low_angle_interval']
 
     flatfield = controller.module_io.get_flatfield()
     expdir = controller.module_io.get_new_experiment_directory()
@@ -396,11 +399,13 @@ def acquire_data_TOMO_auto(controller, **kwargs):
     tomo_exp = TOMO.Experiment(ctrl=controller.ctrl, path=expdir, log=controller.log, flatfield=flatfield)
     if params['auto_tomo_option'] == 'stage tilt only':
         tomo_exp.start_auto_collection_stage_tilt(exposure_time=exposure_time, end_angle=end_angle, stepsize=stepsize, wait_interval=wait_interval, 
-                            align=align, align_roi=align_roi, roi=roi, continue_event=continue_event, stop_event=stop_event)
+                            align=align, align_roi=align_roi, roi=roi, continue_event=continue_event, stop_event=stop_event, watershed_angle=watershed_angle,
+                            high_angle_interval=high_angle_interval, low_angle_interval= low_angle_interval)
     elif params['auto_tomo_option'] == 'stage and beam tilt':
         num_beam_tilt = kwargs['num_beam_tilt']
         tomo_exp.start_auto_collection_stage_beam_tilt(exposure_time=exposure_time, end_angle=end_angle, stepsize=stepsize, wait_interval=wait_interval, 
-                            align=align, align_roi=align_roi, roi=roi, continue_event=continue_event, stop_event=stop_event, num_beam_tilt=num_beam_tilt)
+                            align=align, align_roi=align_roi, roi=roi, continue_event=continue_event, stop_event=stop_event, num_beam_tilt=num_beam_tilt, 
+                            watershed_angle=watershed_angle, high_angle_interval=high_angle_interval, low_angle_interval= low_angle_interval)
     tomo_exp.finalize(write_tiff=write_tiff, write_mrc=write_mrc)
    
     controller.log.info('Finish automatic tomography data collection experiment')
