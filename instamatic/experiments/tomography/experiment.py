@@ -47,6 +47,7 @@ class Experiment:
 
         self.img_ref = None
         self.num_beam_tilt = 0
+        self.imageshift2matrix = config.calibration.image_shift2_matrix
 
         self.binsize = ctrl.cam.default_binsize
         self.rotation_axis = config.calibration.camera_rotation_vs_stage_xy
@@ -235,9 +236,8 @@ class Experiment:
     def start_auto_collection_stage_tilt(self, exposure_time: float, end_angle: float, stepsize: float, wait_interval: float, 
                         align: bool, align_roi: bool, roi: list, continue_event: threading.Event, stop_event: threading.Event,
                         watershed_angle: float, high_angle_interval: int, low_angle_interval: int):
-        """Start automatic data collection from current angle to end angle with
-        steps given by `stepsize`.
-
+        """Start automatic data collection from current angle to end angle with steps given by `stepsize`. 
+        Auto tracking: how many image-beam shift (beampos) needed for achieve certain distance (shift) in nm, beampos = shift*r
         exposure_time:
             Exposure time for each image in seconds
         stepsize:
@@ -277,7 +277,7 @@ class Experiment:
                 break
 
             ctrl.stage.a = angle          
-
+            time.sleep(wait_interval)
             img, h = self.obtain_image(exposure_time, align, align_roi, roi)
 
             if i == 0:
@@ -286,15 +286,15 @@ class Experiment:
             # suppose eccentric height is near 0 degree
             
             shift = self.calc_shift_images(img_ref, img, align_roi, roi) # down y+, right x+
-            shift = shift * h['ImagePixelsize']
+            shift = shift * h['ImagePixelsize'] * self.imageshift2matrix
             beam_shift += shift
             
-            if np.linalg.norm(beam_shift) >= 2000:
+            if np.linalg.norm(beam_shift) >= 1000:
                 x,y = self.ctrl.stage.xy
-                self.ctrl.stage.set(x=x+beam_shift[1], y=y+beam_shift[0]) # almost up y+, right x+
+                self.ctrl.stage.set(x=x+beam_shift[0], y=y+beam_shift[1]) # almost up y+, right x+
                 beam_shift = np.array([0, 0])
 
-            self.ctrl.imageshift2.set(beam_shift[1], beam_shift[0]) # almost up y+, right x+
+            self.ctrl.imageshift2.set(beam_shift[0], beam_shift[1]) # almost up y+, right x+
 
             self.buffer.append((i, img, h))
 
@@ -312,7 +312,7 @@ class Experiment:
                         align: bool, align_roi: bool, roi: list, continue_event: threading.Event, stop_event: threading.Event, num_beam_tilt: int,
                         watershed_angle: float, high_angle_interval: int, low_angle_interval: int):
         """Start automatic data collection from current angle to end angle combined with stage tilt and beam tilt.
-
+        Auto tracking: how many image-beam shift (beampos) needed for achieve certain distance (shift) in nm, beampos = shift*r
         exposure_time:
             Exposure time for each image in seconds
         stepsize:

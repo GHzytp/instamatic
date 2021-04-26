@@ -18,10 +18,15 @@ class InstamaticMontage(Montage):
         """
         from instamatic import config
 
-        pixelsize = config.calibration[mode]['pixelsize'][magnification]
+        self.software_binsize = config.settings.software_binsize
+
+        if self.software_binsize is None:
+            pixelsize = config.calibration[mode]['pixelsize'][magnification]
+        else:
+            pixelsize = config.calibration[mode]['pixelsize'][magnification] * self.software_binsize
 
         stagematrix = config.calibration[mode]['stagematrix'][magnification]
-        stagematrix = np.array(stagematrix).reshape(2, 2)
+        stagematrix = np.array(stagematrix).reshape(2, 2) * pixelsize
 
         self.set_pixelsize(pixelsize)
         self.set_stagematrix(stagematrix)

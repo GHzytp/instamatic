@@ -111,11 +111,12 @@ class GridWindow(Toplevel):
         self.wait_window(self)
         if self.map_info is not None:
             pixel_center = np.array(self.map_info['ImageResolution'])/2
-            stage_pos = self.point_list[['pos_x', 'pos_y']].to_numpy()
+            stage_pos = self.point_list[['pos_x', 'pos_y']].to_numpy() # pixel coordination
             stage_pos -= pixel_center
             stage_matrix = np.array(self.map_info['stage_matrix']).reshape((2, 2))
-            stage_matrix = stage_matrix[::-1]
-            stage_pos = stage_pos @ stage_matrix
+            # this is done because the x and y axis definition of numpy (Y,X) and tkinter canvas (X,Y) is different
+            stage_matrix = stage_matrix[::-1] 
+            stage_pos = stage_pos @ stage_matrix # stage coordination
             stage_pos += np.array(self.map_info['center_pos'])
             stage_pos = np.round(stage_pos)
             stage_pos_df = pd.DataFrame({'x':self.point_list['pos_x'], 'y':self.point_list['pos_y'], 'pos_x':stage_pos[:,0], 'pos_y':stage_pos[:,1]})

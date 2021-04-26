@@ -453,7 +453,7 @@ class CalibrationFrame(LabelFrame):
 
             self.ctrl.beamshift.set(*beamshift_cent) # reset beam to center
 
-            shifts = np.array(shifts) / scale
+            shifts = np.array(shifts) * pixelsize / scale
             beampos = np.array(beampos) - np.array(beamshift_cent)
 
             fit_result = fit_affine_transformation(shifts, beampos, rotation=True, scaling=True, translation=True)
@@ -946,7 +946,7 @@ class CalibrationFrame(LabelFrame):
 
             self.ctrl.diffshift.set(*diffshift_cent) # reset beam to center
 
-            shifts = np.array(shifts) * pixelsize
+            shifts = np.array(shifts) * pixelsize / scale
             beampos = np.array(beampos) - np.array(diffshift_cent)
 
             fit_result = fit_affine_transformation(shifts, beampos, rotation=True, scaling=True, translation=True)
@@ -1070,7 +1070,7 @@ class CalibrationFrame(LabelFrame):
 
             self.ctrl.stage.xy = stage_cent # reset beam to center
 
-            shifts = np.array(shifts) * pixelsize / scale
+            shifts = np.array(shifts) * pixelsize / scale # Axis ordering is consistent with numpy (e.g. Z, Y, X)
             stagepos = np.array(stagepos) - stage_cent # transform from nm to pixel, coordinate: up and right bigger, different from image coordinate (down and right bigger)
 
             fit_result = fit_affine_transformation(shifts, stagepos, rotation=True, scaling=True, translation=False)
