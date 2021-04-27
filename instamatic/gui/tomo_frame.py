@@ -311,6 +311,9 @@ class ExperimentalTOMO(LabelFrame):
         params['watershed_angle'] = self.var_watershed_a.get()
         params['high_angle_interval'] = self.var_high_interval.get()
         params['low_angle_interval'] = self.var_low_interval.get()
+        params['cs'] = self.var_cs.get()
+        params['defocus'] = self.var_defocus.get()
+        params['beam_tilt'] = self.var_beam_tilt.get()
         self.q.put(('tomo_auto', params))
         self.triggerEvent.set()
 
@@ -388,6 +391,10 @@ def acquire_data_TOMO_auto(controller, **kwargs):
     roi = kwargs['roi']
     continue_event = kwargs['continue_event']
     stop_event = kwargs['stop_event']
+    defocus = kwargs['defocus']
+    cs = kwargs['cs']
+    beam_tilt = kwargs['beam_tilt']
+
     watershed_angle = params['watershed_angle']
     high_angle_interval = params['high_angle_interval']
     low_angle_interval = params['low_angle_interval']
@@ -399,13 +406,13 @@ def acquire_data_TOMO_auto(controller, **kwargs):
     tomo_exp = TOMO.Experiment(ctrl=controller.ctrl, path=expdir, log=controller.log, flatfield=flatfield)
     if params['auto_tomo_option'] == 'stage tilt only':
         tomo_exp.start_auto_collection_stage_tilt(exposure_time=exposure_time, end_angle=end_angle, stepsize=stepsize, wait_interval=wait_interval, 
-                            align=align, align_roi=align_roi, roi=roi, continue_event=continue_event, stop_event=stop_event, watershed_angle=watershed_angle,
-                            high_angle_interval=high_angle_interval, low_angle_interval= low_angle_interval)
+                            align=align, align_roi=align_roi, roi=roi, continue_event=continue_event, stop_event=stop_event, cs=cs, defocus=defocus, 
+                            beam_tilt=beam_tilt, watershed_angle=watershed_angle, high_angle_interval=high_angle_interval, low_angle_interval=low_angle_interval)
     elif params['auto_tomo_option'] == 'stage and beam tilt':
         num_beam_tilt = kwargs['num_beam_tilt']
         tomo_exp.start_auto_collection_stage_beam_tilt(exposure_time=exposure_time, end_angle=end_angle, stepsize=stepsize, wait_interval=wait_interval, 
                             align=align, align_roi=align_roi, roi=roi, continue_event=continue_event, stop_event=stop_event, num_beam_tilt=num_beam_tilt, 
-                            watershed_angle=watershed_angle, high_angle_interval=high_angle_interval, low_angle_interval= low_angle_interval)
+                            cs=cs, defocus=defocus, watershed_angle=watershed_angle, high_angle_interval=high_angle_interval, low_angle_interval= low_angle_interval)
     tomo_exp.finalize(write_tiff=write_tiff, write_mrc=write_mrc)
    
     controller.log.info('Finish automatic tomography data collection experiment')

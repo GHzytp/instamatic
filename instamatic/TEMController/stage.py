@@ -222,11 +222,13 @@ class Stage:
 
     def set_z_with_backlash_correction(self, z: int = None, step: float = 5000, settle_delay: float = 0.200):
         wait = True
+        stage = self.get()
         self.set(z=z-step, wait=wait)
         if settle_delay:
             time.sleep(0.05)
 
-        self.set(z=z, wait=wait)
+        # y will change a lot when z moved on themis
+        self.set(x=stage.x, y=stage.y, z=z, wait=wait)
         if settle_delay:
             time.sleep(settle_delay)
 
@@ -240,7 +242,8 @@ class Stage:
         if settle_delay:
             time.sleep(0.05)
 
-        self.set(z=target_z, wait=wait)
+        # y will change a lot when z moved on themis
+        self.set(x=stage.x, y=stage.y, z=target_z, wait=wait) 
         if settle_delay:
             time.sleep(settle_delay)
 

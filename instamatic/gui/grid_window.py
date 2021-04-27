@@ -113,7 +113,7 @@ class GridWindow(Toplevel):
             pixel_center = np.array(self.map_info['ImageResolution'])/2
             stage_pos = self.point_list[['pos_x', 'pos_y']].to_numpy() # pixel coordination
             stage_pos -= pixel_center
-            stage_matrix = np.array(self.map_info['stage_matrix']).reshape((2, 2))
+            stage_matrix = np.array(self.map_info['stage_matrix'])
             # this is done because the x and y axis definition of numpy (Y,X) and tkinter canvas (X,Y) is different
             stage_matrix = stage_matrix[::-1] 
             stage_pos = stage_pos @ stage_matrix # stage coordination

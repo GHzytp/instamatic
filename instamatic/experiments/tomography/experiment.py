@@ -124,15 +124,8 @@ class Experiment:
         self.current_angle = angle
         print(f'Done, current angle = {self.current_angle:.2f} degrees')
 
-
-    def start_auto_focus(self, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, 
+    def get_delta_defocus(self, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, 
                         roi: list, cs: float, defocus: int, beam_tilt: float):
-        """Auto focus method used in FEI TEM Tomography. D = 2Mb(f+cs*b^2)
-        Formula from https://www.sciencedirect.com/science/article/abs/pii/030439918790146X
-        """
-        image_mode = self.ctrl.mode.get()
-        if image_mode in ('diff', 'D'):
-            raise RuntimeError('Must in imaging mode to perform auto focus.')
         # Applying defocus
         self.ctrl.objfocus.set(defocus)
         # Acquiring image at negative beam tilt
@@ -150,39 +143,35 @@ class Experiment:
         # Measuring shift...
         shift_focus = self.calc_shift_images(img_negative_1, img_positive, align_roi, roi)
         shift_focus = shift_focus * h['ImagePixelsize']
-        print(f"Beam tilt {-beam_tilt} -> {beam_tilt}: {shift_focus*h['ImagePixelsize']}")
+        # Measuring shift...
+        shift_focus = self.calc_shift_images(img_negative_1, img_positive, align_roi, roi)
+        shift_focus = shift_focus * h['ImagePixelsize']
+        print(f"Beam tilt {-beam_tilt} -> {beam_tilt} shift: {shift_focus} nm")
         shift_drift = self.calc_shift_images(img_negative_1, img_negative_2, align_roi, roi)
-        print(f"Drift {-beam_tilt} -> {-beam_tilt}: {np.linalg.norm(shift_drift)*h['ImagePixelsize']}")
+        print(f"Drift {-beam_tilt} -> {-beam_tilt}: {np.linalg.norm(shift_drift)} nm")
         # Measured defocus
         delta_defocus = np.linalg.norm(shift_focus) / 2 / np.tan(np.deg2rad(beam_tilt)) - cs * 1e6 * np.tan(np.deg2rad(beam_tilt))**2
-        print(f'Meansured defocus: {delta_defocus}')
+        print(f'Meansured defocus: {delta_defocus} nm')
+        self.ctrl.beamtilt.x = 0
+
+        return delta_defocus
+
+    def start_auto_focus(self, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, 
+                        roi: list, cs: float, defocus: int, beam_tilt: float):
+        """Auto focus method used in FEI TEM Tomography. D = 2Mb(f+cs*b^2)
+        Formula from https://www.sciencedirect.com/science/article/abs/pii/030439918790146X
+        """
+        image_mode = self.ctrl.mode.get()
+        if image_mode in ('diff', 'D'):
+            raise RuntimeError('Must in imaging mode to perform auto focus.')
+
+        delta_defocus = self.get_delta_defocus(exposure_time=exposure_time, wait_interval=wait_interval, align=align, 
+                            align_roi=align_roi, roi=roi, cs=cs, defocus=defocus, beam_tilt=beam_tilt)
 
         if messagebox.askokcancel("Continue", f"Change of focus is {delta_defocus}. Change the defocus and continue?"):
-            # Applying defocus
-            self.ctrl.objfocus.set(defocus)
-            # Acquiring image at negative beam tilt
-            self.ctrl.beamtilt.x = -beam_tilt
-            time.sleep(wait_interval)
-            img_negative_1, h = self.obtain_image(exposure_time, align, align_roi, roi)
-            # Acquiring image at positive beam tilt
-            self.ctrl.beamtilt.x = beam_tilt
-            time.sleep(wait_interval)
-            img_positive, h = self.obtain_image(exposure_time, align, align_roi, roi)
-            # Acquiring image at negative beam tilt
-            self.ctrl.beamtilt.x = -beam_tilt
-            time.sleep(wait_interval)
-            img_negative_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
-            # Measuring shift...
-            shift_focus = self.calc_shift_images(img_negative_1, img_positive, align_roi, roi)
-            shift_focus = shift_focus * h['ImagePixelsize']
-            print(f"Beam tilt {-beam_tilt} -> {beam_tilt}: {shift_focus}")
-            shift_drift = self.calc_shift_images(img_negative_1, img_negative_2, align_roi, roi)
-            print(f"Drift {-beam_tilt} -> {-beam_tilt}: {np.linalg.norm(shift_drift) * h['ImagePixelsize']}")
-            # Measured defocus
-            delta_defocus = np.linalg.norm(shift_focus) / 2 / np.tan(np.deg2rad(beam_tilt)) - cs * 1e6 * np.tan(np.deg2rad(beam_tilt))**2
-            print(f'Meansured defocus: {delta_defocus}')
-            self.ctrl.objfocus.set(defocus)
-            self.ctrl.beamtilt.x = 0
+            delta_defocus = self.get_delta_defocus(exposure_time=exposure_time, wait_interval=wait_interval, align=align, 
+                                align_roi=align_roi, roi=roi, cs=cs, defocus=defocus+(delta_defocus+defocus), beam_tilt=beam_tilt)
+            self.ctrl.objfocus.set(defocus+delta_defocus)
 
     def start_auto_eucentric_height(self, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, 
                         roi: list, defocus: int, stage_tilt: float):
@@ -202,10 +191,11 @@ class Experiment:
         time.sleep(wait_interval)
         img_tilt_1, h = self.obtain_image(exposure_time, align, align_roi, roi)
         # Measuring shift...
-        shift = self.calc_shift_images(img_0_1, img_tilt_1, align_roi, roi)
-        print(f"Stage tilt 0 -> {stage_tilt}: {shift*h['ImagePixelsize']}")
-        delta_z = np.linalg.norm(shift) / np.tan(np.deg2rad(stage_tilt))
-        print(f'Meansured height change: {delta_z}')
+        shift_tilt = self.calc_shift_images(img_0_1, img_tilt_1, align_roi, roi)
+        shift_tilt = shift_tilt * h['ImagePixelsize']
+        print(f"Stage tilt 0 -> {stage_tilt} shift: {shift_tilt} nm")
+        delta_z = np.linalg.norm(shift_tilt) / np.tan(np.deg2rad(stage_tilt))
+        print(f'Meansured height change: {delta_z} nm')
         # Moving z
         if messagebox.askokcancel("Continue", f"Change of z height is {delta_z}. Move stage and continue?"):
             self.ctrl.stage.move_z_with_backlash_correction(shift_z=delta_z)
@@ -219,25 +209,28 @@ class Experiment:
             time.sleep(wait_interval)
             img_tilt_2_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
             # Measuring shift...
-            shift = self.calc_shift_images(img_tilt_2_1, img_tilt_2_2, align_roi, roi)
-            print(f"Stage tilt {stage_tilt*3} -> {-stage_tilt*3}: {shift * h['ImagePixelsize']}")
-            delta_z = np.linalg.norm(shift) / 2 / np.tan(np.deg2rad(stage_tilt*3))
-            print(f'Meansured height change: {delta_z}')
+            shift_tilt_3 = self.calc_shift_images(img_tilt_2_1, img_tilt_2_2, align_roi, roi)
+            shift_tilt_3 = shift_tilt_3 * h['ImagePixelsize']
+            print(f"Stage tilt {stage_tilt*3} -> {-stage_tilt*3} shift: {shift_tilt_3} nm")
+            delta_z = np.linalg.norm(shift_tilt_3) / 2 / np.tan(np.deg2rad(stage_tilt*3))
+            print(f'Meansured height change: {delta_z} nm')
             # Moving z
             self.ctrl.stage.move_z_with_backlash_correction(shift_z=delta_z)
             # Moving back to 0 degree for drift measurement
             self.ctrl.stage.a = 0
             time.sleep(wait_interval)
             img_0_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
-            shift = self.calc_shift_images(img_0_1, img_0_2, align_roi, roi)
-            print(f"0 -> 0: {np.linalg.norm(shift)*h['ImagePixelsize']}")
+            shift_drift = self.calc_shift_images(img_0_1, img_0_2, align_roi, roi)
+            shift_drift = shift_drift * h['ImagePixelsize']
+            print(f"Drift 0 -> 0: {np.linalg.norm(shift_drift)} nm")
 
 
     def start_auto_collection_stage_tilt(self, exposure_time: float, end_angle: float, stepsize: float, wait_interval: float, 
-                        align: bool, align_roi: bool, roi: list, continue_event: threading.Event, stop_event: threading.Event,
-                        watershed_angle: float, high_angle_interval: int, low_angle_interval: int):
+                        align: bool, align_roi: bool, roi: list, continue_event: threading.Event, stop_event: threading.Event, cs: float,
+                        defocus: int, beam_tilt: float, watershed_angle: float, high_angle_interval: int, low_angle_interval: int):
         """Start automatic data collection from current angle to end angle with steps given by `stepsize`. 
         Auto tracking: how many image-beam shift (beampos) needed for achieve certain distance (shift) in nm, beampos = shift*r
+        During the tilt series acquisition, the height of the sample will not change. Focus was adjusted by adjusting objective defocus
         exposure_time:
             Exposure time for each image in seconds
         stepsize:
@@ -248,6 +241,7 @@ class Experiment:
         if image_mode in ('diff', 'D'):
             raise RuntimeError('Must in imaging mode to perform automatic tomogrpahy.')
 
+        stage_matrix = ctrl.get_stagematrix()
         self.spotsize = self.ctrl.spotsize
         self.now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         self.logger.info(f'Data recording started at: {self.now}')
@@ -278,6 +272,20 @@ class Experiment:
 
             ctrl.stage.a = angle          
             time.sleep(wait_interval)
+            # adjust defocus
+            if np.abs(angle) > watershed_angle and (i + 1) % high_angle_interval == 0:
+                current_defocus = self.ctrl.objfocus.value
+                delta_defocus = self.get_delta_defocus(exposure_time=exposure_time, wait_interval=wait_interval, align=align, 
+                            align_roi=align_roi, roi=roi, cs=cs, defocus=current_defocus+defocus, beam_tilt=beam_tilt)
+                self.ctrl.objfocus.set(current_defocus+defocus+delta_defocus)
+                time.sleep(wait_interval)
+            elif np.abs(angle) <= watershed_angle and (i + 1) % low_angle_interval == 0:
+                current_defocus = self.ctrl.objfocus.value
+                delta_defocus = self.get_delta_defocus(exposure_time=exposure_time, wait_interval=wait_interval, align=align, 
+                            align_roi=align_roi, roi=roi, cs=cs, defocus=current_defocus+defocus, beam_tilt=beam_tilt)
+                self.ctrl.objfocus.set(current_defocus+defocus+delta_defocus)
+                time.sleep(wait_interval)
+            
             img, h = self.obtain_image(exposure_time, align, align_roi, roi)
 
             if i == 0:
@@ -286,12 +294,13 @@ class Experiment:
             # suppose eccentric height is near 0 degree
             
             shift = self.calc_shift_images(img_ref, img, align_roi, roi) # down y+, right x+
-            shift = shift * h['ImagePixelsize'] * self.imageshift2matrix
+            shift = shift * h['ImagePixelsize'] @ self.imageshift2matrix
             beam_shift += shift
             
             if np.linalg.norm(beam_shift) >= 1000:
                 x,y = self.ctrl.stage.xy
-                self.ctrl.stage.set(x=x+beam_shift[0], y=y+beam_shift[1]) # almost up y+, right x+
+                stage_shift = beam_shift @ np.linalg.inv(self.imageshift2matrix) / h['ImagePixelsize'] @ stage_matrix
+                self.ctrl.stage.set(x=x+stage_shift[0], y=y+stage_shift[1]) # almost up y+, right x+
                 beam_shift = np.array([0, 0])
 
             self.ctrl.imageshift2.set(beam_shift[0], beam_shift[1]) # almost up y+, right x+
@@ -310,7 +319,7 @@ class Experiment:
 
     def start_auto_collection_stage_beam_tilt(self, exposure_time: float, end_angle: float, stepsize: float, wait_interval: float, 
                         align: bool, align_roi: bool, roi: list, continue_event: threading.Event, stop_event: threading.Event, num_beam_tilt: int,
-                        watershed_angle: float, high_angle_interval: int, low_angle_interval: int):
+                        cs: float, defocus: int, watershed_angle: float, high_angle_interval: int, low_angle_interval: int):
         """Start automatic data collection from current angle to end angle combined with stage tilt and beam tilt.
         Auto tracking: how many image-beam shift (beampos) needed for achieve certain distance (shift) in nm, beampos = shift*r
         exposure_time:
@@ -323,6 +332,7 @@ class Experiment:
         if image_mode in ('diff', 'D'):
             raise RuntimeError('Must in imaging mode to perform automatic tomogrpahy.')
 
+        stage_matrix = ctrl.get_stagematrix()
         self.spotsize = self.ctrl.spotsize
         self.now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         self.logger.info(f'Data recording started at: {self.now}')
@@ -355,8 +365,8 @@ class Experiment:
         beam_shift = np.array([0, 0])
         img_tilted = []
 
-        tilt_positions = np.arange(start_angle, end_angle, stepsize*(self.num_beam_tilt+1))
-        print(f'\nStart_angle: {start_angle-(self.num_beam_tilt/2)*self.stepsize:.3f}')
+        tilt_positions = np.arange(start_angle, end_angle, stepsize * (self.num_beam_tilt+1))
+        print(f'\nStart_angle: {start_angle - (self.num_beam_tilt/2) * self.stepsize:.3f}')
 
         for i, angle in enumerate(tqdm(tilt_positions)):
             continue_event.wait()
@@ -364,32 +374,41 @@ class Experiment:
                 break
 
             ctrl.stage.a = angle          
-
+            time.sleep(wait_interval)
             img_0, h = self.obtain_image(exposure_time, align, align_roi, roi)
-            self.buffer.append((counter, img_0, h))
-            counter += 1
 
             for beam_tilt in beam_tilt_list:
-                self.ctrl.beamtilt.set(y=beam_tilt)
+                self.ctrl.beamtilt.set(x=beam_tilt)
+                time.sleep(wait_interval)
                 img, h = self.obtain_image(exposure_time, align, align_roi, roi)
-                self.buffer.append((counter, img, h))
                 img_tilted.append(img)
-                counter += 1
-
+                
             if i == 0:
                 img_ref = img_0
 
+            for i in range(self.num_beam_tilt + 1):
+                if i < self.num_beam_tilt // 2:
+                    self.buffer.append((counter, img_tilted[i], h))
+                    counter += 1
+                elif i == self.num_beam_tilt // 2:
+                    self.buffer.append((counter, img_0, h))
+                    counter += 1
+                elif i > self.num_beam_tilt // 2:
+                    self.buffer.append((counter, img_tilted[i-1], h))
+                    counter += 1
+
             # suppose eccentric height is near 0 degree, adjust beam position or stage position
             shift = self.calc_shift_images(img_ref, img, align_roi, roi) # down y+, right x+
-            shift = shift * h['ImagePixelsize']
+            shift = shift * h['ImagePixelsize'] @ self.imageshift2matrix
             beam_shift += shift
             
-            if np.linalg.norm(beam_shift) >= 2000:
-                x,y = self.ctrl.stage.xy
-                self.ctrl.stage.set(x=x+beam_shift[1], y=y+beam_shift[0]) # almost up y+, right x+
+            if np.linalg.norm(beam_shift) >= 1000:
+                x, y = self.ctrl.stage.xy
+                stage_shift = beam_shift @ np.linalg.inv(self.imageshift2matrix) / h['ImagePixelsize'] @ stage_matrix
+                self.ctrl.stage.set(x=x+stage_shift[0], y=y+stage_shift[1]) # almost up y+, right x+
                 beam_shift = np.array([0, 0])
 
-            self.ctrl.imageshift2.set(beam_shift[1], beam_shift[0]) # almost up y+, right x+
+            self.ctrl.imageshift2.set(beam_shift[0], beam_shift[1]) # almost up y+, right x+
 
             # adjust defocus
             img_tilted = []
