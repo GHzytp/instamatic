@@ -28,7 +28,14 @@ from instamatic.formats import write_tiff
 from instamatic.neural_network import predict
 from instamatic.neural_network import preprocess
 from instamatic.processing.find_crystals import find_crystals_timepix
-from instamatic.processing.ImgConversionTPX import ImgConversionTPX as ImgConversion
+if config.camera.interface == "DM":
+    from instamatic.processing.ImgConversionDM import ImgConversionDM as ImgConversion
+elif config.camera.interface == "timepix":
+    from instamatic.processing.ImgConversionTPX import ImgConversionTPX as ImgConversion
+elif config.camera.interface == "emmenu":
+    from instamatic.processing.ImgConversionTVIPS import ImgConversionTVIPS as ImgConversion
+else:
+    from instamatic.processing.ImgConversion import ImgConversion
 from instamatic.tools import find_beam_center
 from instamatic.tools import find_defocused_image_center
 

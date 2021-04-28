@@ -422,14 +422,19 @@ class ExperimentalcREDXnano(LabelFrame):
         toggle = self.var_toggle_diff_defocus.get()
         difffocus = self.var_diff_defocus.get()
 
-        self.q.put(('toggle_difffocus', {'value': difffocus, 'toggle': toggle}))
-        self.triggerEvent.set()
+        if self.ctrl.mode.get() in ('D', 'diff'):
+            self.q.put(('toggle_difffocus', {'value': difffocus, 'toggle': toggle}))
+            self.triggerEvent.set()
+        else:
+            print('Please switch to diffraction mode to change diffraction defocus')
 
     def relax_beam(self):
-        difffocus = self.var_diff_defocus.get()
-
-        self.q.put(('relax_beam', {'value': difffocus}))
-        self.triggerEvent.set()
+        if self.ctrl.mode.get() in ('D', 'diff'):
+            difffocus = self.var_diff_defocus.get()
+            self.q.put(('relax_beam', {'value': difffocus}))
+            self.triggerEvent.set()
+        else:
+            print('Please switch to diffraction mode to change diffraction defocus')
 
     def start_collection(self):
         if self.var_toggle_diff_defocus.get():

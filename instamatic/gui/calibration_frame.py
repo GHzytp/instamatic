@@ -386,6 +386,11 @@ class CalibrationFrame(LabelFrame):
             self.set_gui_diffobj()
         else:
             self.ctrl.mode.set(self.var_mode.get())
+            if self.var_mode.get() in ('diff'):
+                self.q.put(('ctrl', {'task': 'in_diff_state'}))
+            else:
+                self.q.put(('ctrl', {'task': 'in_img_state'}))
+            self.triggerEvent.set()
             self.set_gui_diffobj()
 
     def toggle_diff_defocus(self):

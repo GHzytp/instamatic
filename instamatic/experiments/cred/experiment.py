@@ -282,17 +282,18 @@ class Experiment:
     def relax_beam(self, n_cycles: int = 5):
         """Relax the beam prior to the experiment by toggling between the
         defocused/focused states."""
-        print(f'Relaxing beam ({n_cycles} cycles)', end='')
-
-        for i in range(n_cycles):
-            self.ctrl.difffocus.set(self.diff_focus_defocused)
-            time.sleep(0.5)
-            print(f'.', end='')
-            self.ctrl.difffocus.set(self.diff_focus_proper)
-            time.sleep(0.5)
-            print(f'.', end='')
-
-        print('Done.')
+        if self.ctrl.mode.get() in ('D', 'diff'):
+            print(f'Relaxing beam ({n_cycles} cycles)', end='')
+            for i in range(n_cycles):
+                self.ctrl.difffocus.set(self.diff_focus_defocused)
+                time.sleep(0.5)
+                print(f'.', end='')
+                self.ctrl.difffocus.set(self.diff_focus_proper)
+                time.sleep(0.5)
+                print(f'.', end='')
+            print('Done.')
+        else:
+            print('Please switch to diffraction mode to change diffraction defocus')
 
     def start_collection(self) -> bool:
         """Main experimental function, returns True if experiment runs

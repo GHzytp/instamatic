@@ -467,6 +467,11 @@ class ExperimentalCtrl(LabelFrame):
             self.set_gui_diffobj()
         else:
             self.ctrl.mode.set(self.var_mode.get())
+            if self.var_mode.get() in ('diff'):
+                self.q.put(('ctrl', {'task': 'in_diff_state'}))
+            else:
+                self.q.put(('ctrl', {'task': 'in_img_state'}))
+            self.triggerEvent.set()
             self.set_gui_diffobj()
 
     def set_brightness(self, event=None):
@@ -720,21 +725,26 @@ class ExperimentalCtrl(LabelFrame):
 
     def toggle_diff_defocus(self):
         toggle = self.var_toggle_diff_defocus.get()
-
-        if toggle:
-            offset = self.var_diff_defocus.get()
-            self.ctrl.difffocus.defocus(offset=offset)
-            self.b_reset_defocus.config(state=NORMAL)
+        if self.ctrl.mode.get() in ('D', 'diff'):
+            if toggle:
+                offset = self.var_diff_defocus.get()
+                self.ctrl.difffocus.defocus(offset=offset)
+                self.b_reset_defocus.config(state=NORMAL)
+            else:
+                self.ctrl.difffocus.refocus()
+                self.var_toggle_diff_defocus.set(False)
+            self.get_difffocus()
         else:
-            self.ctrl.difffocus.refocus()
-            self.var_toggle_diff_defocus.set(False)
+            print('Please switch to diffraction mode to change diffraction defocus')
 
-        self.get_difffocus()
 
     def reset_diff_defocus(self):
-        self.ctrl.difffocus.refocus()
-        self.var_toggle_diff_defocus.set(False)
-        self.get_difffocus()
+        if self.ctrl.mode.get() in ('D', 'diff'):
+            self.ctrl.difffocus.refocus()
+            self.var_toggle_diff_defocus.set(False)
+            self.get_difffocus()
+        else:
+            print('Please switch to diffraction mode to change diffraction defocus')
 
 
 module = BaseModule(name='ctrl', display_name='control', tk_frame=ExperimentalCtrl, location='bottom')

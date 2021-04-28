@@ -276,17 +276,23 @@ class ExperimentalTVIPS(LabelFrame):
     def toggle_diff_defocus(self):
         toggle = self.var_toggle_diff_defocus.get()
 
-        if toggle:
-            offset = self.var_diff_defocus.get()
-            self.ctrl.difffocus.defocus(offset=offset)
-            self.b_reset_defocus.config(state=NORMAL)
+        if self.ctrl.mode.get() in ('D', 'diff'):
+            if toggle:
+                offset = self.var_diff_defocus.get()
+                self.ctrl.difffocus.defocus(offset=offset)
+                self.b_reset_defocus.config(state=NORMAL)
+            else:
+                self.ctrl.difffocus.refocus()
+                self.var_toggle_diff_defocus.set(False)
         else:
-            self.ctrl.difffocus.refocus()
-            self.var_toggle_diff_defocus.set(False)
+            print('Please switch to diffraction mode to change diffraction defocus')
 
     def reset_diff_defocus(self):
-        self.ctrl.difffocus.refocus()
-        self.var_toggle_diff_defocus.set(False)
+        if self.ctrl.mode.get() in ('D', 'diff'):
+            self.ctrl.difffocus.refocus()
+            self.var_toggle_diff_defocus.set(False)
+        else:
+            print('Please switch to diffraction mode to change diffraction defocus')
 
     def search(self):
         self.ctrl.run_script('search_mode.py')

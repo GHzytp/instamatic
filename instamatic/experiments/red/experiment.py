@@ -37,13 +37,8 @@ class Experiment:
         self.ctrl = ctrl
         self.path = Path(path)
 
-        self.mrc_path = self.path / 'mrc'
-        self.tiff_path = self.path / 'tiff'
         self.tiff_image_path = self.path / 'tiff_image'
-
-        self.tiff_path.mkdir(exist_ok=True, parents=True)
         self.tiff_image_path.mkdir(exist_ok=True, parents=True)
-        self.mrc_path.mkdir(exist_ok=True, parents=True)
 
         self.do_stretch_correction = do_stretch_correction
         self.stretch_azimuth = stretch_azimuth  # deg
@@ -59,9 +54,11 @@ class Experiment:
         self.offset = 1
         self.current_angle = None
         self.buffer = []
-        self.binsize = config.camera.default_binsize
+        self.binsize = ctrl.cam.default_binsize
+        self.wavelength = config.microscope.wavelength  # angstrom
+        self.rotation_axis = config.calibration.camera_rotation_vs_stage_xy
 
-    def start_collection(self, exposure_time: float, tilt_range: float, stepsize: float):
+    def start_collection_stage_tilt(self, exposure_time: float, tilt_range: float, stepsize: float, diff_defocus: int, wait_interval: float):
         """Start or continue data collection for `tilt_range` degrees with
         steps given by `stepsize`, To finalize data collection and write data
         files, run `self.finalize`.
@@ -82,6 +79,10 @@ class Experiment:
 
         ctrl = self.ctrl
 
+        if ctrl.mode.state not in ('D', 'diff'):
+            print('Must in diffraction mode to perform RED data collection.')
+            return
+
         if stepsize < 0:
             tilt_range = -abs(tilt_range)
         else:
@@ -91,35 +92,27 @@ class Experiment:
             self.start_angle = start_angle = ctrl.stage.a
         else:
             start_angle = self.current_angle + stepsize
-
         tilt_positions = np.arange(start_angle, start_angle + tilt_range, stepsize)
         print(f'\nStart_angle: {start_angle:.3f}')
         # print "Angles:", tilt_positions
 
-        image_mode = ctrl.mode.get()
-        if ctrl.tem.interface == "fei":
-            if image_mode not in ('D', 'LAD'):
-                fn = self.tiff_image_path / f'image_{self.offset}.tiff'
-                img, h = self.ctrl.get_image(exposure_time / 5)
-                write_tiff(fn, img, header=h)
-                ctrl.tem.setProjectionMode('diffraction')
-                time.sleep(1.0)  # add some delay to account for beam lag
-        else:
-            if image_mode != 'diff':
-                fn = self.tiff_image_path / f'image_{self.offset}.tiff'
-                img, h = self.ctrl.get_image(exposure_time / 5)
-                write_tiff(fn, img, header=h)
-                ctrl.mode.set('diff')
-                time.sleep(1.0)  # add some delay to account for beam lag
+        self.diff_focus_proper = self.ctrl.difffocus.value
+        self.diff_focus_defocused = self.diff_defocus + self.diff_focus_proper
+
+        self.ctrl.difffocus.set(self.diff_focus_defocused, confirm_mode=False)
+        time.sleep(wait_interval)
+        fn = self.tiff_image_path / f'image_{self.offset}.tiff'
+        img, h = self.ctrl.get_image(exposure_time / 2)
+        write_tiff(fn, img, header=h)
+        self.ctrl.difffocus.set(self.diff_focus_proper, confirm_mode=False)
+        time.sleep(wait_interval)  # add some delay to account for beam lag
 
         # for i, a in enumerate(tilt_positions):
         for i, angle in enumerate(tqdm(tilt_positions)):
             ctrl.stage.a = angle
-
+            time.sleep(wait_interval/2)
             j = i + self.offset
-
             img, h = self.ctrl.get_image(exposure_time)
-
             self.buffer.append((j, img, h))
 
         self.offset += len(tilt_positions)
@@ -147,33 +140,94 @@ class Experiment:
             if image_mode != 'diff':
                 ctrl.mode.set(image_mode)
 
-    def finalize(self):
+    def start_collection_stage_beam_tilt(self, exposure_time: float, stepsize: float, diff_defocus: int, wait_interval: float, 
+                                        beam_tilt_num: int, tilt_num: int):
+        self.spotsize = self.ctrl.spotsize
+        self.now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        self.logger.info(f'Data recording started at: {self.now}')
+        self.logger.info(f'Exposure time: {exposure_time} s, Tilt range: {tilt_range}, step size: {stepsize}')
+
+        ctrl = self.ctrl
+
+        if ctrl.mode.state not in ('D', 'diff'):
+            print('Must in diffraction mode to perform RED data collection.')
+            return
+
+        if stepsize < 0:
+            tilt_range = -abs(tilt_range)
+        else:
+            tilt_range = abs(tilt_range)
+
+        if self.current_angle is None:
+            self.start_angle = start_angle = ctrl.stage.a
+        else:
+            start_angle = self.current_angle + stepsize
+        tilt_positions = np.arange(start_angle, start_angle + tilt_range, stepsize)
+        print(f'\nStart_angle: {start_angle:.3f}')
+        # print "Angles:", tilt_positions
+
+        self.diff_focus_proper = self.ctrl.difffocus.value
+        self.diff_focus_defocused = self.diff_defocus + self.diff_focus_proper
+
+        self.ctrl.difffocus.set(self.diff_focus_defocused, confirm_mode=False)
+        time.sleep(wait_interval)
+        fn = self.tiff_image_path / f'image_{self.offset}.tiff'
+        img, h = self.ctrl.get_image(exposure_time / 2)
+        write_tiff(fn, img, header=h)
+        self.ctrl.difffocus.set(self.diff_focus_proper, confirm_mode=False)
+        time.sleep(wait_interval)  # add some delay to account for beam lag
+
+        # for i, a in enumerate(tilt_positions):
+        for i, angle in enumerate(tqdm(tilt_positions)):
+            ctrl.stage.a = angle
+            time.sleep(wait_interval/2)
+            j = i + self.offset
+            img, h = self.ctrl.get_image(exposure_time)
+            self.buffer.append((j, img, h))
+
+        self.offset += len(tilt_positions)
+        self.nframes = j
+
+        self.end_angle = end_angle = ctrl.stage.a
+
+        self.camera_length = int(self.ctrl.magnification.get())
+        self.stepsize = stepsize
+        self.exposure_time = exposure_time
+
+        with open(self.path / 'summary.txt', 'a') as f:
+            print(f'{self.now}: Data collected from {start_angle:.2f} degree to {end_angle:.2f} degree in {len(tilt_positions)} frames.', file=f)
+            print(f'Data collected from {start_angle:.2f} degree to {end_angle:.2f} degree in {len(tilt_positions)} frames.')
+
+        self.logger.info('Data collected from {start_angle:.2f} degree to {end_angle:.2f} degree (camera length: {camera_length} mm).')
+
+        self.current_angle = angle
+        print(f'Done, current angle = {self.current_angle:.2f} degrees')
+
+        if ctrl.tem.interface == "fei":
+            if image_mode  not in ('D', 'LAD'):
+                ctrl.tem.setProjectionMode('imaging') 
+        else:
+            if image_mode != 'diff':
+                ctrl.mode.set(image_mode)
+
+    def finalize(self, write_tiff=True, write_xds=True, write_dials=True, write_red=True, write_cbf=True, write_pets=True):
         """Finalize data collection after `self.start_collection` has been run.
 
         Write data in `self.buffer` to path given by `self.path`.
         """
         self.logger.info(f'Data saving path: {self.path}')
-        self.rotation_axis = config.calibration.camera_rotation_vs_stage_xy
         software_binsize = config.settings.software_binsize
-
-        if self.ctrl.tem.interface == "fei":
-            self.ctrl.tem.setProjectionMode('diffraction')
-            if software_binsize is None:
-                self.pixelsize = config.calibration[self.ctrl.mode.get()]['pixelsize'][self.camera_length] * self.binsize  # Angstrom^(-1)/pixel
-                self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize  # mm
-            else:
-                self.pixelsize = config.calibration[self.ctrl.mode.get()]['pixelsize'][self.camera_length] * self.binsize * software_binsize  # Angstrom^(-1)/pixel
-                self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize * software_binsize  # mm
-            self.ctrl.tem.setProjectionMode('imaging')
+        if software_binsize is None:
+            self.pixelsize = config.calibration[ctrl.mode.state]['pixelsize'][self.magnification] * self.binsize 
+            self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize 
         else:
-            if software_binsize is None:
-                self.pixelsize = config.calibration['diff']['pixelsize'][self.camera_length] * self.binsize
-                self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize
-            else:
-                self.pixelsize = config.calibration['diff']['pixelsize'][self.camera_length] * self.binsize * software_binsize
-                self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize * software_binsize
-
-        self.wavelength = config.microscope.wavelength  # angstrom
+            self.pixelsize = config.calibration[ctrl.mode.state]['pixelsize'][self.magnification] * self.binsize * software_binsize 
+            self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize * software_binsize 
+        
+        self.tiff_path = self.path / 'tiff' if write_tiff else None
+        self.mrc_path = self.path / 'RED' if write_red else None
+        self.smv_path = self.path / 'SMV' if (write_xds or write_dials) else None
+        self.cbf_path = self.path / 'CBF' if write_cbf else None
 
         with open(self.path / 'summary.txt', 'a') as f:
             print(f'Rotation range: {self.end_angle-self.start_angle:.2f} degrees', file=f)
@@ -213,11 +267,19 @@ class Experiment:
         print('Writing data files...')
         img_conv.threadpoolwriter(tiff_path=self.tiff_path,
                                   mrc_path=self.mrc_path,
+                                  smv_path=self.smv_path,
+                                  cbf_path=self.cbf_path,
                                   workers=8)
 
         print('Writing input files...')
-        img_conv.write_ed3d(self.mrc_path)
-        img_conv.write_pets_inp(self.path)
+        if write_dials:
+            img_conv.to_dials(self.smv_path)
+        if write_red:
+            img_conv.write_ed3d(self.mrc_path)
+        if write_xds or write_dials:
+            img_conv.write_xds_inp(self.smv_path)
+        if write_pets:
+            img_conv.write_pets_inp(self.path)
 
         img_conv.write_beam_centers(self.path)
 
