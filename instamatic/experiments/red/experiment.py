@@ -8,7 +8,14 @@ from tqdm.auto import tqdm
 
 from instamatic import config
 from instamatic.formats import write_tiff
-from instamatic.processing.ImgConversionTPX import ImgConversionTPX as ImgConversion
+if config.camera.interface == "DM":
+    from instamatic.processing.ImgConversionDM import ImgConversionDM as ImgConversion
+elif config.camera.interface == "timepix":
+    from instamatic.processing.ImgConversionTPX import ImgConversionTPX as ImgConversion
+elif config.camera.interface == "emmenu":
+    from instamatic.processing.ImgConversionTVIPS import ImgConversionTVIPS as ImgConversion
+else:
+    from instamatic.processing.ImgConversion import ImgConversion
 
 
 class Experiment:
@@ -179,8 +186,8 @@ class Experiment:
             print(f'Rotation axis: {self.rotation_axis} radians', file=f)
             print(f'Stepsize: {self.stepsize:.4f} degrees', file=f)
             print(f'Number of frames: {self.nframes}', file=f)
+            print(f'Apply stretch correction: {self.do_stretch_correction}', file=f)
             if self.do_stretch_correction:
-                print(f'Apply stretch correction: {self.do_stretch_correction}', file=f)
                 print(f'Stretch amplitude: {self.stretch_azimuth} %', file=f)
                 print(f'Stretch azimuth: {self.stretch_amplitude} degrees', file=f)
                 print(f'Stretch center x: {self.stretch_cent_x} pixel', file=f)

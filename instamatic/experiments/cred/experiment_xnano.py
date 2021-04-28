@@ -13,8 +13,12 @@ from instamatic.formats import write_tiff
 
 if config.camera.interface == "DM":
     from instamatic.processing.ImgConversionDM import ImgConversionDM as ImgConversion
-else:
+elif config.camera.interface == "timepix":
     from instamatic.processing.ImgConversionTPX import ImgConversionTPX as ImgConversion
+elif config.camera.interface == "emmenu":
+    from instamatic.processing.ImgConversionTVIPS import ImgConversionTVIPS as ImgConversion
+else:
+    from instamatic.processing.ImgConversion import ImgConversion
 
 
 # degrees to rotate before activating data collection procedure

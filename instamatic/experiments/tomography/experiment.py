@@ -11,7 +11,14 @@ from tkinter import messagebox
 
 from instamatic import config
 from instamatic.formats import write_tiff
-from instamatic.processing.ImgConversionTPX import ImgConversionTPX as ImgConversion
+if config.camera.interface == "DM":
+    from instamatic.processing.ImgConversionDM import ImgConversionDM as ImgConversion
+elif config.camera.interface == "timepix":
+    from instamatic.processing.ImgConversionTPX import ImgConversionTPX as ImgConversion
+elif config.camera.interface == "emmenu":
+    from instamatic.processing.ImgConversionTVIPS import ImgConversionTVIPS as ImgConversion
+else:
+    from instamatic.processing.ImgConversion import ImgConversion
 from instamatic.image_utils import translate_image
 
 
@@ -389,13 +396,11 @@ class Experiment:
             for i in range(self.num_beam_tilt + 1):
                 if i < self.num_beam_tilt // 2:
                     self.buffer.append((counter, img_tilted[i], h))
-                    counter += 1
                 elif i == self.num_beam_tilt // 2:
                     self.buffer.append((counter, img_0, h))
-                    counter += 1
                 elif i > self.num_beam_tilt // 2:
                     self.buffer.append((counter, img_tilted[i-1], h))
-                    counter += 1
+                counter += 1
 
             # suppose eccentric height is near 0 degree, adjust beam position or stage position
             shift = self.calc_shift_images(img_ref, img, align_roi, roi) # down y+, right x+
@@ -411,6 +416,14 @@ class Experiment:
             self.ctrl.imageshift2.set(beam_shift[0], beam_shift[1]) # almost up y+, right x+
 
             # adjust defocus
+            current_defocus = self.ctrl.objfocus.value
+            shift_focus = self.calc_shift_images(img_tilted[0], img_tilted[-1], align_roi, roi)
+            shift_focus = shift_focus * h['ImagePixelsize']
+            print(f"Beam tilt {-self.num_beam_tilt // 2 * stepsize} -> {self.num_beam_tilt // 2 * stepsize} shift: {shift_focus} nm")
+            # Measured defocus
+            delta_defocus = np.linalg.norm(shift_focus) / 2 / np.tan(np.deg2rad(self.num_beam_tilt // 2 * stepsize)) - cs * 1e6 * np.tan(np.deg2rad(self.num_beam_tilt // 2 * stepsize))**2
+            print(f'Meansured defocus: {delta_defocus} nm')
+            self.ctrl.objfocus.set(current_defocus+delta_defocus)
             img_tilted = []
 
         self.nframes = (i + 1) * (self.num_beam_tilt + 1)

@@ -71,7 +71,6 @@ class ImgConversionDM(ImgConversion):
         # Stretch correction parameters
         self.stretch_azimuth = stretch_azimuth
         self.stretch_amplitude = stretch_amplitude
-        self.do_stretch_correction = self.stretch_amplitude != 0
 
         self.distance = (1 / self.wavelength) * (self.physical_pixelsize / self.pixelsize)
         self.osc_angle = osc_angle

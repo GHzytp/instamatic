@@ -11,6 +11,7 @@ from instamatic.formats import read_tiff
 from instamatic.formats import write_adsc
 from instamatic.formats import write_mrc
 from instamatic.formats import write_tiff
+from instamatic.formats import write_cbf
 from instamatic.processing import apply_stretch_correction, apply_flatfield_correction
 from instamatic.processing.stretch_correction import affine_transform_ellipse_to_circle
 from instamatic.tools import find_beam_center
@@ -112,7 +113,6 @@ class ImgConversion:
 
     def __init__(self,
                  buffer: list,                   # image buffer, list of (index [int], image data [2D numpy array], header [dict])
-                 camera_length: float,           # virtual camera length read from the microscope
                  osc_angle: float,               # degrees, oscillation angle of the rotation
                  start_angle: float,             # degrees, start angle of the rotation
                  end_angle: float,               # degrees, end angle of the rotation
@@ -274,8 +274,6 @@ class ImgConversion:
 
         Reads the stretch amplitude/azimuth from the config file
         """
-        from instamatic.formats import write_cbf
-
         center = np.array(self.mean_beam_center)
 
         amplitude_pc = self.stretch_amplitude / (2 * 100)
@@ -363,7 +361,7 @@ class ImgConversion:
             logger.debug(f'MRC files saved in folder: {mrc_path}')
 
         if write_cbf:
-            mrc_path.mkdir(exist_ok=True, parents=True)
+            cbf_path.mkdir(exist_ok=True, parents=True)
             logger.debug(f'CBF files saved in folder: {cbf_path}')
 
         import concurrent.futures
@@ -433,7 +431,13 @@ class ImgConversion:
         return fn
 
     def write_cbf(self, path: str, i: int) -> str:
-        pass
+        img = self.data[i]
+        h = self.headers[i]
+        img = np.round(img, 0).astype(np.uint16)
+
+        fn = path / f'{i:05d}.cbf'
+        write_cbf(fn, img, header=h)
+        return fn
 
     def write_smv(self, path: str, i: int) -> str:
         """Write the image+header with sequence number `i` to the directory

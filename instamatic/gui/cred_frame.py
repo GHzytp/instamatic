@@ -281,6 +281,7 @@ class ExperimentalcRED(LabelFrame):
                   'write_xds': self.var_save_xds.get(),
                   'write_dials': self.var_save_dials.get(),
                   'write_red': self.var_save_red.get(),
+                  'write_cbf': self.var_save_cbf.get(),
                   'do_stretch_correction': self.stream_frame.var_apply_stretch.get(),
                   'stretch_amplitude': self.stream_frame.var_amplitude.get(),
                   'stretch_azimuth': self.stream_frame.var_azimuth.get(),

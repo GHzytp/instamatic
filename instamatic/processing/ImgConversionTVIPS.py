@@ -70,6 +70,10 @@ class ImgConversionTVIPS(ImgConversion):
         self.use_beamstop = True
         self.mean_beam_center, self.beam_center_std = self.get_beam_centers()
 
+        # Stretch correction parameters
+        self.stretch_azimuth = stretch_azimuth
+        self.stretch_amplitude = stretch_amplitude
+
         self.distance = (1 / self.wavelength) * (self.physical_pixelsize / self.pixelsize)
         self.osc_angle = osc_angle
         self.start_angle = start_angle
@@ -81,7 +85,7 @@ class ImgConversionTVIPS(ImgConversion):
 
         logger.debug(f'Primary beam at: {self.mean_beam_center}')
 
-        self.name = 'TVIPS F416'
+        self.name = 'TVIPS'
 
         from .XDS_templateTVIPS import XDS_template
         self.XDS_template = XDS_template

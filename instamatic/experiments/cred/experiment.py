@@ -13,8 +13,12 @@ from instamatic.formats import write_tiff
 
 if config.camera.interface == "DM":
     from instamatic.processing.ImgConversionDM import ImgConversionDM as ImgConversion
-else:
+elif config.camera.interface == "timepix":
     from instamatic.processing.ImgConversionTPX import ImgConversionTPX as ImgConversion
+elif config.camera.interface == "emmenu":
+    from instamatic.processing.ImgConversionTVIPS import ImgConversionTVIPS as ImgConversion
+else:
+    from instamatic.processing.ImgConversion import ImgConversion
 
 
 # degrees to rotate before activating data collection procedure
@@ -55,7 +59,7 @@ class Experiment:
         Image interval only - Defocus value to apply when defocused images are used for tracking
     exposure_time_image:
         Image interval only - Exposure time for defocused images
-    write_tiff, write_xds, write_dials, write_red:
+    write_tiff, write_xds, write_dials, write_red, write_cbf:
         Specify which data types/input files should be written
     stop_event:
         Instance of `threading.Event()` that signals the experiment to be terminated.
@@ -82,6 +86,7 @@ class Experiment:
                  write_xds: bool = True,
                  write_dials: bool = True,
                  write_red: bool = True,
+                 write_cbf: bool = True,
                  do_stretch_correction: bool = False,
                  stretch_amplitude: float = 0.0,
                  stretch_azimuth: float = 0.0,
@@ -116,6 +121,7 @@ class Experiment:
         self.write_xds = write_xds
         self.write_dials = write_dials
         self.write_red = write_red
+        self.write_cbf = write_cbf
         self.write_pets = write_tiff  # TODO
 
         self.do_stretch_correction = do_stretch_correction
@@ -192,8 +198,8 @@ class Experiment:
             print(f'Pixelsize: {self.pixelsize} Angstrom^(-1)/pixel', file=f)
             print(f'Physical pixelsize: {self.physical_pixelsize} um', file=f)
             print(f'Wavelength: {self.wavelength} Angstrom', file=f)
+            print(f'Apply stretch correction: {self.do_stretch_correction}', file=f)
             if self.do_stretch_correction:
-                print(f'Apply stretch correction: {self.do_stretch_correction}', file=f)
                 print(f'Stretch amplitude: {self.stretch_azimuth} %', file=f)
                 print(f'Stretch azimuth: {self.stretch_amplitude} degrees', file=f)
                 print(f'Stretch center x: {self.stretch_cent_x} pixel', file=f)
@@ -219,6 +225,7 @@ class Experiment:
         self.tiff_path = self.path / 'tiff' if self.write_tiff else None
         self.smv_path = self.path / 'SMV' if (self.write_xds or self.write_dials) else None
         self.mrc_path = self.path / 'RED' if self.write_red else None
+        self.cbf_path = self.path / 'CBF' if self.write_cbf else None
 
     def start_rotation(self) -> float:
         """Controls the starting of the rotation of the experiment.
@@ -490,6 +497,7 @@ class Experiment:
         img_conv.threadpoolwriter(tiff_path=self.tiff_path,
                                   mrc_path=self.mrc_path,
                                   smv_path=self.smv_path,
+                                  cbf_path=self.cbf_path,
                                   workers=8)
 
         print('Writing input files...')
