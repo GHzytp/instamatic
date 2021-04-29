@@ -355,24 +355,21 @@ class ExperimentalZoneAxis(LabelFrame):
         if software_binsize is None:
             self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][camera_length] * self.binsize 
         else:
-            self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][camera_length] * self.binsize * software_binsize 
-        self.stage_matrix = np.array(config.calibration[self.ctrl.mode.state]['stagematrix'][camera_length]).reshape(2, 2) * self.pixelsize
+            self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][camera_length] * self.binsize * software_binsize  
         self.beamtilt_bak = self.ctrl.beamtilt.xy
 
-        pixelcoord = np.array([self.var_laue_circle_x.get(), self.var_laue_circle_y.get()])
-        reference_pixel = np.array([self.var_center_x.get(), self.var_center_y.get()])
-        beamtilt_target = pixelsize * 180 / np.pi * pixelcoord_to_movement(pixelcoord=pixelcoord, transform_r=self.transform_r_beamtilt, 
-            transform_t=self.transform_t_beamtilt, reference_movement=self.beamtilt_bak, reference_pixel=reference_pixel)
+        laue_circle_center = np.array([self.var_laue_circle_x.get(), self.var_laue_circle_y.get()])[::-1]
+        beam_center = np.array([self.var_center_x.get(), self.var_center_y.get()])[::-1]
+        beamtilt_target = self.pixelsize * (beam_center - laue_circle_center) @ self.beam_tilt_matrix_D + self.beamtilt_bak
         self.ctrl.beamtilt.xy = beamtilt_target
 
         self.diffshift_bak = self.ctrl.diffshift.xy
-        diffshift_target = pixelsize * 180 / np.pi * pixelcoord_to_movement(pixelcoord=-pixelcoord, transform_r=self.transform_r_diffshift, 
-            transform_t=self.transform_t_diffshift, reference_movement=self.diffshift_bak, reference_pixel=reference_pixel)
+        diffshift_target = pixelsize * (-beam_center + laue_circle_center) @ self.diffraction_shift_matrix + self.diffshift_bak
         self.ctrl.diffshift.xy = diffshift_target
 
         self.b_trial_beam_tilt.config(state=DISABLED)
         self.b_stop_trial_beam_tilt.config(state=NORMAL)
-        self.lb_col.config(text=f'Now the beam tilt is {beamtilt_target[0]*np.pi/180:.5f}, {beamtilt_target[1]*np.pi/180:.5f}. The diffshift is {diffshift_target[0]*np.pi/180:.5f}, {diffshift_target[1]*np.pi/180:.5f}.')
+        self.lb_col.config(text=f'Now the beam tilt is {beamtilt_target[0]:.2f}, {beamtilt_target[1]:.2f}. The diffshift is {diffshift_target[0]:.2f}, {diffshift_target[1]:.2f}.')
 
     def stop_trial_beam_tilt(self):
         self.ctrl.beamtilt.xy = self.beamtilt_bak
@@ -380,7 +377,7 @@ class ExperimentalZoneAxis(LabelFrame):
 
         self.b_trial_beam_tilt.config(state=NORMAL)
         self.b_stop_trial_beam_tilt.config(state=DISABLED)
-        self.lb_col.config(text=f'The beam tilt restored to {self.beamtilt_bak[0]*np.pi/180:.5f}, {self.beamtilt_bak[1]*np.pi/180:.5f}')
+        self.lb_col.config(text=f'The beam tilt restored to {self.beamtilt_bak[0]:.2f}, {self.beamtilt_bak[1]:.2f}. The diffshift is restored to {diffshift_bak[0]:.2f}, {diffshift_bak[1]:.2f}.')
 
     def set_zone_axis(self):
         '''Set the zone axis by moving stage, with backlash elimination '''
@@ -390,21 +387,16 @@ class ExperimentalZoneAxis(LabelFrame):
             self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][camera_length] * self.binsize 
         else:
             self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][camera_length] * self.binsize * software_binsize 
-        self.stage_matrix = np.array(config.calibration[self.ctrl.mode.state]['stagematrix'][camera_length]).reshape(2, 2) * self.pixelsize
+        self.stage_matrix = np.pi / 180 * 2 / self.wavelength * np.array(config.calibration[self.ctrl.mode.state]['stagematrix'][camera_length]).reshape(2, 2) * self.pixelsize
         self.stage_bak = self.ctrl.stage.get()
 
-        # TODO: how to find out the transform matrix for the stage rotation?
-        x_laue = self.var_laue_circle_x.get()
-        y_laue = self.var_laue_circle_y.get()
-        x_cent = self.var_center_x.get()
-        y_cent = self.var_center_y.get()
-        movement = pixelsize * 180 / np.pi * np.array([x_laue - x_cent, y_laue - y_cent])  # unit: degree
+        laue_circle_center = np.array([self.var_laue_circle_x.get(), self.var_laue_circle_y.get()])[::-1]
+        beam_center = np.array([self.var_center_x.get(), self.var_center_y.get()])[::-1]
+        movement = pixelsize * (beam_center - laue_circle_center) @ np.linalg.inv(self.stage_matrix)  # unit: degree
         alpha_target = self.stage_bak.a + movement[0]
         beta_target = self.stage_bak.b + movement[1]
 
-        self.ctrl.stage.eliminate_backlash_a(alpha_target, step=1)
         self.ctrl.stage.a = alpha_target
-        self.ctrl.stage.eliminate_backlash_b(beta_target, step=1)
         self.ctrl.stage.b = beta_target
 
         self.b_set_zone_axis.config(state=DISABLED)
@@ -413,9 +405,7 @@ class ExperimentalZoneAxis(LabelFrame):
 
     def unset_zone_axis(self):
         '''Return to the original position'''
-        self.ctrl.stage.eliminate_backlash_a(self.stage_bak.a, step=1)
         self.ctrl.stage.a = self.stage_bak.a
-        self.ctrl.stage.eliminate_backlash_b(self.stage_bak.b, step=1)
         self.ctrl.stage.b = self.stage_bak.b
 
         self.b_set_zone_axis.config(state=NORMAL)

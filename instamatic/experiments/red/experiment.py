@@ -161,6 +161,9 @@ class Experiment:
             print('Must in diffraction mode to perform RED data collection.')
             return
 
+        self.beamtilt_bak = ctrl.beamtilt.get()
+        self.diffraction_shift_bak = ctrl.diffshift.get()
+
         if self.pixelsize is None:
             self.camera_length = int(self.ctrl.magnification.get())
             software_binsize = config.settings.software_binsize
@@ -170,7 +173,8 @@ class Experiment:
             else:
                 self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][self.camera_length] * self.binsize * software_binsize 
                 self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize * software_binsize 
-            self.stage_matrix = np.array(config.calibration[self.ctrl.mode.state]['stagematrix'][self.camera_length]).reshape(2, 2) * self.pixelsize
+            # shift in Å-1 = angle(degree) * matrix    theta = arcsin(1/d * lambda/2) * 180/pi = 1/d * lambda/2 * 180/pi
+            self.stage_matrix = np.pi / 180 * 2 / self.wavelength * np.array(config.calibration[self.ctrl.mode.state]['stagematrix'][self.camera_length]).reshape(2, 2) * self.pixelsize
 
         for _ in range(tilt_num):
             if self.current_angle is None:
@@ -186,10 +190,10 @@ class Experiment:
 
             for i, angle in enumerate(tqdm(beam_tilt_positions)):
                 # angle change (degree) -> shift in diff pattern (stage_matrix in diff mode, Å-1) -> beam_tilt
-                beam_tilt = np.array([angle, 0]) @ self.stage_matrix @ self.beam_tilt_matrix_D
+                beam_tilt = np.array([angle, 0]) @ self.stage_matrix @ self.beam_tilt_matrix_D + self.beamtilt_bak
                 self.ctrl.beamtilt.set(x=beam_tilt[0], y=beam_tilt[1])
                 # beam-tilt induced shift in diffraction pattern compensated by diffraction shift
-                diffraction_shift = - beam_tilt @ np.linalg.inv(self.beam_tilt_matrix_D) @ self.diffraction_shift_matrix
+                diffraction_shift = - beam_tilt @ np.linalg.inv(self.beam_tilt_matrix_D) @ self.diffraction_shift_matrix + self.diffraction_shift_bak
                 self.ctrl.diffshift.set(x=diffraction_shift[0], y=diffraction_shift[1])
                 time.sleep(wait_interval/2)
                 j = i + self.offset
@@ -238,6 +242,8 @@ class Experiment:
 
         if self.enable_beam_tilt:
             stepsize = self.stepsize / self.beam_tilt_num
+            self.ctrl.beamtilt.xy = self.beamtilt_bak
+            self.ctrl.diffshift.xy = self.diffraction_shift_bak
         else:
             stepsize = self.stepsize
 
