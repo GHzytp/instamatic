@@ -128,7 +128,7 @@ def find_beam_center(img: np.ndarray, sigma: int = 30, m: int = 100, kind: int =
 def find_beam_center_thresh(img: np.ndarray, sigma: int = 30, thresh: int = 7000, m: int = 100, kind: int = 3) -> (float, float):
     """Find the center of the primary beam in the image `img` The position is
     determined by summing along X/Y directions and finding the position along
-    the two directions independently.
+    the two directions independently. Consistent with numpy definition (Y, X)
 
     Uses interpolation by factor `m` to find the coordinates of the
     pimary beam with subpixel accuracy.

@@ -551,7 +551,7 @@ class ImgConversion:
 
             for i in self.observed_range:
                 fn = f'{i:05d}.mrc'
-                angle = self.start_angle + sign * self.osc_angle * i
+                angle = self.start_angle + sign * self.osc_angle * (i - 1)
                 print(f'FILE {fn}    {angle: 12.4f}    0    {angle: 12.4f}', file=f)
 
             print(f'ENDFILELIST', file=f)

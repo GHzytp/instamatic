@@ -536,12 +536,14 @@ class TEMController:
 
         for key in keys:
             try:
-                if key is 'StagePosition':
-                    dct[key] = dict(funcs[key]()._asdict())
-                else:
-                    dct[key] = funcs[key]()
+                dct[key] = dict(funcs[key]()._asdict())
+            except AttributeError:
+                dct[key] = funcs[key]()
             except TypeError:
-                # print(f"No such key: `{key}`")
+                print(f"No such key: `{key}`")
+                pass
+            except KeyError:
+                print(f"No such key: `{key}`")
                 pass
 
         return dct

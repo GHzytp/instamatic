@@ -18,6 +18,7 @@ all_modules = (
     'grid',
     'calibration',
     'indexing',
+    'zone_axis',
     'console',
     'debug',
     'about',

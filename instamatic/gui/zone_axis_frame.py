@@ -112,13 +112,13 @@ class ExperimentalZoneAxis(LabelFrame):
         self.stopEvent = threading.Event()
         self.update_image = True
         self.wavelength = relativistic_wavelength(self.ctrl.high_tension) # unit: Angstrom
-        self.beamtilt_bak = self.ctrl.beamtilt.xy
-        self.diffshift_bak = self.ctrl.diffshift.xy
-        self.stage_bak = self.ctrl.stage.get()
+        self.beamtilt_bak = None
+        self.diffshift_bak = None
+        self.stage_bak = None
+        self.beam_tilt_matrix_D = np.array(config.calibration.beam_tilt_matrix_D).reshape(2, 2)
+        self.diffraction_shift_matrix = np.array(config.calibration.diffraction_shift_matrix).reshape(2, 2)
 
         self._drag_data = {"x": 0, "y": 0}
-
-        self.obtain_calibrations()
 
         self.init_vars()
 
@@ -234,8 +234,8 @@ class ExperimentalZoneAxis(LabelFrame):
         '''find the center of the diffraction pattern'''
         img, h = self.ctrl.get_image(self.var_exposure_time.get())
         pixel_cent = find_beam_center_thresh(img, thresh=self.var_threshold.get())
-        self.var_center_x.set(pixel_cent[0])
-        self.var_center_y.set(pixel_cent[1])
+        self.var_center_x.set(pixel_cent[1])
+        self.var_center_y.set(pixel_cent[0])
 
     def reset_laue_circle(self):
         self.var_laue_circle_x.set(self.cam_x / 2)
@@ -257,8 +257,8 @@ class ExperimentalZoneAxis(LabelFrame):
             # keep a reference to avoid premature garbage collection
             self.image = image
 
-        center_pos = find_beam_center_thresh(self.image_stream.frame, thresh=self.var_threshold.get()) * self.ratio
-        self.canvas.coords(self.circle, center_pos[1]-5, center_pos[0]-5, center_pos[1]+5, center_pos[0]+5)
+        center_pos = np.array([self.var_center_x.get(), self.var_center_y.get()]) * self.ratio
+        self.canvas.coords(self.circle, center_pos[0]-5, center_pos[1]-5, center_pos[0]+5, center_pos[1]+5)
 
         x = self.var_laue_circle_x.get() * self.ratio
         y = self.var_laue_circle_y.get() * self.ratio
@@ -347,28 +347,16 @@ class ExperimentalZoneAxis(LabelFrame):
         self.b_stop_laue_circle.config(state=DISABLED)
         self.lb_col.config(text='Stop finding laue circle.')
 
-    def obtain_calibrations(self):
-        try:
-            with open(config.locations['base'] / 'calibration/BeamTiltCalib/calib_beamtilt.pickle', 'rb') as f:
-                self.transform_r_beamtilt, self.transform_t_beamtilt, _, _ = pickle.load(f)
-        except:
-            self.transform_r_beamtilt = np.array([[1, 0], [0, 1]])
-            self.transform_t_beamtilt = np.array([0, 0])
-
-        try:
-            with open(config.locations['base'] / 'calibration/DiffShiftCalib/calib_diffshift.pickle', 'rb') as f:
-                self.transform_r_diffshift, self.transform_t_diffshift, _, _ = pickle.load(f)
-        except:
-            self.transform_r_diffshift = np.array([[1, 0], [0, 1]])
-            self.transform_t_diffshift = np.array([0, 0])
 
     def trial_beam_tilt(self):
-        # Need beam tilt calibration: check when adding the beam tilt, how the cent spot of diff pattern will move.
-        self.obtain_calibrations()
-        
         camera_length = int(self.ctrl.magnification.value)
         # 2dsin(theta)=lambda => theta = lambda / 2 * (1 / d)
-        pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][camera_length] * self.binsize * self.wavelength / 2 # rad/pix
+        software_binsize = config.settings.software_binsize
+        if software_binsize is None:
+            self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][camera_length] * self.binsize 
+        else:
+            self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][camera_length] * self.binsize * software_binsize 
+        self.stage_matrix = np.array(config.calibration[self.ctrl.mode.state]['stagematrix'][camera_length]).reshape(2, 2) * self.pixelsize
         self.beamtilt_bak = self.ctrl.beamtilt.xy
 
         pixelcoord = np.array([self.var_laue_circle_x.get(), self.var_laue_circle_y.get()])
@@ -397,7 +385,12 @@ class ExperimentalZoneAxis(LabelFrame):
     def set_zone_axis(self):
         '''Set the zone axis by moving stage, with backlash elimination '''
         camera_length = int(self.ctrl.magnification.value)
-        pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][camera_length] * self.wavelength / 2 # rad/pix
+        software_binsize = config.settings.software_binsize
+        if software_binsize is None:
+            self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][camera_length] * self.binsize 
+        else:
+            self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][camera_length] * self.binsize * software_binsize 
+        self.stage_matrix = np.array(config.calibration[self.ctrl.mode.state]['stagematrix'][camera_length]).reshape(2, 2) * self.pixelsize
         self.stage_bak = self.ctrl.stage.get()
 
         # TODO: how to find out the transform matrix for the stage rotation?
@@ -430,7 +423,7 @@ class ExperimentalZoneAxis(LabelFrame):
         self.lb_col.config(text=f'The stage tilt restored to {self.stage_bak.a:.2f} degree, {self.stage_bak.b:.2f} degree')
 
 
-module = BaseModule(name='ZoneAxis', display_name='ZoneAxis', tk_frame=ExperimentalZoneAxis, location='bottom')
+module = BaseModule(name='zone_axis', display_name='ZoneAxis', tk_frame=ExperimentalZoneAxis, location='bottom')
 commands = {}
 
 if __name__ == '__main__':

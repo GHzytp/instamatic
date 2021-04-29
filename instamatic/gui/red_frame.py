@@ -197,6 +197,7 @@ class ExperimentalRED(LabelFrame):
                   'tilt_range': self.var_tilt_range.get(),
                   'stepsize': self.var_stepsize.get(),
                   'wait_interval': self.var_wait_interval.get(),
+                  'enable_diff_image': self.var_enable_defocused_image.get(),
                   'diff_defocus': self.var_diff_defocus.get(),
                   'write_tiff': self.var_save_tiff.get(),
                   'write_xds': self.var_save_xds.get(),
@@ -205,6 +206,8 @@ class ExperimentalRED(LabelFrame):
                   'write_cbf': self.var_save_cbf.get(),
                   'write_pets': self.var_save_pets.get(),
                   'enable_beam_tilt': self.var_enable_beam_tilt.get(),
+                  'beam_tilt_num': self.var_beam_tilt_num.get(),
+                  'tilt_num': self.var_tilt_num.get(),
                   'task': task}
         return params
 
@@ -219,6 +222,7 @@ def acquire_data_RED(controller, **kwargs):
     tilt_range = kwargs['tilt_range']
     stepsize = kwargs['stepsize']
     wait_interval = kwargs['wait_interval']
+    enable_diff_image = kwargs['enable_diff_image']
     diff_defocus = kwargs['diff_defocus']
     write_tiff = kwargs['write_tiff']
     write_xds = kwargs['write_xds']
@@ -240,17 +244,17 @@ def acquire_data_RED(controller, **kwargs):
                                             flatfield=flatfield)
         if enable_beam_tilt:
             controller.red_exp.start_collection_stage_beam_tilt(exposure_time=exposure_time, stepsize=stepsize, beam_tilt_num=beam_tilt_num,
-                            tilt_num=tilt_num, diff_defocus=diff_defocus, wait_interval=wait_interval) 
+                            tilt_num=tilt_num, enable_diff_image=enable_diff_image, diff_defocus=diff_defocus, wait_interval=wait_interval) 
         else:
             controller.red_exp.start_collection_stage_tilt(exposure_time=exposure_time, tilt_range=tilt_range, stepsize=stepsize, 
-                            diff_defocus=diff_defocus, wait_interval=wait_interval)
+                            enable_diff_image=enable_diff_image, diff_defocus=diff_defocus, wait_interval=wait_interval)
     elif task == 'continue':
         if enable_beam_tilt:
             controller.red_exp.start_collection_stage_beam_tilt(exposure_time=exposure_time, stepsize=stepsize, beam_tilt_num=beam_tilt_num,
-                            tilt_num=tilt_num, diff_defocus=diff_defocus, wait_interval=wait_interval) 
+                            tilt_num=tilt_num, enable_diff_image=enable_diff_image, diff_defocus=diff_defocus, wait_interval=wait_interval) 
         else:
             controller.red_exp.start_collection_stage_tilt(exposure_time=exposure_time, tilt_range=tilt_range, stepsize=stepsize, 
-                            diff_defocus=diff_defocus, wait_interval=wait_interval)
+                            enable_diff_image=enable_diff_image, diff_defocus=diff_defocus, wait_interval=wait_interval)
     elif task == 'stop':
         controller.red_exp.finalize(write_tiff=write_tiff, write_xds=write_xds, write_dials=write_dials, write_red=write_red, 
                                     write_cbf=write_cbf, write_pets=write_pets)

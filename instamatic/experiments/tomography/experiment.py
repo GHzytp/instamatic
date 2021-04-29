@@ -54,7 +54,7 @@ class Experiment:
 
         self.img_ref = None
         self.num_beam_tilt = 0
-        self.imageshift2matrix = config.calibration.image_shift2_matrix
+        self.imageshift2matrix = np.array(config.calibration.image_shift2_matrix).reshape(2, 2)
 
         self.binsize = ctrl.cam.default_binsize
         self.rotation_axis = config.calibration.camera_rotation_vs_stage_xy
@@ -317,12 +317,9 @@ class Experiment:
         self.nframes = i + 1
 
         self.end_angle = end_angle = ctrl.stage.a
-
+        self.magnification = int(self.ctrl.magnification.get())
         self.stepsize = stepsize
         self.exposure_time = exposure_time
-
-        self.current_angle = angle
-        print(f'Done, current angle = {self.current_angle:.2f} degrees')
 
     def start_auto_collection_stage_beam_tilt(self, exposure_time: float, end_angle: float, stepsize: float, wait_interval: float, 
                         align: bool, align_roi: bool, roi: list, continue_event: threading.Event, stop_event: threading.Event, num_beam_tilt: int,
@@ -429,19 +426,9 @@ class Experiment:
         self.nframes = (i + 1) * (self.num_beam_tilt + 1)
 
         self.end_angle = end_angle = ctrl.stage.a
-
+        self.magnification = int(self.ctrl.magnification.get())
         self.stepsize = stepsize
         self.exposure_time = exposure_time
-
-        with open(self.path / 'summary.txt', 'a') as f:
-            print(f'{self.now}: Data collected from {start_angle:.2f} degree to {end_angle:.2f} degree in {len(tilt_positions)} frames.', file=f)
-            print(f'Data collected from {start_angle:.2f} degree to {end_angle:.2f} degree in {len(tilt_positions)} frames.')
-
-        self.logger.info('Data collected from {start_angle:.2f} degree to {end_angle:.2f} degree (magnification: {self.magnification}).')
-
-        self.current_angle = angle
-        print(f'Done, current angle = {self.current_angle:.2f} degrees')
-
 
     def focus_image(self, img):
         """Return the distance of sample movement between the beam tilt"""

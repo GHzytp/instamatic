@@ -1064,7 +1064,7 @@ class CalibrationFrame(LabelFrame):
                     img, h = self.ctrl.get_image(exposure=exposure, out=outfile, comment=comment, header_keys='StagePosition')
                     img = imgscale(img, scale)
 
-                    shift, error, phasediff = phase_cross_correlation(img_cent, img, upsample_factor=10) # strange variation occurr when using different area of the grid, need to check
+                    shift, error, phasediff = phase_cross_correlation(img_cent, img, upsample_factor=10) 
 
                     stageshift = np.array(self.ctrl.stage.xy)
                     stagepos.append(stageshift)
