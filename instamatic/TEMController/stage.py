@@ -331,7 +331,7 @@ class Stage:
         stage = self.get()
         self.set_xy_with_backlash_correction(x=stage.x, y=stage.y, step=step, settle_delay=settle_delay)
 
-    def eliminate_backlash_a(self, target_angle: float = 0.0, step: float = 1.0, n_steps: int = 3, settle_delay: float = 0.200) -> None:
+    def eliminate_backlash_a(self, target_angle: float = 0.0, step: float = 2.0, n_steps: int = 1, settle_delay: float = 0.200) -> None:
         """Eliminate backlash of alpha by relaxing the position. The routine will move
         in opposite direction of the targeted angle by `n_steps`*`step`, and
         walk up to the current tilt angle in `n_steps`. Based on Suloway et

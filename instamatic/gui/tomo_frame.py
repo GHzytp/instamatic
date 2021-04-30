@@ -180,9 +180,9 @@ class ExperimentalTOMO(LabelFrame):
 
         self.var_end_angle = DoubleVar(value=70.0)
         self.var_magnification_index = IntVar(value=7)
-        self.var_defocus = IntVar(value=-5000)
+        self.var_defocus = IntVar(value=-10000)
         self.var_cs = DoubleVar(value=0.0)
-        self.var_beam_tilt = DoubleVar(value=1.0)
+        self.var_beam_tilt = DoubleVar(value=0.1)
         self.var_stage_tilt = DoubleVar(value=5.0)
         self.var_num_beam_tilt = IntVar(value=1)
 
