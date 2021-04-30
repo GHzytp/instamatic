@@ -19,8 +19,8 @@ class ExperimentalTOMO(LabelFrame):
         self.ctrl = TEMController.get_instance()
         self.roi = None
         sbwidth = 7
-        self.collectEvent = threading.Event()
-        self.collectEvent.set()
+        self.continue_event = threading.Event()
+        self.continue_event.set()
         self.stop_event = threading.Event()
 
         try:
@@ -126,6 +126,10 @@ class ExperimentalTOMO(LabelFrame):
         self.e_auto_tomo_option = OptionMenu(frame, self.var_auto_tomo_option, 'stage tilt only', *auto_tomo_option)
         self.e_auto_tomo_option.grid(row=2, column=6, columnspan=2, sticky='W')
 
+        Label(frame, text='Num beam tilt').grid(row=3, column=0, sticky='W')
+        self.e_watershed_a = Spinbox(frame, textvariable=self.var_num_beam_tilt, width=sbwidth, from_=1, to=8, increment=1)
+        self.e_watershed_a.grid(row=3, column=1, sticky='W', padx=5)
+
         frame.pack(side='top', fill='x', padx=5, pady=5)
 
         frame = Frame(self)
@@ -147,15 +151,15 @@ class ExperimentalTOMO(LabelFrame):
         self.StopAutoButton = Button(frame, text='Stop Auto Collection', command=self.stop_auto_collection, state=DISABLED)
         self.StopAutoButton.grid(row=1, column=2, sticky='EW')
 
-        frame.columnconfigure(0, weight=1)
-        frame.columnconfigure(1, weight=1)
-        frame.columnconfigure(2, weight=1)
+        frame.grid_columnconfigure(0, weight=1)
+        frame.grid_columnconfigure(1, weight=1)
+        frame.grid_columnconfigure(2, weight=1)
 
         frame.pack(side='bottom', fill='x', padx=5, pady=5)
 
         self.stopEvent = threading.Event()
-        self.collectEvent = threading.Event()
-        self.collectEvent.set()
+        self.continue_event = threading.Event()
+        self.continue_event.set()
         
     def init_vars(self):
         self.var_exposure_time = DoubleVar(value=1.0)
@@ -180,6 +184,7 @@ class ExperimentalTOMO(LabelFrame):
         self.var_cs = DoubleVar(value=0.0)
         self.var_beam_tilt = DoubleVar(value=1.0)
         self.var_stage_tilt = DoubleVar(value=5.0)
+        self.var_num_beam_tilt = IntVar(value=1)
 
         self.var_watershed_a = DoubleVar(value=40.0)
         self.var_low_interval = IntVar(value=1)
@@ -187,11 +192,11 @@ class ExperimentalTOMO(LabelFrame):
         self.var_auto_tomo_option = StringVar(value='stage tilt only')
 
     def pause_or_continue_auto_collection(self):
-        if self.collectEvent.is_set():
-            self.collectEvent.clear()
+        if self.continue_event.is_set():
+            self.continue_event.clear()
             self.PauseAutoButton.config(text='Continue')
         else:
-            self.collectEvent.set()
+            self.continue_event.set()
             self.PauseAutoButton.config(text='Pause')
 
     def do_align(self):
@@ -314,6 +319,7 @@ class ExperimentalTOMO(LabelFrame):
         params['cs'] = self.var_cs.get()
         params['defocus'] = self.var_defocus.get()
         params['beam_tilt'] = self.var_beam_tilt.get()
+        params['num_beam_tilt'] = self.var_num_beam_tilt.get()
         self.q.put(('tomo_auto', params))
         self.triggerEvent.set()
 
@@ -395,27 +401,27 @@ def acquire_data_TOMO_auto(controller, **kwargs):
     cs = kwargs['cs']
     beam_tilt = kwargs['beam_tilt']
 
-    watershed_angle = params['watershed_angle']
-    high_angle_interval = params['high_angle_interval']
-    low_angle_interval = params['low_angle_interval']
+    watershed_angle = kwargs['watershed_angle']
+    high_angle_interval = kwargs['high_angle_interval']
+    low_angle_interval = kwargs['low_angle_interval']
 
     flatfield = controller.module_io.get_flatfield()
     expdir = controller.module_io.get_new_experiment_directory()
     expdir.mkdir(exist_ok=True, parents=True)
 
     tomo_exp = TOMO.Experiment(ctrl=controller.ctrl, path=expdir, log=controller.log, flatfield=flatfield)
-    if params['auto_tomo_option'] == 'stage tilt only':
-        tomo_exp.start_auto_collection_stage_tilt(exposure_time=exposure_time, end_angle=end_angle, stepsize=stepsize, wait_interval=wait_interval, 
+    if kwargs['auto_tomo_option'] == 'stage tilt only':
+        success = tomo_exp.start_auto_collection_stage_tilt(exposure_time=exposure_time, end_angle=end_angle, stepsize=stepsize, wait_interval=wait_interval, 
                             align=align, align_roi=align_roi, roi=roi, continue_event=continue_event, stop_event=stop_event, cs=cs, defocus=defocus, 
                             beam_tilt=beam_tilt, watershed_angle=watershed_angle, high_angle_interval=high_angle_interval, low_angle_interval=low_angle_interval)
-    elif params['auto_tomo_option'] == 'stage and beam tilt':
+    elif kwargs['auto_tomo_option'] == 'stage and beam tilt':
         num_beam_tilt = kwargs['num_beam_tilt']
-        tomo_exp.start_auto_collection_stage_beam_tilt(exposure_time=exposure_time, end_angle=end_angle, stepsize=stepsize, wait_interval=wait_interval, 
+        success = tomo_exp.start_auto_collection_stage_beam_tilt(exposure_time=exposure_time, end_angle=end_angle, stepsize=stepsize, wait_interval=wait_interval, 
                             align=align, align_roi=align_roi, roi=roi, continue_event=continue_event, stop_event=stop_event, num_beam_tilt=num_beam_tilt, 
                             cs=cs, defocus=defocus, watershed_angle=watershed_angle, high_angle_interval=high_angle_interval, low_angle_interval= low_angle_interval)
-    tomo_exp.finalize(write_tiff=write_tiff, write_mrc=write_mrc)
-   
-    controller.log.info('Finish automatic tomography data collection experiment')
+    if success:
+        tomo_exp.finalize(write_tiff=write_tiff, write_mrc=write_mrc)
+        controller.log.info('Finish automatic tomography data collection experiment')
 
 def eucentric_auto(controller, **kwargs):
     controller.log.info('Start automatic eucentric height')

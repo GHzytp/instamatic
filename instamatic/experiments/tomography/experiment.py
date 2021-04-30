@@ -55,6 +55,7 @@ class Experiment:
         self.img_ref = None
         self.num_beam_tilt = 0
         self.imageshift2matrix = np.array(config.calibration.image_shift2_matrix).reshape(2, 2)
+        self.beam_tilt_matrix_D = np.array(config.calibration.beam_tilt_matrix_D).reshape(2, 2)
 
         self.binsize = ctrl.cam.default_binsize
         self.rotation_axis = config.calibration.camera_rotation_vs_stage_xy
@@ -255,6 +256,7 @@ class Experiment:
         self.logger.info(f'Exposure time: {exposure_time} s, End angle: {end_angle}, step size: {stepsize}')
         
         self.start_angle = start_angle = ctrl.stage.a
+        self.ctrl.imageshift2.set(0, 0)
 
         if stepsize < 0:
             if end_angle >= start_angle:
@@ -266,15 +268,19 @@ class Experiment:
                 return 0
 
         ctrl.stage.eliminate_backlash_a(target_angle=end_angle)
-        beam_shift = np.array([0, 0])
+        beam_shift = np.array([0.0, 0.0])
+        continue_event.set()
+        stop_event.clear()
+
+        if not messagebox.askokcancel("Continue", "Check target position and continue"):
+            return False
 
         tilt_positions = np.arange(start_angle, end_angle, stepsize)
         print(f'\nStart_angle: {start_angle:.3f}')
 
-        for i, angle in enumerate(tqdm(tilt_positions)):
+        for i, angle in enumerate(tqdm(tilt_positions), 1):
             continue_event.wait()
-
-            if stop_event.set():
+            if stop_event.is_set():
                 break
 
             ctrl.stage.a = angle          
@@ -295,7 +301,7 @@ class Experiment:
             
             img, h = self.obtain_image(exposure_time, align, align_roi, roi)
 
-            if i == 0:
+            if i == 1:
                 img_ref = img
 
             # suppose eccentric height is near 0 degree
@@ -306,20 +312,26 @@ class Experiment:
             
             if np.linalg.norm(beam_shift) >= 1000:
                 x,y = self.ctrl.stage.xy
-                stage_shift = beam_shift @ np.linalg.inv(self.imageshift2matrix) / h['ImagePixelsize'] @ stage_matrix
+                stage_shift = -beam_shift @ np.linalg.inv(self.imageshift2matrix) @ stage_matrix
                 self.ctrl.stage.set(x=x+stage_shift[0], y=y+stage_shift[1]) # almost up y+, right x+
-                beam_shift = np.array([0, 0])
+                beam_shift = np.array([0.0, 0.0])
 
             self.ctrl.imageshift2.set(beam_shift[0], beam_shift[1]) # almost up y+, right x+
 
             self.buffer.append((i, img, h))
 
-        self.nframes = i + 1
+        if stop_event.is_set():
+            self.nframes = i
+        else:
+            self.nframes = i + 1
 
         self.end_angle = end_angle = ctrl.stage.a
         self.magnification = int(self.ctrl.magnification.get())
         self.stepsize = stepsize
         self.exposure_time = exposure_time
+        self.ctrl.imageshift2.set(0, 0)
+
+        return True
 
     def start_auto_collection_stage_beam_tilt(self, exposure_time: float, end_angle: float, stepsize: float, wait_interval: float, 
                         align: bool, align_roi: bool, roi: list, continue_event: threading.Event, stop_event: threading.Event, num_beam_tilt: int,
@@ -346,12 +358,12 @@ class Experiment:
         self.num_beam_tilt = num_beam_tilt
         if self.num_beam_tilt % 2 != 0:
             raise RuntimeError('The number of beam tilt must be a even number.')
-        beam_tilt_list = []
+        beam_tilt_angle_list = []
         for i in range(self.num_beam_tilt):
             if i < self.num_beam_tilt // 2:
-                beam_tilt_list.append((i - self.num_beam_tilt // 2) * self.stepsize)
+                beam_tilt_angle_list.append((i - self.num_beam_tilt // 2) * stepsize)
             else:
-                beam_tilt_list.append((i - self.num_beam_tilt // 2 + 1) * self.stepsize)
+                beam_tilt_angle_list.append((i - self.num_beam_tilt // 2 + 1) * stepsize)
         
 
         self.start_angle = start_angle = ctrl.stage.a
@@ -366,23 +378,30 @@ class Experiment:
                 return 0
 
         ctrl.stage.eliminate_backlash_a(target_angle=end_angle)
-        beam_shift = np.array([0, 0])
+        beam_shift = np.array([0.0, 0.0])
+        self.ctrl.imageshift2.set(0, 0)
         img_tilted = []
+        continue_event.set()
+        stop_event.clear()
+
+        if not messagebox.askokcancel("Continue", "Check target position and continue"):
+            return False
 
         tilt_positions = np.arange(start_angle, end_angle, stepsize * (self.num_beam_tilt+1))
-        print(f'\nStart_angle: {start_angle - (self.num_beam_tilt/2) * self.stepsize:.3f}')
+        print(f'\nStart_angle: {start_angle - (self.num_beam_tilt/2) * stepsize:.3f}')
 
-        for i, angle in enumerate(tqdm(tilt_positions)):
+        for i, angle in enumerate(tqdm(tilt_positions), 1):
             continue_event.wait()
-            if stop_event.set():
+            if stop_event.is_set():
                 break
 
             ctrl.stage.a = angle          
             time.sleep(wait_interval)
             img_0, h = self.obtain_image(exposure_time, align, align_roi, roi)
 
-            for beam_tilt in beam_tilt_list:
-                self.ctrl.beamtilt.set(x=beam_tilt)
+            for beam_tilt_angle in beam_tilt_angle_list:
+                beam_tilt = np.array([beam_tilt_angle, 0]) @ stage_matrix @ self.beam_tilt_matrix_D
+                self.ctrl.beamtilt.set(x=beam_tilt[0], y=beam_tilt[1])
                 time.sleep(wait_interval)
                 img, h = self.obtain_image(exposure_time, align, align_roi, roi)
                 img_tilted.append(img)
@@ -406,9 +425,9 @@ class Experiment:
             
             if np.linalg.norm(beam_shift) >= 1000:
                 x, y = self.ctrl.stage.xy
-                stage_shift = beam_shift @ np.linalg.inv(self.imageshift2matrix) / h['ImagePixelsize'] @ stage_matrix
+                stage_shift = beam_shift @ np.linalg.inv(self.imageshift2matrix) @ stage_matrix
                 self.ctrl.stage.set(x=x+stage_shift[0], y=y+stage_shift[1]) # almost up y+, right x+
-                beam_shift = np.array([0, 0])
+                beam_shift = np.array([0.0, 0.0])
 
             self.ctrl.imageshift2.set(beam_shift[0], beam_shift[1]) # almost up y+, right x+
 
@@ -423,12 +442,18 @@ class Experiment:
             self.ctrl.objfocus.set(current_defocus+delta_defocus)
             img_tilted = []
 
-        self.nframes = (i + 1) * (self.num_beam_tilt + 1)
+        if stop_event.is_set():
+            self.nframes = i * (self.num_beam_tilt + 1)
+        else:
+            self.nframes = (i + 1) * (self.num_beam_tilt + 1)
 
         self.end_angle = end_angle = ctrl.stage.a
         self.magnification = int(self.ctrl.magnification.get())
         self.stepsize = stepsize
         self.exposure_time = exposure_time
+        self.ctrl.imageshift2.set(0, 0)
+
+        return True
 
     def focus_image(self, img):
         """Return the distance of sample movement between the beam tilt"""
@@ -497,6 +522,8 @@ class Experiment:
 
         print('Data Collection and Conversion Done.')
         print()
+
+        self.num_beam_tilt = 0
 
         return True
 

@@ -387,12 +387,12 @@ class ExperimentalZoneAxis(LabelFrame):
             self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][camera_length] * self.binsize 
         else:
             self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][camera_length] * self.binsize * software_binsize 
-        self.stage_matrix = np.pi / 180 * 2 / self.wavelength * np.array(config.calibration[self.ctrl.mode.state]['stagematrix'][camera_length]).reshape(2, 2) * self.pixelsize
+        self.stage_matrix = np.pi / 180 * 2 / self.wavelength * np.array(config.calibration[self.ctrl.mode.state]['stagematrix'][camera_length]).reshape(2, 2)
         self.stage_bak = self.ctrl.stage.get()
 
         laue_circle_center = np.array([self.var_laue_circle_x.get(), self.var_laue_circle_y.get()])[::-1]
         beam_center = np.array([self.var_center_x.get(), self.var_center_y.get()])[::-1]
-        movement = pixelsize * (beam_center - laue_circle_center) @ np.linalg.inv(self.stage_matrix)  # unit: degree
+        movement = self.pixelsize * (beam_center - laue_circle_center) @ np.linalg.inv(self.stage_matrix)  # unit: degree
         alpha_target = self.stage_bak.a + movement[0]
         beta_target = self.stage_bak.b + movement[1]
 
