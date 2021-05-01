@@ -564,7 +564,7 @@ class CalibrationFrame(LabelFrame):
                     self.ctrl.beamtilt.set(x=x_cent + dx, y=y_cent + dy)
                     time.sleep(self.wait_interval)
                     self.lb_coll1.config(text=str(pbar))
-                    outfile = self.beamtilt_calib_path / f'calib_beamshift_{i:04d}'
+                    outfile = self.beamtilt_calib_path / f'calib_beamtilt_{i:04d}'
 
                     comment = f'Calib beam tilt {i}: dx={dx} - dy={dy}'
                     img, h = self.ctrl.get_image(exposure=exposure, out=outfile, comment=comment, header_keys='BeamTilt')
@@ -1058,7 +1058,7 @@ class CalibrationFrame(LabelFrame):
                 for dx, dy in np.stack([x_grid, y_grid]).reshape(2, -1).T:
                     self.backlash_correction((x_cent+dx, y_cent+dy))
                     self.lb_coll1.config(text=str(pbar))
-                    outfile = self.stage_calib_path / f'calib_beamshift_{i:04d}'
+                    outfile = self.stage_calib_path / f'calib_stage_{i:04d}'
 
                     comment = f'Calib stage {i}: dx={dx} - dy={dy}'
                     img, h = self.ctrl.get_image(exposure=exposure, out=outfile, comment=comment, header_keys='StagePosition')

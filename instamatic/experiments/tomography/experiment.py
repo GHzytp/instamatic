@@ -158,6 +158,7 @@ class Experiment:
         print(f"Drift {-beam_tilt} -> {-beam_tilt}: {np.linalg.norm(shift_drift)} nm")
         # Measured defocus
         direction =  self.calc_direction(shift_focus, beam_tilt, self.beam_tilt_matrix_img)
+        # Actual defocus is the opposite of the direction to 0 defocus
         measured_defocus = - direction * (np.linalg.norm(shift_focus) / 2 / np.tan(np.deg2rad(beam_tilt)) - cs * 1e6 * np.tan(np.deg2rad(beam_tilt))**2)
         print(f'Meansured defocus: {measured_defocus} nm')
         self.ctrl.beamtilt.x = 0
@@ -186,8 +187,11 @@ class Experiment:
             self.ctrl.objfocus.set(target_focus+delta_defocus_fine-defocus)
 
     def calc_direction(self, shift, tilt, matrix_angle):
+        # Calculate the direction to obtain 0 defocus (in focus) results. 
+        # For defocus adjustment, the actual defocus value needs to be calculated, so minus is added
         # shift calculated from images obtained at -tilt to +tilt, shift consistent with numpy convention (Y, X)
         # pos = shift @ matrix => shift = pos @ inv(matrix)
+        # The coodination system of shift will not change, while the coodination system of pos will change.
         arr = np.array([tilt, 0]) @ np.linalg.inv(matrix_angle)
         if tilt > 0:
             if shift @ arr < 0:
@@ -208,7 +212,8 @@ class Experiment:
         if image_mode in ('diff', 'D'):
             raise RuntimeError('Must in imaging mode to perform auto eucentric height.')
 
-        self.ctrl.objfocus.set(defocus)
+        current_defocus = self.ctrl.objfocus.value
+        self.ctrl.objfocus.set(current_defocus+defocus)
         # Acquiring image at 0°
         self.ctrl.stage.a = 0
         self.ctrl.stage.eliminate_backlash_a(target_angle=-stage_tilt)
@@ -293,6 +298,9 @@ class Experiment:
         if not messagebox.askokcancel("Continue", "Check target position and continue"):
             return False
 
+        current_defocus = self.ctrl.objfocus.value
+        self.ctrl.objfocus.set(current_defocus+defocus)
+
         tilt_positions = np.arange(start_angle, end_angle, stepsize)
         print(f'\nStart_angle: {start_angle:.3f}')
 
@@ -305,16 +313,14 @@ class Experiment:
             time.sleep(wait_interval)
             # adjust defocus
             if np.abs(angle) > watershed_angle and (i + 1) % high_angle_interval == 0:
-                current_defocus = self.ctrl.objfocus.value
-                delta_defocus = self.get_current_defocus(exposure_time=exposure_time, wait_interval=wait_interval, align=align, 
+                delta_defocus = defocus - self.get_current_defocus(exposure_time=exposure_time, wait_interval=wait_interval, align=align, 
                             align_roi=align_roi, roi=roi, cs=cs, defocus=current_defocus+defocus, beam_tilt=beam_tilt)
-                self.ctrl.objfocus.set(current_defocus+defocus+delta_defocus)
+                current_defocus = current_defocus + delta_defocus
                 time.sleep(wait_interval)
             elif np.abs(angle) <= watershed_angle and (i + 1) % low_angle_interval == 0:
-                current_defocus = self.ctrl.objfocus.value
-                delta_defocus = self.get_current_defocus(exposure_time=exposure_time, wait_interval=wait_interval, align=align, 
+                delta_defocus = defocus - self.get_current_defocus(exposure_time=exposure_time, wait_interval=wait_interval, align=align, 
                             align_roi=align_roi, roi=roi, cs=cs, defocus=current_defocus+defocus, beam_tilt=beam_tilt)
-                self.ctrl.objfocus.set(current_defocus+defocus+delta_defocus)
+                current_defocus = current_defocus + delta_defocus
                 time.sleep(wait_interval)
             
             img, h = self.obtain_image(exposure_time, align, align_roi, roi)
@@ -408,6 +414,9 @@ class Experiment:
         tilt_positions = np.arange(start_angle, end_angle, stepsize * (self.num_beam_tilt+1))
         print(f'\nStart_angle: {start_angle - (self.num_beam_tilt/2) * stepsize:.3f}')
 
+        current_defocus = self.ctrl.objfocus.value
+        self.ctrl.objfocus.set(current_defocus+defocus)
+
         for i, angle in enumerate(tqdm(tilt_positions), 1):
             continue_event.wait()
             if stop_event.is_set():
@@ -437,7 +446,7 @@ class Experiment:
                 counter += 1
 
             # suppose eccentric height is near 0 degree, adjust beam position or stage position
-            shift = self.calc_shift_images(img_ref, img, align_roi, roi) # down y+, right x+
+            shift = self.calc_shift_images(img_ref, img_0, align_roi, roi) # down y+, right x+
             shift = shift * h['ImagePixelsize'] @ self.imageshift2matrix
             beam_shift += shift
             
@@ -450,14 +459,15 @@ class Experiment:
             self.ctrl.imageshift2.set(beam_shift[0], beam_shift[1]) # almost up y+, right x+
 
             # adjust defocus
-            current_defocus = self.ctrl.objfocus.value
             shift_focus = self.calc_shift_images(img_tilted[0], img_tilted[-1], align_roi, roi)
             shift_focus = shift_focus * h['ImagePixelsize']
             print(f"Beam tilt {-self.num_beam_tilt // 2 * stepsize} -> {self.num_beam_tilt // 2 * stepsize} shift: {shift_focus} nm")
             # Measured defocus
-            delta_defocus = np.linalg.norm(shift_focus) / 2 / np.tan(np.deg2rad(self.num_beam_tilt // 2 * stepsize)) - cs * 1e6 * np.tan(np.deg2rad(self.num_beam_tilt // 2 * stepsize))**2
-            print(f'Meansured defocus: {delta_defocus} nm')
-            self.ctrl.objfocus.set(current_defocus+delta_defocus)
+            direction =  self.calc_direction(shift_focus, self.num_beam_tilt//2*stepsize, self.beam_tilt_matrix_img)
+            delta_defocus = defocus + direction * np.linalg.norm(shift_focus) / 2 / np.tan(np.deg2rad(self.num_beam_tilt // 2 * stepsize)) - cs * 1e6 * np.tan(np.deg2rad(self.num_beam_tilt // 2 * stepsize))**2
+            print(f'Change defocus: {delta_defocus} nm')
+            current_defocus = current_defocus + delta_defocus
+            self.ctrl.objfocus.set(current_defocus+defocus)
             img_tilted = []
 
         if stop_event.is_set():

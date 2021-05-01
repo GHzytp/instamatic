@@ -173,8 +173,9 @@ class Experiment:
             else:
                 self.pixelsize = config.calibration[self.ctrl.mode.state]['pixelsize'][self.camera_length] * self.binsize * software_binsize 
                 self.physical_pixelsize = config.camera.physical_pixelsize * self.binsize * software_binsize 
-            # shift in Å-1 = angle(degree) * matrix    theta = arcsin(1/d * lambda/2) * 180/pi = 1/d * lambda/2 * 180/pi
-            self.stage_matrix = np.pi / 180 * 2 / self.wavelength * np.array(config.calibration[self.ctrl.mode.state]['stagematrix'][self.camera_length]).reshape(2, 2) * self.pixelsize
+            # shift in angle(degree) = Å^-1 * matrix    sin(theta*pi/180)*2/lambda = 1/d
+            # theta = arcsin(1/d * lambda/2) * 180/pi = 1/d * lambda/2 * 180/pi
+            self.stage_matrix = np.array(config.calibration[self.ctrl.mode.state]['stagematrix'][self.camera_length]).reshape(2, 2)
 
         for _ in range(tilt_num):
             if self.current_angle is None:
@@ -189,11 +190,11 @@ class Experiment:
             print(f'\nStart_angle: {start_angle:.3f}')
 
             for i, angle in enumerate(tqdm(beam_tilt_positions)):
-                # angle change (degree) -> shift in diff pattern (stage_matrix in diff mode, Å-1) -> beam_tilt
-                beam_tilt = np.array([angle, 0]) @ self.stage_matrix @ self.beam_tilt_matrix_D + self.beamtilt_bak
+                # stage angle change (degree) -> shift in diff pattern (stage_matrix in diff mode, Å-1) -> beam_tilt
+                beam_tilt = 2 / self.wavelength * np.sin(np.pi/180*np.array([angle, 0])) @ np.linalg.inv(self.stage_matrix) @ self.beam_tilt_matrix_D + self.beamtilt_bak
                 self.ctrl.beamtilt.set(x=beam_tilt[0], y=beam_tilt[1])
                 # beam-tilt induced shift in diffraction pattern compensated by diffraction shift
-                diffraction_shift = - beam_tilt @ np.linalg.inv(self.beam_tilt_matrix_D) @ self.diffraction_shift_matrix + self.diffraction_shift_bak
+                diffraction_shift = - (beam_tilt - self.beamtilt_bak) @ np.linalg.inv(self.beam_tilt_matrix_D) @ self.diffraction_shift_matrix + self.diffraction_shift_bak
                 self.ctrl.diffshift.set(x=diffraction_shift[0], y=diffraction_shift[1])
                 time.sleep(wait_interval/2)
                 j = i + self.offset

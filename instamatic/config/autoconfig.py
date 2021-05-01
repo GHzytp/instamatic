@@ -173,6 +173,22 @@ It establishes a connection to the microscope and reads out the camera lengths a
             tem_config[holder_name]['stageLimit']['a'] = a
             tem_config[holder_name]['stageLimit']['b'] = b
 
+        tem_config['SpeedTable'] = {1.00: 21.14,
+                                    0.90: 19.61,
+                                    0.80: 18.34,
+                                    0.70: 16.90,
+                                    0.60: 14.85,
+                                    0.50: 12.69,
+                                    0.40: 10.62,
+                                    0.30: 8.20,
+                                    0.20: 5.66,
+                                    0.10: 2.91,
+                                    0.05: 1.48,
+                                    0.04: 1.18,
+                                    0.03: 0.888,
+                                    0.02: 0.593,
+                                    0.01: 0.297}
+
     for mode, rng in ranges.items():
         try:
             tem_config['ranges'][mode] = rng
@@ -181,8 +197,18 @@ It establishes a connection to the microscope and reads out the camera lengths a
             tem_config['ranges'][mode] = rng
 
     calib_config = {}
-    calib_config['name'] = f'{tem_name}_{cam_name}'
+    calib_config['interface'] = f'{tem_name}'
+    calib_config['mode'] = 'tem'
     calib_config['camera_rotation_vs_stage_xy'] = 0
+    calib_config['stretch_amplitude'] = 0
+    calib_config['stretch_azimuth'] = 0
+    calib_config['beam_shift_matrix'] = [1, 0, 0, 1]
+    calib_config['beam_tilt_matrix_D'] = [1, 0, 0, 1]
+    calib_config['beam_tilt_matrix_img'] = [1, 0, 0, 1]
+    calib_config['stage_matrix_angle'] = [1, 0, 0, 1]
+    calib_config['image_shift1_matrix'] = [1, 0, 0, 1]
+    calib_config['image_shift2_matrix'] = [1, 0, 0, 1]
+    calib_config['diffraction_shift_matrix'] = [1, 0, 0, 1]
     # Find magnification ranges
 
     for mode, rng in ranges.items():
