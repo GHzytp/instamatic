@@ -698,9 +698,55 @@ class CryoEDFrame(LabelFrame):
             for index in range(len(self.df_grid)):
                 self.tv_whole_grid.insert("",'end', text="Item_"+str(index), values=(index, self.df_grid.loc[index,'pos_x'],self.df_grid.loc[index,'pos_y']))
 
+    def get_params(self, task=None):
+        params = {}
+        return params
+
+def auto_eucentric_height(controller, **kwargs):
+    from instamatic.experiments import TOMO
+    
+    flatfield = controller.module_io.get_flatfield()
+
+    tomo_exp = TOMO.Experiment(ctrl=controller.ctrl, log=controller.log, flatfield=flatfield)
+    success = tomo_exp.start_auto_eucentric_height(**kwargs)
+
+def from_whole_grid_list(controller, **kwargs):
+    controller.log.info('Start acquiring grid square images from whole grid list.')
+    from instamatic.experiments import Atlas
+
+    flatfield = controller.module_io.get_flatfield()
+
+    atlas_exp = Atlas.Experiment(ctrl=controller.ctrl, log=controller.log, flatfield=flatfield)
+    success = atlas_exp.from_whole_grid_list(**kwargs)
+   
+    controller.log.info('Finish obtaining grid square images from whole grid list.')
+
+def from_grid_square_list(controller, **kwargs):
+    controller.log.info('Start acquiring target images from grid square list.')
+    from instamatic.experiments import Atlas
+
+    flatfield = controller.module_io.get_flatfield()
+
+    atlas_exp = Atlas.Experiment(ctrl=controller.ctrl, log=controller.log, flatfield=flatfield)
+    success = atlas_exp.from_grid_square_list(**kwargs)
+   
+    controller.log.info('Finish obtaining target images from grid square list.')
+
+def from_target_list(controller, **kwargs):
+    controller.log.info('Start acquiring target images from target list.')
+    from instamatic.experiments import Atlas
+
+    flatfield = controller.module_io.get_flatfield()
+
+    atlas_exp = Atlas.Experiment(ctrl=controller.ctrl, log=controller.log, flatfield=flatfield)
+    success = atlas_exp.from_target_list(**kwargs)
+   
+    controller.log.info('Finish obtaining target images from target list.')
+
 
 module = BaseModule(name='cryo', display_name='CryoED', tk_frame=CryoEDFrame, location='bottom')
-commands = {}
+commands = {'auto_height': auto_eucentric_height, 'from_whole_grid_list': from_whole_grid_list, 'from_grid_square_list':from_grid_square_list,
+            'from_target_list': from_target_list}
 
 if __name__ == '__main__':
     root = Tk()

@@ -42,10 +42,7 @@ class Experiment:
             self.path = Path(path)
         except:
             self.path = Path('.')
-
         self.logger = log
-        self.camtype = ctrl.cam.name
-
         self.flatfield = flatfield
 
         self.offset = 0
@@ -254,6 +251,7 @@ class Experiment:
             z = self.ctrl.stage.z
             self.ctrl.stage.z = z + delta_z
             self.ctrl.stage.a = 0
+        self.ctrl.objfocus.set(current_defocus)
 
 
     def start_auto_collection_stage_tilt(self, exposure_time: float, end_angle: float, stepsize: float, wait_interval: float, 
