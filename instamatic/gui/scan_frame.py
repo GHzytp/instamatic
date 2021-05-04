@@ -16,11 +16,20 @@ class ExperimentalScan(LabelFrame):
     def __init__(self, parent):
         LabelFrame.__init__(self, parent, text='Scan')
         self.parent = parent
+        self.binsize = self.ctrl.cam.default_binsize
+        self.ctrl = TEMController.get_instance()
 
         self.init_vars()
 
     def init_vars(self):
-        pass
+        self.var_exposure_time = DoubleVar(value=BEAMSCAN_OVERHEAD)
+        self.var_scan_pattern = StringVar(value='XY scan')
+        self.var_n = IntVar(value=5)
+        self.var_nx = IntVar(value=5)
+        self.var_ny = IntVar(value=5)
+        self.var_angle = DoubleVar(value=1.0)
+        self.var_num_sampling = IntVar(value=60)
+        
 
     def get_params(self, task=None):
         params = {}

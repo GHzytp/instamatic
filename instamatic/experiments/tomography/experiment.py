@@ -133,18 +133,20 @@ class Experiment:
 
     def get_current_defocus(self, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, 
                         roi: list, cs: float, defocus: int, beam_tilt: float):
+        self.ctrl.beamtilt.xy = 0
+        beamtilt = 2 / self.wavelength * np.sin(np.pi/180*np.array([beam_tilt, 0])) @ self.beam_tilt_matrix_D
         # Applying defocus
         self.ctrl.objfocus.set(defocus)
         # Acquiring image at negative beam tilt
-        self.ctrl.beamtilt.x = -beam_tilt
+        self.ctrl.beamtilt.xy = -beamtilt
         time.sleep(wait_interval)
         img_negative_1, h = self.obtain_image(exposure_time, align, align_roi, roi)
         # Acquiring image at positive beam tilt
-        self.ctrl.beamtilt.x = beam_tilt
+        self.ctrl.beamtilt.xy = beamtilt
         time.sleep(wait_interval)
         img_positive, h = self.obtain_image(exposure_time, align, align_roi, roi)
         # Acquiring image at negative beam tilt
-        self.ctrl.beamtilt.x = -beam_tilt
+        self.ctrl.beamtilt.xy = -beamtilt
         time.sleep(wait_interval)
         img_negative_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
         # Measuring shift...
@@ -158,7 +160,7 @@ class Experiment:
         # Actual defocus is the opposite of the direction to 0 defocus
         measured_defocus = - direction * (np.linalg.norm(shift_focus) / 2 / np.tan(np.deg2rad(beam_tilt)) - cs * 1e6 * np.tan(np.deg2rad(beam_tilt))**2)
         print(f'Meansured defocus: {measured_defocus} nm')
-        self.ctrl.beamtilt.x = 0
+        self.ctrl.beamtilt.xy = 0
 
         return measured_defocus
 
@@ -425,7 +427,7 @@ class Experiment:
             img_0, h = self.obtain_image(exposure_time, align, align_roi, roi)
 
             for beam_tilt_angle in beam_tilt_angle_list:
-                beam_tilt = np.array([beam_tilt_angle, 0]) @ stage_matrix @ self.beam_tilt_matrix_D
+                beam_tilt = 2 / self.wavelength * np.sin(np.pi/180*np.array([beam_tilt_angle, 0])) @ self.beam_tilt_matrix_D
                 self.ctrl.beamtilt.set(x=beam_tilt[0], y=beam_tilt[1])
                 time.sleep(wait_interval)
                 img, h = self.obtain_image(exposure_time, align, align_roi, roi)
