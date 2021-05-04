@@ -42,8 +42,14 @@ class Experiment:
             img, h = self.ctrl.get_image(exposure_time, align=align)
         return img, h
 
-    def collect_grid_square_img_from_list(self, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, roi: list):
+    def from_whole_grid_list(self, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, roi: list):
+        # go to the position at grid square level, find the eucentric height, take an image
         pass
 
-    def collect_target_img_from_list(self, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, roi: list):
+    def from_grid_square_list(self, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, roi: list):
+        # go to the position at target level, predict the eucentric height, take an image
+        pass 
+
+    def from_target_list(self, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, roi: list):
+        # In diffraction mode, use beam shift to each crystal location and collection diffraction pattern.
         pass 
