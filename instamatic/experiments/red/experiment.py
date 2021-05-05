@@ -162,9 +162,6 @@ class Experiment:
             print('Must in diffraction mode to perform RED data collection.')
             return
 
-        self.beamtilt_bak = ctrl.beamtilt.get()
-        self.diffraction_shift_bak = ctrl.diffshift.get()
-
         if self.pixelsize is None:
             self.camera_length = int(self.ctrl.magnification.get())
             software_binsize = config.settings.software_binsize
@@ -179,6 +176,8 @@ class Experiment:
 
         for _ in range(tilt_num):
             if self.current_angle is None:
+                self.ctrl.beamtilt.set(x=0, y=0)
+                self.ctrl.diffshift.set(x=0, y=0)
                 self.start_angle = start_angle = ctrl.stage.a
                 ctrl.stage.eliminate_backlash_a(target_angle=start_angle+stepsize/2)
                 if not messagebox.askokcancel("Continue", "Check crystal position and continue"):
@@ -189,14 +188,15 @@ class Experiment:
             beam_tilt_positions = np.linspace(start_angle - stepsize/2, start_angle + stepsize/2, beam_tilt_num + 1)
             print(f'\nStart_angle: {start_angle:.3f}')
 
-            for i, angle in enumerate(tqdm(beam_tilt_positions)):
+            for i, angle in enumerate(tqdm(beam_tilt_positions-start_angle)):
                 # stage angle change (degree) -> shift in diff pattern (stage_matrix_angle_D in diff mode, Å-1) -> beam_tilt
-                beam_tilt = 2 / self.wavelength * np.sin(np.pi/180*np.array([angle, 0])) @ np.linalg.inv(self.stage_matrix_angle_D) @ self.beam_tilt_matrix_D + self.beamtilt_bak
+                beam_tilt = 2 / self.wavelength * np.sin(np.pi/180*np.array([angle, 0])) @ np.linalg.inv(self.stage_matrix_angle_D) @ self.beam_tilt_matrix_D
+                print(angle, beam_tilt)
                 self.ctrl.beamtilt.set(x=beam_tilt[0], y=beam_tilt[1])
                 # beam-tilt induced shift in diffraction pattern compensated by diffraction shift
-                diffraction_shift = - (beam_tilt - self.beamtilt_bak) @ np.linalg.inv(self.beam_tilt_matrix_D) @ self.diffraction_shift_matrix + self.diffraction_shift_bak
+                diffraction_shift = - beam_tilt @ np.linalg.inv(self.beam_tilt_matrix_D) @ self.diffraction_shift_matrix
                 self.ctrl.diffshift.set(x=diffraction_shift[0], y=diffraction_shift[1])
-                time.sleep(wait_interval/2)
+                time.sleep(wait_interval)
                 j = i + self.offset
                 img, h = self.ctrl.get_image(exposure_time)
                 self.buffer.append((j, img, h))
@@ -213,7 +213,7 @@ class Experiment:
 
             self.logger.info(f'Data collected from {start_angle-stepsize/2:.2f} degree to {start_angle+stepsize/2:.2f} degree (camera length: {self.camera_length} mm).')
 
-            self.current_angle = angle
+            self.current_angle = angle + start_angle
             print(f'Done, current angle = {self.current_angle:.2f} degrees')
 
         if enable_diff_image:
@@ -242,9 +242,9 @@ class Experiment:
         self.cbf_path = self.path / 'CBF' if write_cbf else None
 
         if self.enable_beam_tilt:
+            self.ctrl.beamtilt.set(x=0, y=0)
+            self.ctrl.diffshift.set(x=0, y=0)
             stepsize = self.stepsize / self.beam_tilt_num
-            self.ctrl.beamtilt.xy = self.beamtilt_bak
-            self.ctrl.diffshift.xy = self.diffraction_shift_bak
         else:
             stepsize = self.stepsize
 

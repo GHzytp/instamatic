@@ -184,7 +184,7 @@ class ExperimentalTOMO(LabelFrame):
         self.var_cs = DoubleVar(value=0.0)
         self.var_beam_tilt = DoubleVar(value=0.1)
         self.var_stage_tilt = DoubleVar(value=5.0)
-        self.var_num_beam_tilt = IntVar(value=1)
+        self.var_num_beam_tilt = IntVar(value=2)
 
         self.var_watershed_a = DoubleVar(value=40.0)
         self.var_low_interval = IntVar(value=1)
