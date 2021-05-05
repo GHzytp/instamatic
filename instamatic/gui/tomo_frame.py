@@ -441,7 +441,8 @@ def eucentric_auto(controller, **kwargs):
     success = tomo_exp.start_auto_eucentric_height(exposure_time=exposure_time, wait_interval=wait_interval, align=align, align_roi=align_roi, 
                         roi=roi, defocus=defocus, stage_tilt=stage_tilt)
    
-    controller.log.info('Finish automatic eucentric height')
+    if success:
+        controller.log.info('Finish automatic eucentric height')
 
 def focus_auto(controller, **kwargs):
     controller.log.info('Start automatic focusing')
@@ -462,7 +463,8 @@ def focus_auto(controller, **kwargs):
     success = tomo_exp.start_auto_focus(exposure_time=exposure_time, wait_interval=wait_interval, align=align, align_roi=align_roi, 
                         roi=roi, cs=cs, defocus=defocus, beam_tilt=beam_tilt)
    
-    controller.log.info('Finish automatic focusing')
+    if success:
+        controller.log.info('Finish automatic focusing')
 
 
 module = BaseModule(name='tomo', display_name='TOMO', tk_frame=ExperimentalTOMO, location='bottom')

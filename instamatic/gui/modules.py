@@ -19,6 +19,7 @@ all_modules = (
     'calibration',
     'indexing',
     'zone_axis',
+    'focus_series',
     'console',
     'debug',
     'about',
@@ -48,6 +49,8 @@ for module in modules:
     try:
         for job, function in lib.commands.items():
             if job in JOBS:
+                # bug?
+                print(f'This module: {module}')
                 raise NameError(f'New job `{job}` already exists in `JOBS` listsing!')
             JOBS[job] = function
     except AttributeError:

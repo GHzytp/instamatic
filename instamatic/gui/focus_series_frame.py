@@ -166,7 +166,7 @@ class ExperimentalFocusSeries(LabelFrame):
         pass
 
 
-module = BaseModule(name='FocusSeries', display_name='FocusSeries', tk_frame=ExperimentalFocusSeries, location='bottom')
+module = BaseModule(name='focus_series', display_name='Focus Series', tk_frame=ExperimentalFocusSeries, location='bottom')
 commands = {}
 
 if __name__ == '__main__':

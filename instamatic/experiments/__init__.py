@@ -6,3 +6,4 @@ from .serialed import experiment as serialED
 from .tomography import experiment as TOMO
 from .FourDSTEM import experiment as FourDSTEM
 from .cred import experiment_xnano as cRED_XNano
+from .grid_atlas import experiment as Atlas

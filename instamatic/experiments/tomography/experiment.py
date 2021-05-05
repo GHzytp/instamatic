@@ -42,10 +42,7 @@ class Experiment:
             self.path = Path(path)
         except:
             self.path = Path('.')
-
         self.logger = log
-        self.camtype = ctrl.cam.name
-
         self.flatfield = flatfield
 
         self.offset = 0
@@ -254,6 +251,7 @@ class Experiment:
             z = self.ctrl.stage.z
             self.ctrl.stage.z = z + delta_z
             self.ctrl.stage.a = 0
+        self.ctrl.objfocus.set(current_defocus)
 
 
     def start_auto_collection_stage_tilt(self, exposure_time: float, end_angle: float, stepsize: float, wait_interval: float, 
@@ -331,12 +329,15 @@ class Experiment:
             # suppose eccentric height is near 0 degree
             
             shift = self.calc_shift_images(img_ref, img, align_roi, roi) # down y+, right x+
+            print(f'Relative shift to img_ref: {shift}')
             shift = shift * h['ImagePixelsize'] @ self.imageshift2matrix
-            beam_shift += shift
+            beam_shift -= shift
             
-            if np.linalg.norm(beam_shift) >= 1000:
+            if np.linalg.norm(beam_shift) >= 2000:
                 x,y = self.ctrl.stage.xy
-                stage_shift = -beam_shift @ np.linalg.inv(self.imageshift2matrix) @ stage_matrix
+                stage_shift = beam_shift / h['ImagePixelsize'] @ np.linalg.inv(self.imageshift2matrix) @ stage_matrix
+                print(stage_matrix)
+                print(f'Beam shift: {beam_shift}; Stage shift: {stage_shift}')
                 self.ctrl.stage.set(x=x+stage_shift[0], y=y+stage_shift[1]) # almost up y+, right x+
                 beam_shift = np.array([0.0, 0.0])
 
@@ -487,12 +488,12 @@ class Experiment:
         """Return the distance of sample movement between the beam tilt"""
         return 0, 0
 
-    def calc_shift_images(self, img, img_ref, align_roi, roi):
+    def calc_shift_images(self, img_ref, img, align_roi, roi):
         """Return the distance between the collected image and the reference image. 1024*1024 image will take 124ms. So subsampling to 512*512. Takes around 23ms"""
         if align_roi:
-            shift, error, phasediff = phase_cross_correlation(img[roi[0][0]:roi[1][0], roi[0][1]:roi[1][1]], img_ref[roi[0][0]:roi[1][0], roi[0][1]:roi[1][1]], upsample_factor=10)
+            shift, error, phasediff = phase_cross_correlation(img_ref[roi[0][0]:roi[1][0], roi[0][1]:roi[1][1]], img[roi[0][0]:roi[1][0], roi[0][1]:roi[1][1]], upsample_factor=10)
         else:
-            shift, error, phasediff = phase_cross_correlation(img, img_ref, upsample_factor=10)
+            shift, error, phasediff = phase_cross_correlation(img_ref, img, upsample_factor=10)
         return shift 
 
     def finalize(self, write_tiff=True, write_mrc=True):
