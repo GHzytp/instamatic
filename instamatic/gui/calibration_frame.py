@@ -962,7 +962,7 @@ class CalibrationFrame(LabelFrame):
             self.lb_coll0.config(text='Diff Shift calibration finished. Please click Diff Shift Calib again to plot.')
 
             with open(self.diffshift_calib_path / 'calib_diffshift.pickle', 'wb') as f:
-                pickle.dump([r, t, shifts, shifts_, pixel_cent], f)
+                pickle.dump([r, t, shifts, shifts_], f)
 
             dct = {}
             dct['shifts'] = shifts.tolist()

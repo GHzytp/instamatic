@@ -55,6 +55,7 @@ class Experiment:
         self.beam_tilt_matrix_D = np.array(config.calibration.beam_tilt_matrix_D).reshape(2, 2)
         self.beam_tilt_matrix_img = np.array(config.calibration.beam_tilt_matrix_img).reshape(2, 2)
         self.stage_matrix_angle = np.array(config.calibration.stage_matrix_angle).reshape(2, 2)
+        self.stage_matrix_angle_D = np.array(config.calibration.stage_matrix_angle_D).reshape(2, 2)
 
         self.binsize = ctrl.cam.default_binsize
         self.rotation_axis = config.calibration.camera_rotation_vs_stage_xy
@@ -133,8 +134,9 @@ class Experiment:
 
     def get_current_defocus(self, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, 
                         roi: list, cs: float, defocus: int, beam_tilt: float):
-        self.ctrl.beamtilt.xy = 0
-        beamtilt = 2 / self.wavelength * np.sin(np.pi/180*np.array([beam_tilt, 0])) @ self.beam_tilt_matrix_D
+        self.ctrl.beamtilt.xy = (0, 0)
+        matrix = np.linalg.inv(self.stage_matrix_angle_D) @ self.beam_tilt_matrix_D
+        beamtilt = 2 / self.wavelength * np.sin(np.pi/180*np.array([beam_tilt, 0])) @ matrix
         # Applying defocus
         self.ctrl.objfocus.set(defocus)
         # Acquiring image at negative beam tilt
@@ -156,11 +158,11 @@ class Experiment:
         shift_drift = self.calc_shift_images(img_negative_1, img_negative_2, align_roi, roi)
         print(f"Drift {-beam_tilt} -> {-beam_tilt}: {np.linalg.norm(shift_drift)} nm")
         # Measured defocus
-        direction =  self.calc_direction(shift_focus, beam_tilt, self.beam_tilt_matrix_img)
+        direction =  self.calc_direction(shift_focus, beam_tilt, matrix)
         # Actual defocus is the opposite of the direction to 0 defocus
         measured_defocus = - direction * (np.linalg.norm(shift_focus) / 2 / np.tan(np.deg2rad(beam_tilt)) - cs * 1e6 * np.tan(np.deg2rad(beam_tilt))**2)
         print(f'Meansured defocus: {measured_defocus} nm')
-        self.ctrl.beamtilt.xy = 0
+        self.ctrl.beamtilt.xy = (0, 0)
 
         return measured_defocus
 
@@ -184,6 +186,8 @@ class Experiment:
                                 align=align, align_roi=align_roi, roi=roi, cs=cs, defocus=target_focus, beam_tilt=beam_tilt)
             print(f'Change of focus is {delta_defocus_fine}.')
             self.ctrl.objfocus.set(target_focus+delta_defocus_fine-defocus)
+        else:
+            self.ctrl.objfocus.set(current_focus)
 
     def calc_direction(self, shift, tilt, matrix_angle):
         # Calculate the direction to obtain 0 defocus (in focus) results. 
@@ -331,12 +335,15 @@ class Experiment:
             # suppose eccentric height is near 0 degree
             
             shift = self.calc_shift_images(img_ref, img, align_roi, roi) # down y+, right x+
+            print(f'Relative shift to img_ref: {shift}')
             shift = shift * h['ImagePixelsize'] @ self.imageshift2matrix
-            beam_shift += shift
+            beam_shift -= shift
             
-            if np.linalg.norm(beam_shift) >= 1000:
+            if np.linalg.norm(beam_shift) >= 2000:
                 x,y = self.ctrl.stage.xy
-                stage_shift = -beam_shift @ np.linalg.inv(self.imageshift2matrix) @ stage_matrix
+                stage_shift = beam_shift / h['ImagePixelsize'] @ np.linalg.inv(self.imageshift2matrix) @ stage_matrix
+                print(stage_matrix)
+                print(f'Beam shift: {beam_shift}; Stage shift: {stage_shift}')
                 self.ctrl.stage.set(x=x+stage_shift[0], y=y+stage_shift[1]) # almost up y+, right x+
                 beam_shift = np.array([0.0, 0.0])
 
@@ -373,12 +380,13 @@ class Experiment:
             raise RuntimeError('Must in imaging mode to perform automatic tomogrpahy.')
 
         stage_matrix = ctrl.get_stagematrix()
+        beamtilt_matrix = np.linalg.inv(self.stage_matrix_angle_D) @ self.beam_tilt_matrix_D
         self.spotsize = self.ctrl.spotsize
         self.now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         self.logger.info(f'Data recording started at: {self.now}')
         self.logger.info(f'Exposure time: {exposure_time} s, End angle: {end_angle}, step size: {stepsize}')
 
-        counter = 0
+        counter = 1
         self.num_beam_tilt = num_beam_tilt
         if self.num_beam_tilt % 2 != 0:
             raise RuntimeError('The number of beam tilt must be a even number.')
@@ -422,33 +430,34 @@ class Experiment:
             if stop_event.is_set():
                 break
 
-            ctrl.stage.a = angle          
+            ctrl.stage.a = angle 
+            self.ctrl.beamtilt.set(x=0, y=0)         
             time.sleep(wait_interval)
             img_0, h = self.obtain_image(exposure_time, align, align_roi, roi)
 
             for beam_tilt_angle in beam_tilt_angle_list:
-                beam_tilt = 2 / self.wavelength * np.sin(np.pi/180*np.array([beam_tilt_angle, 0])) @ self.beam_tilt_matrix_D
+                beam_tilt = 2 / self.wavelength * np.sin(np.pi/180*np.array([beam_tilt_angle, 0])) @ beamtilt_matrix
                 self.ctrl.beamtilt.set(x=beam_tilt[0], y=beam_tilt[1])
                 time.sleep(wait_interval)
                 img, h = self.obtain_image(exposure_time, align, align_roi, roi)
                 img_tilted.append(img)
                 
-            if i == 0:
+            if i == 1:
                 img_ref = img_0
 
-            for i in range(self.num_beam_tilt + 1):
-                if i < self.num_beam_tilt // 2:
-                    self.buffer.append((counter, img_tilted[i], h))
-                elif i == self.num_beam_tilt // 2:
+            for j in range(self.num_beam_tilt + 1):
+                if j < self.num_beam_tilt // 2:
+                    self.buffer.append((counter, img_tilted[j], h))
+                elif j == self.num_beam_tilt // 2:
                     self.buffer.append((counter, img_0, h))
-                elif i > self.num_beam_tilt // 2:
-                    self.buffer.append((counter, img_tilted[i-1], h))
+                elif j > self.num_beam_tilt // 2:
+                    self.buffer.append((counter, img_tilted[j-1], h))
                 counter += 1
 
             # suppose eccentric height is near 0 degree, adjust beam position or stage position
             shift = self.calc_shift_images(img_ref, img_0, align_roi, roi) # down y+, right x+
-            shift = shift * h['ImagePixelsize'] @ self.imageshift2matrix
-            beam_shift += shift
+            shift = shift / h['ImagePixelsize'] @ self.imageshift2matrix
+            beam_shift -= shift
             
             if np.linalg.norm(beam_shift) >= 1000:
                 x, y = self.ctrl.stage.xy
@@ -463,7 +472,7 @@ class Experiment:
             shift_focus = shift_focus * h['ImagePixelsize']
             print(f"Beam tilt {-self.num_beam_tilt // 2 * stepsize} -> {self.num_beam_tilt // 2 * stepsize} shift: {shift_focus} nm")
             # Measured defocus
-            direction =  self.calc_direction(shift_focus, self.num_beam_tilt//2*stepsize, self.beam_tilt_matrix_img)
+            direction =  self.calc_direction(shift_focus, self.num_beam_tilt//2*stepsize, beamtilt_matrix)
             delta_defocus = defocus + direction * np.linalg.norm(shift_focus) / 2 / np.tan(np.deg2rad(self.num_beam_tilt // 2 * stepsize)) - cs * 1e6 * np.tan(np.deg2rad(self.num_beam_tilt // 2 * stepsize))**2
             print(f'Change defocus: {delta_defocus} nm')
             current_defocus = current_defocus + delta_defocus
@@ -487,12 +496,12 @@ class Experiment:
         """Return the distance of sample movement between the beam tilt"""
         return 0, 0
 
-    def calc_shift_images(self, img, img_ref, align_roi, roi):
+    def calc_shift_images(self, img_ref, img, align_roi, roi):
         """Return the distance between the collected image and the reference image. 1024*1024 image will take 124ms. So subsampling to 512*512. Takes around 23ms"""
         if align_roi:
-            shift, error, phasediff = phase_cross_correlation(img[roi[0][0]:roi[1][0], roi[0][1]:roi[1][1]], img_ref[roi[0][0]:roi[1][0], roi[0][1]:roi[1][1]], upsample_factor=10)
+            shift, error, phasediff = phase_cross_correlation(img_ref[roi[0][0]:roi[1][0], roi[0][1]:roi[1][1]], img[roi[0][0]:roi[1][0], roi[0][1]:roi[1][1]], upsample_factor=10)
         else:
-            shift, error, phasediff = phase_cross_correlation(img, img_ref, upsample_factor=10)
+            shift, error, phasediff = phase_cross_correlation(img_ref, img, upsample_factor=10)
         return shift 
 
     def finalize(self, write_tiff=True, write_mrc=True):

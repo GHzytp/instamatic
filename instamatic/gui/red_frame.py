@@ -90,7 +90,7 @@ class ExperimentalRED(LabelFrame):
         frame.pack(side='bottom', fill='x', padx=5, pady=5)
 
     def init_vars(self):
-        self.var_exposure_time = DoubleVar(value=0.5)
+        self.var_exposure_time = DoubleVar(value=1.0)
         # self.var_exposure_time.trace('w', self.check_exposure_time)
         self.var_tilt_range = DoubleVar(value=5.0)
         self.var_stepsize = DoubleVar(value=1.0)
