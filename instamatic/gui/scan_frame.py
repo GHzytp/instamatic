@@ -21,15 +21,25 @@ class ExperimentalScan(LabelFrame):
 
         self.init_vars()
 
+        self.event_start = theading.Event()
+        self.event_stop = theading.Event()
+        self.event_sync_scan = theading.Event()
+        self.event_sync_tilt = theading.Event()
+        self.event_sync_cam = theading.Event()
+
     def init_vars(self):
         self.var_exposure_time = DoubleVar(value=BEAMSCAN_OVERHEAD)
         self.var_scan_pattern = StringVar(value='XY scan')
         self.var_n = IntVar(value=5)
+        self.var_scan_from_x = DoubleVar(value=0.0)
+        self.var_scan_from_y = DoubleVar(value=0.0)
+        self.var_scan_to_x = DoubleVar(value=0.0)
+        self.var_scan_to_y = DoubleVar(value=0.0)
         self.var_nx = IntVar(value=5)
         self.var_ny = IntVar(value=5)
         self.var_angle = DoubleVar(value=1.0)
         self.var_num_sampling = IntVar(value=60)
-        
+
 
     def get_params(self, task=None):
         params = {}
