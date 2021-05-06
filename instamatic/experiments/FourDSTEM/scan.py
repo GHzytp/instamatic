@@ -122,13 +122,11 @@ class Scanner:
 
     def beam_precession(self, angle: float, num_sampling: int, event_start, event_stop, event_sync_tilt=None, event_sync_cam=None, func=None):
         # beam tilt in a circular motion and descan it
-        orig_beamtilt = self.ctrl.beamtilt.xy
-        orig_diffshift = self.ctrl.diffshift.xy
         theta = np.arange(0, 360, num_sampling)
         tilt_x = angle * cos(theta)
         tilt_y = angle * sin(theta)
-        beamtilt_list = 2 / self.wavelength * np.sin(np.pi/180*np.array([tilt_x, tilt_y]).T) @ np.linalg.inv(self.stage_matrix_angle_D) @ self.beam_tilt_matrix_D + orig_beamtilt
-        diffraction_shift_list = - (beamtilt_list - orig_beamtilt) @ np.linalg.inv(self.beam_tilt_matrix_D) @ self.diffraction_shift_matrix + orig_diffshift
+        beamtilt_list = - 2 / self.wavelength * np.sin(np.pi/180*np.array([tilt_x, tilt_y]).T) @ np.linalg.inv(self.stage_matrix_angle_D) @ self.beam_tilt_matrix_D
+        diffraction_shift_list = - beamtilt_list @ np.linalg.inv(self.beam_tilt_matrix_D) @ self.diffraction_shift_matrix
 
         event_start.wait()
 
@@ -158,13 +156,11 @@ class Scanner:
         pos = np.array([pos0, pos1]).T - orig_pos
         beampos = pixelsize * pos @ self.beam_shift_matrix + orig_beampos
 
-        orig_beamtilt = self.ctrl.beamtilt.xy
-        orig_diffshift = self.ctrl.diffshift.xy
         theta = np.arange(0, 360, num_sampling)
         tilt_x = angle * cos(theta)
         tilt_y = angle * sin(theta)
-        beamtilt_list = 2 / self.wavelength * np.sin(np.pi/180*np.array([tilt_x, tilt_y]).T) @ np.linalg.inv(self.stage_matrix_angle_D) @ self.beam_tilt_matrix_D + orig_beamtilt
-        diffraction_shift_list = - (beamtilt_list - orig_beamtilt) @ np.linalg.inv(self.beam_tilt_matrix_D) @ self.diffraction_shift_matrix + orig_diffshift
+        beamtilt_list = - 2 / self.wavelength * np.sin(np.pi/180*np.array([tilt_x, tilt_y]).T) @ np.linalg.inv(self.stage_matrix_angle_D) @ self.beam_tilt_matrix_D
+        diffraction_shift_list = - beamtilt_list @ np.linalg.inv(self.beam_tilt_matrix_D) @ self.diffraction_shift_matrix
 
         event_start.wait()
 
@@ -198,13 +194,11 @@ class Scanner:
         beampos_x, beampos_y = self.generate_scan_pattern(pixelsize, scan_from, scan_to, nx, ny, orig_pos, orig_beampos)
         shape = beampos_x.shape
 
-        orig_beamtilt = self.ctrl.beamtilt.xy
-        orig_diffshift = self.ctrl.diffshift.xy
         theta = np.arange(0, 360, num_sampling)
         tilt_x = angle * cos(theta)
         tilt_y = angle * sin(theta)
-        beamtilt_list = 2 / self.wavelength * np.sin(np.pi/180*np.array([tilt_x, tilt_y]).T) @ np.linalg.inv(self.stage_matrix_angle_D) @ self.beam_tilt_matrix_D + orig_beamtilt
-        diffraction_shift_list = - (beamtilt_list - orig_beamtilt) @ np.linalg.inv(self.beam_tilt_matrix_D) @ self.diffraction_shift_matrix + orig_diffshift
+        beamtilt_list = - 2 / self.wavelength * np.sin(np.pi/180*np.array([tilt_x, tilt_y]).T) @ np.linalg.inv(self.stage_matrix_angle_D) @ self.beam_tilt_matrix_D
+        diffraction_shift_list = - beamtilt_list @ np.linalg.inv(self.beam_tilt_matrix_D) @ self.diffraction_shift_matrix
 
         event_start.wait()
 

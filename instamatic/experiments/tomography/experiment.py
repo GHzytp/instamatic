@@ -135,8 +135,9 @@ class Experiment:
     def get_current_defocus(self, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, 
                         roi: list, cs: float, defocus: int, beam_tilt: float):
         self.ctrl.beamtilt.xy = (0, 0)
-        matrix = np.linalg.inv(self.stage_matrix_angle_D) @ self.beam_tilt_matrix_D
-        beamtilt = 2 / self.wavelength * np.sin(np.pi/180*np.array([beam_tilt, 0])) @ matrix
+        beamtilt_matrix = np.linalg.inv(self.stage_matrix_angle_D) @ self.beam_tilt_matrix_D
+        # oppsite direction between beam tilt and stage tilt
+        beamtilt = - 2 / self.wavelength * np.sin(np.pi/180*np.array([beam_tilt, 0])) @ beamtilt_matrix
         # Applying defocus
         self.ctrl.objfocus.set(defocus)
         # Acquiring image at negative beam tilt
@@ -158,7 +159,7 @@ class Experiment:
         shift_drift = self.calc_shift_images(img_negative_1, img_negative_2, align_roi, roi)
         print(f"Drift {-beam_tilt} -> {-beam_tilt}: {np.linalg.norm(shift_drift)} nm")
         # Measured defocus
-        direction =  self.calc_direction(shift_focus, beam_tilt, matrix)
+        direction =  self.calc_direction(shift_focus, beam_tilt, beamtilt_matrix)
         # Actual defocus is the opposite of the direction to 0 defocus
         measured_defocus = - direction * (np.linalg.norm(shift_focus) / 2 / np.tan(np.deg2rad(beam_tilt)) - cs * 1e6 * np.tan(np.deg2rad(beam_tilt))**2)
         print(f'Meansured defocus: {measured_defocus} nm')
@@ -193,7 +194,7 @@ class Experiment:
         # Calculate the direction to obtain 0 defocus (in focus) results. 
         # For defocus adjustment, the actual defocus value needs to be calculated, so minus is added
         # shift calculated from images obtained at -tilt to +tilt, shift consistent with numpy convention (Y, X)
-        # pos = shift @ matrix => shift = pos @ inv(matrix)
+        # pos = shift @ matrix => shift = pos @ inv(matrix) => angle = Å-1 @ matrix
         # The coodination system of shift will not change, while the coodination system of pos will change.
         arr = np.array([tilt, 0]) @ np.linalg.inv(matrix_angle)
         if tilt > 0:
@@ -436,7 +437,8 @@ class Experiment:
             img_0, h = self.obtain_image(exposure_time, align, align_roi, roi)
 
             for beam_tilt_angle in beam_tilt_angle_list:
-                beam_tilt = 2 / self.wavelength * np.sin(np.pi/180*np.array([beam_tilt_angle, 0])) @ beamtilt_matrix
+                # beamtilt_matrix contains stage_matrix_angle_D, the rotation direction of stage angle and beam tilt angle is the opposite
+                beam_tilt = - 2 / self.wavelength * np.sin(np.pi/180*np.array([beam_tilt_angle, 0])) @ beamtilt_matrix
                 self.ctrl.beamtilt.set(x=beam_tilt[0], y=beam_tilt[1])
                 time.sleep(wait_interval)
                 img, h = self.obtain_image(exposure_time, align, align_roi, roi)
@@ -456,12 +458,12 @@ class Experiment:
 
             # suppose eccentric height is near 0 degree, adjust beam position or stage position
             shift = self.calc_shift_images(img_ref, img_0, align_roi, roi) # down y+, right x+
-            shift = shift / h['ImagePixelsize'] @ self.imageshift2matrix
+            shift = shift * h['ImagePixelsize'] @ self.imageshift2matrix
             beam_shift -= shift
             
             if np.linalg.norm(beam_shift) >= 1000:
                 x, y = self.ctrl.stage.xy
-                stage_shift = beam_shift @ np.linalg.inv(self.imageshift2matrix) @ stage_matrix
+                stage_shift = beam_shift / h['ImagePixelsize'] @ np.linalg.inv(self.imageshift2matrix) @ stage_matrix
                 self.ctrl.stage.set(x=x+stage_shift[0], y=y+stage_shift[1]) # almost up y+, right x+
                 beam_shift = np.array([0.0, 0.0])
 

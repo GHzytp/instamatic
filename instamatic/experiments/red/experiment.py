@@ -189,8 +189,10 @@ class Experiment:
             print(f'\nStart_angle: {start_angle:.3f}')
 
             for i, angle in enumerate(tqdm(beam_tilt_positions-start_angle)):
+                # angle = Å-1 @ matrix
                 # stage angle change (degree) -> shift in diff pattern (stage_matrix_angle_D in diff mode, Å-1) -> beam_tilt
-                beam_tilt = 2 / self.wavelength * np.sin(np.pi/180*np.array([angle, 0])) @ np.linalg.inv(self.stage_matrix_angle_D) @ self.beam_tilt_matrix_D
+                # The shift of laue circle center from stage rotation and center beam shift from beam tilt is opposite
+                beam_tilt = - 2 / self.wavelength * np.sin(np.pi/180*np.array([angle, 0])) @ np.linalg.inv(self.stage_matrix_angle_D) @ self.beam_tilt_matrix_D
                 print(angle, beam_tilt)
                 self.ctrl.beamtilt.set(x=beam_tilt[0], y=beam_tilt[1])
                 # beam-tilt induced shift in diffraction pattern compensated by diffraction shift
