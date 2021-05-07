@@ -111,15 +111,20 @@ class CryoEDFrame(LabelFrame):
 
         self.e_eucentric_tilt = Spinbox(frame, textvariable=self.var_stage_tilt, width=8, from_=-20.0, to=20.0, increment=0.01)
         self.e_eucentric_tilt.grid(row=6, column=0, sticky='EW')
+        Hoverbox(self.e_eucentric_tilt, 'Stage tilt for auto eucentric height')
         self.e_defocus = Spinbox(frame, textvariable=self.var_defocus, width=8, from_=-20000, to=20000, increment=1)
         self.e_defocus.grid(row=6, column=1, sticky='EW', padx=5)
-        Checkbutton(frame, text='Blank', variable=self.var_blank_beam).grid(row=6, column=2, sticky='EW')
+        Hoverbox(self.e_defocus, 'Target defocus value')
+        self.e_magnify = Spinbox(frame, textvariable=self.var_magnify, width=8, from_=2, to=10, increment=1)
+        self.e_magnify.grid(row=6, column=2, sticky='EW')
+        Hoverbox(self.e_magnify, 'Magnify of target image compared with square image')
+        Checkbutton(frame, text='Blank', variable=self.var_blank_beam).grid(row=6, column=3, sticky='EW', padx=5)
         self.AutoheightButton = Button(frame, text='Auto height', width=11, command=self.auto_height, state=NORMAL)
-        self.AutoheightButton.grid(row=6, column=3, sticky='EW')
+        self.AutoheightButton.grid(row=6, column=4, sticky='EW')
         self.UpdateZButton = Button(frame, text='Z Square', width=11, command=self.update_z_square, state=NORMAL)
-        self.UpdateZButton.grid(row=6, column=4, sticky='EW', padx=5)
+        self.UpdateZButton.grid(row=6, column=5, sticky='EW', padx=5)
         self.UpdateZButton = Button(frame, text='Z Target', width=11, command=self.update_z_target, state=NORMAL)
-        self.UpdateZButton.grid(row=6, column=5, sticky='EW')
+        self.UpdateZButton.grid(row=6, column=6, sticky='EW')
 
         Checkbutton(frame, text='Align', variable=self.var_align).grid(row=7, column=0, sticky='EW')
         Checkbutton(frame, text='Align ROI', variable=self.var_align_roi, command=self.align_roi).grid(row=7, column=1, sticky='EW', padx=5)
@@ -218,6 +223,7 @@ class CryoEDFrame(LabelFrame):
         self.var_x1 = IntVar(value=int(self.dimension[0]*0.75))
         self.var_y1 = IntVar(value=int(self.dimension[1]*0.75))
         self.var_blank_beam = BooleanVar(value=True)
+        self.var_magnify = IntVar(value=5)
 
     def set_trigger(self, trigger=None, q=None):
         self.triggerEvent = trigger
@@ -807,7 +813,6 @@ class CryoEDFrame(LabelFrame):
                   'grid_dir': self.grid_dir,
                   'sample_name': self.var_name.get(),
                   'magnify': self.var_magnify.get(),
-                  'whole_grid_img_header': 
                   'exposure_time': self.var_exposure.get(),
                   'wait_interval': self.var_wait_interval.get(),
                   'defocus': self.var_defocus.get(),

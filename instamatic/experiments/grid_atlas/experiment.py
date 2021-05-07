@@ -94,9 +94,9 @@ class Experiment:
                         exposure_time: float, wait_interval: float,  align: bool, align_roi: bool, roi: list, defocus: int):
         # go to the position at target level, predict the eucentric height, take an image
         square_img_df = whole_grid[whole_grid['img_location'].notna()]
-        for index1, square in square_img_df.iterrows():
-            grid_num = square['grid']
-            square_img = square['img_location']
+        for index1, grid in square_img_df.iterrows():
+            grid_num = grid['grid']
+            square_img = grid['img_location']
             no_target_img_df = grid_square[(grid_square['grid']==grid_num) & (grid_square['img_location'].isna())]
             num = len(grid_square[grid_square['grid']==grid_num]) - len(no_target_img_df)
 
@@ -110,7 +110,7 @@ class Experiment:
             state = self.ctrl.mode.state
             mag = self.ctrl.magnification.get()
             rec = None
-            for magnification, pixelsize in config.calibration[state]['pixelsize']:
+            for magnification, pixelsize in config.calibration[state]['pixelsize'].items():
                 difference = abs(pixelsize - target_pixelsize)
                 if rec is None:
                     rec = difference
@@ -133,7 +133,7 @@ class Experiment:
                 h['mode'] = state
                 h['magnification'] = mag
                 h['stage_matrix'] = self.ctrl.get_stagematrix() # normalized need to multiple pixelsize
-                target_dir = grid_dir / Path(point['img_location'].parent) / f"Target_{num+1}"
+                target_dir = grid_dir / Path(grid['img_location']).parent / f"Target_{num+1}"
                 target_dir.mkdir(exist_ok=True, parents=True)
                 filepath = target_dir / f'target_{sample_name}.tiff'
                 write_tiff(filepath, arr, header=h)
@@ -141,7 +141,8 @@ class Experiment:
                     grid_square.loc[index2, 'pos_z'] = self.ctrl.stage.z
                 else:
                     grid_square.loc[index2, 'pos_z'] = pred_z(current_pos)
-                grid_square.loc[index2, 'img_location'] = Path(target_dir.parent.name) / f'target_{sample_name}.tiff'
+                grid_square.loc[index2, 'img_location'] = Path(target_dir.parent.name) / Path(target_dir.name) / f'target_{sample_name}.tiff'
+                num += 1
 
     def from_target_list(self, target, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, roi: list):
         # In diffraction mode, use beam shift to each crystal location and collection diffraction pattern.

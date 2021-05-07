@@ -276,7 +276,7 @@ class Experiment:
         time.sleep(wait_interval)
         img_0_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
         drift = self.calc_shift_images(img_0_1, img_0_2, align_roi, roi)
-        print(f'Drift during auto height: {drift * h['ImagePixelsize']}nm')
+        print(f"Drift during auto height: {drift * h['ImagePixelsize']}nm")
         self.ctrl.objfocus.set(current_defocus)
 
     def start_auto_collection_stage_tilt(self, exposure_time: float, end_angle: float, stepsize: float, wait_interval: float, 
