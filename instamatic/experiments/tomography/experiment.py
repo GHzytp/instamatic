@@ -210,8 +210,10 @@ class Experiment:
         return direction
 
     def start_auto_eucentric_height(self, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, 
-                        roi: list, defocus: int, stage_tilt: float):
+                        roi: list, defocus: int, stage_tilt: float, blank_beam: bool = False, ask: bool = True):
         """Find eucentric height automatically using the method in FEI TEM Tomography"""
+        if blank_beam:
+            self.ctrl.beam.blank()
         image_mode = self.ctrl.mode.get()
         if image_mode in ('diff', 'D'):
             raise RuntimeError('Must in imaging mode to perform auto eucentric height.')
@@ -221,12 +223,17 @@ class Experiment:
         # Acquiring image at 0°
         self.ctrl.stage.a = 0
         self.ctrl.stage.eliminate_backlash_a(target_angle=-stage_tilt)
+        current_pos = self.ctrl.stage.xy
+        if blank_beam:
+            self.ctrl.beam.unblank(wait_interval)
         time.sleep(wait_interval)
         img_0_1, h = self.obtain_image(exposure_time, align, align_roi, roi)
         # Acquiring image at tilt: stage_tilt
         self.ctrl.stage.a = -stage_tilt
         time.sleep(wait_interval)
         img_tilt_1, h = self.obtain_image(exposure_time, align, align_roi, roi)
+        if blank_beam:
+            self.ctrl.beam.blank()
         # Measuring shift...
         shift_tilt = self.calc_shift_images(img_tilt_1, img_0_1, align_roi, roi)
         shift_tilt = shift_tilt * h['ImagePixelsize']
@@ -235,31 +242,42 @@ class Experiment:
         delta_z = direction * np.linalg.norm(shift_tilt) / np.tan(np.deg2rad(stage_tilt))
         print(f'Meansured height change: {delta_z} nm')
         # Moving z
-        if messagebox.askokcancel("Continue", f"Change of z height is {delta_z}. Move stage and continue?"):
-            z = self.ctrl.stage.z
-            self.ctrl.stage.z = z + delta_z
-            # Acquiring image at tilt: -3*stage_tilt
-            self.ctrl.stage.a = - stage_tilt * 3
-            self.ctrl.stage.eliminate_backlash_a(target_angle=stage_tilt * 3)
-            time.sleep(wait_interval)
-            img_tilt_2_minus, h = self.obtain_image(exposure_time, align, align_roi, roi)
-            # Acquiring image at tilt: 3*stage_tilt
-            self.ctrl.stage.a = stage_tilt * 3
-            time.sleep(wait_interval)
-            img_tilt_2_plus, h = self.obtain_image(exposure_time, align, align_roi, roi)
-            # Measuring shift...
-            shift_tilt_3 = self.calc_shift_images(img_tilt_2_minus, img_tilt_2_plus, align_roi, roi)
-            shift_tilt_3 = shift_tilt_3 * h['ImagePixelsize']
-            print(f"Stage tilt {-stage_tilt*3} -> {stage_tilt*3} shift: {shift_tilt_3} nm")
-            direction = self.calc_direction(shift_tilt_3, stage_tilt, self.stage_matrix_angle)
-            delta_z = direction * np.linalg.norm(shift_tilt_3) / 2 / np.tan(np.deg2rad(stage_tilt*3))
-            print(f'Meansured height change: {delta_z} nm')
-            # Moving z
-            z = self.ctrl.stage.z
-            self.ctrl.stage.z = z + delta_z
-            self.ctrl.stage.a = 0
-        self.ctrl.objfocus.set(current_defocus)
+        if ask:
+            if not messagebox.askokcancel("Continue", f"Change of z height is {delta_z}. Move stage and continue?"):
+                return
 
+        z = self.ctrl.stage.z
+        self.ctrl.stage.z = z + delta_z
+        # Acquiring image at tilt: -3*stage_tilt
+        self.ctrl.stage.a = - stage_tilt * 3
+        self.ctrl.stage.eliminate_backlash_a(target_angle=stage_tilt * 3)
+        if blank_beam:
+            self.ctrl.beam.unblank(wait_interval)
+        time.sleep(wait_interval)
+        img_tilt_2_minus, h = self.obtain_image(exposure_time, align, align_roi, roi)
+        # Acquiring image at tilt: 3*stage_tilt
+        self.ctrl.stage.a = stage_tilt * 3
+        time.sleep(wait_interval)
+        img_tilt_2_plus, h = self.obtain_image(exposure_time, align, align_roi, roi)
+        if blank_beam:
+            self.ctrl.beam.blank()
+        # Measuring shift...
+        shift_tilt_3 = self.calc_shift_images(img_tilt_2_minus, img_tilt_2_plus, align_roi, roi)
+        shift_tilt_3 = shift_tilt_3 * h['ImagePixelsize']
+        print(f"Stage tilt {-stage_tilt*3} -> {stage_tilt*3} shift: {shift_tilt_3} nm")
+        direction = self.calc_direction(shift_tilt_3, stage_tilt, self.stage_matrix_angle)
+        delta_z = direction * np.linalg.norm(shift_tilt_3) / 2 / np.tan(np.deg2rad(stage_tilt*3))
+        print(f'Meansured height change: {delta_z} nm')
+        # Moving z
+        z = self.ctrl.stage.z
+        self.ctrl.stage.z = z + delta_z
+        self.ctrl.stage.a = 0
+        self.ctrl.stage.xy = current_pos
+        time.sleep(wait_interval)
+        img_0_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
+        drift = self.calc_shift_images(img_0_1, img_0_2, align_roi, roi)
+        print(f'Drift during auto height: {drift * h['ImagePixelsize']}nm')
+        self.ctrl.objfocus.set(current_defocus)
 
     def start_auto_collection_stage_tilt(self, exposure_time: float, end_angle: float, stepsize: float, wait_interval: float, 
                         align: bool, align_roi: bool, roi: list, continue_event: threading.Event, stop_event: threading.Event, cs: float,

@@ -27,9 +27,10 @@ class CryoEDFrame(LabelFrame):
     def __init__(self, parent):
         LabelFrame.__init__(self, parent, text='Cryo electron diffraction protocol')
         self.parent = parent
-        self.df_grid = pd.DataFrame(columns=['grid', 'x', 'y', 'pos_x', 'pos_y', 'img_location'])
+        self.df_grid = pd.DataFrame(columns=['grid', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'img_location'])
         self.df_square = pd.DataFrame(columns=['grid', 'square', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'img_location', '3DED'])
         self.df_target = pd.DataFrame(columns=['grid', 'square', 'target', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'diff_location', '3DED'])
+        self.roi = None
         self.grid_dir = None
         self.square_dir = None
         self.last_grid = None
@@ -40,6 +41,10 @@ class CryoEDFrame(LabelFrame):
         self.binsize = self.ctrl.cam.default_binsize
         self.software_binsize = config.settings.software_binsize
         self.indexing_frame = [module for module in MODULES if module.name == 'indexing'][0].frame
+        try:
+            self.stream_frame = [module for module in MODULES if module.name == 'stream'][0].frame
+        except IndexError:
+            self.stream_frame = None
         try:
             self.grid_frame = [module for module in MODULES if module.name == 'grid'][0].frame
         except IndexError:
@@ -104,12 +109,37 @@ class CryoEDFrame(LabelFrame):
         self.RunTargetButton = Button(frame, text='Run Target', width=11, command=self.run_target, state=NORMAL)
         self.RunTargetButton.grid(row=5, column=6, sticky='EW')
 
-        Checkbutton(frame, text='Auto Z', variable=self.var_auto_height).grid(row=6, column=0, sticky='EW', padx=10)
+        self.e_eucentric_tilt = Spinbox(frame, textvariable=self.var_stage_tilt, width=8, from_=-20.0, to=20.0, increment=0.01)
+        self.e_eucentric_tilt.grid(row=6, column=0, sticky='EW')
+        self.e_defocus = Spinbox(frame, textvariable=self.var_defocus, width=8, from_=-20000, to=20000, increment=1)
+        self.e_defocus.grid(row=6, column=1, sticky='EW', padx=5)
+        Checkbutton(frame, text='Blank', variable=self.var_blank_beam).grid(row=6, column=2, sticky='EW')
+        self.AutoheightButton = Button(frame, text='Auto height', width=11, command=self.auto_height, state=NORMAL)
+        self.AutoheightButton.grid(row=6, column=3, sticky='EW')
         self.UpdateZButton = Button(frame, text='Z Square', width=11, command=self.update_z_square, state=NORMAL)
-        self.UpdateZButton.grid(row=6, column=1, sticky='EW', padx=5)
+        self.UpdateZButton.grid(row=6, column=4, sticky='EW', padx=5)
         self.UpdateZButton = Button(frame, text='Z Target', width=11, command=self.update_z_target, state=NORMAL)
-        self.UpdateZButton.grid(row=6, column=2, sticky='EW')
+        self.UpdateZButton.grid(row=6, column=5, sticky='EW')
+
+        Checkbutton(frame, text='Align', variable=self.var_align).grid(row=7, column=0, sticky='EW')
+        Checkbutton(frame, text='Align ROI', variable=self.var_align_roi, command=self.align_roi).grid(row=7, column=1, sticky='EW', padx=5)
+        self.e_x0 = Spinbox(frame, textvariable=self.var_x0, width=8, from_=0, to=self.dimension[0], increment=0.1, state=DISABLED)
+        self.e_x0.grid(row=7, column=2, sticky='EW')
+        self.e_y0 = Spinbox(frame, textvariable=self.var_y0, width=8, from_=0, to=self.dimension[1], increment=0.1, state=DISABLED)
+        self.e_y0.grid(row=7, column=3, sticky='EW', padx=5)
+        self.e_x1 = Spinbox(frame, textvariable=self.var_x1, width=8, from_=self.var_x0.get(), to=self.dimension[0], increment=0.1, state=DISABLED)
+        self.e_x1.grid(row=7, column=4, sticky='EW')
+        self.e_y1 = Spinbox(frame, textvariable=self.var_y1, width=8, from_=self.var_y0.get(), to=self.dimension[1], increment=0.1, state=DISABLED)
+        self.e_y1.grid(row=7, column=5, sticky='EW', padx=5)
+        self.UpdateROIButton = Button(frame, text='Update ROI', command=self.update_roi, state=DISABLED)
+        self.UpdateROIButton.grid(row=7, column=6, sticky='EW')
         
+        self.FromGridButton = Button(frame, text='From Grid', width=11, command=self.from_grid, state=NORMAL)
+        self.FromGridButton.grid(row=8, column=0, sticky='EW')
+        self.FromSquareButton = Button(frame, text='From Square', width=11, command=self.from_square, state=NORMAL)
+        self.FromSquareButton.grid(row=8, column=1, sticky='EW', padx=5)
+        self.FromTargetButton = Button(frame, text='From Target', width=11, command=self.from_target, state=NORMAL)
+        self.FromTargetButton.grid(row=8, column=2, sticky='EW')
 
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
 
@@ -178,7 +208,55 @@ class CryoEDFrame(LabelFrame):
         self.var_name = StringVar(value="")
         self.var_level = StringVar(value='Whole')
         self.var_exposure = DoubleVar(value=round(round(1.5/self.ctrl.cam.default_exposure)*self.ctrl.cam.default_exposure, 1))
-        self.var_auto_height = BooleanVar(value=False)
+        self.var_wait_interval = DoubleVar(value=1.0)
+        self.var_align = BooleanVar(value=True)
+        self.var_stage_tilt = DoubleVar(value=10.0)
+        self.var_defocus = IntVar(value=-10000)
+        self.var_align_roi = BooleanVar(value=False)
+        self.var_x0 = IntVar(value=int(self.dimension[0]*0.25))
+        self.var_y0 = IntVar(value=int(self.dimension[1]*0.25))
+        self.var_x1 = IntVar(value=int(self.dimension[0]*0.75))
+        self.var_y1 = IntVar(value=int(self.dimension[1]*0.75))
+        self.var_blank_beam = BooleanVar(value=True)
+
+    def set_trigger(self, trigger=None, q=None):
+        self.triggerEvent = trigger
+        self.q = q
+
+    def enable_roi(self):
+        self.e_x0.config(state=NORMAL)
+        self.e_y0.config(state=NORMAL)
+        self.e_x1.config(state=NORMAL)
+        self.e_y1.config(state=NORMAL)
+        self.UpdateROIButton.config(state=NORMAL)
+
+    def disable_roi(self):
+        self.e_x0.config(state=DISABLED)
+        self.e_y0.config(state=DISABLED)
+        self.e_x1.config(state=DISABLED)
+        self.e_y1.config(state=DISABLED)
+        self.UpdateROIButton.config(state=DISABLED)
+
+    def align_roi(self):
+        self.roi = [[self.var_x0.get(), self.var_y0.get()], [self.var_x1.get(), self.var_y1.get()]]
+        if self.stream_frame.roi is None:
+            if self.var_align_roi.get():
+                self.stream_frame.roi = self.stream_frame.panel.create_rectangle(self.roi[0][1], self.roi[0][0], self.roi[1][1], self.roi[1][0], outline='yellow')
+                self.enable_roi()
+        else:
+            if self.var_align_roi.get():
+                self.stream_frame.panel.itemconfigure(self.stream_frame.roi, state='normal')
+                self.enable_roi()
+            else:
+                self.stream_frame.panel.itemconfigure(self.stream_frame.roi, state='hidden')
+                self.disable_roi()
+
+    def update_roi(self):
+        self.roi = [[self.var_x0.get(), self.var_y0.get()], [self.var_x1.get(), self.var_y1.get()]]
+        if self.stream_frame.roi is None:
+            self.stream_frame.roi = self.stream_frame.panel.create_rectangle(self.roi[0][1], self.roi[0][0], self.roi[1][1], self.roi[1][0], outline='yellow')
+        else:
+            self.stream_frame.panel.coords(self.stream_frame.roi, self.roi[0][1], self.roi[0][0], self.roi[1][1], self.roi[1][0])
 
     def run_target(self):
         pass
@@ -269,8 +347,7 @@ class CryoEDFrame(LabelFrame):
                     self.image_scale = config.calibration[self.state]['pixelsize'][self.mag] * self.binsize #nm->um
                 else:
                     self.image_scale = config.calibration[self.state]['pixelsize'][self.mag] * self.binsize * self.software_binsize
-                t = threading.Thread(target=self.collect_montage, args=(self.var_num.get(),self.grid_dir/f'grid_{self.var_name.get()}.tiff'), daemon=True)
-                t.start()
+                self.collect_montage(self.var_num.get(), self.grid_dir/f'grid_{self.var_name.get()}.tiff', self.mag, self.image_scale)
                 self.grid_montage_path = self.grid_dir/f'grid_{self.var_name.get()}.tiff'
                 
         elif level == 'Square':
@@ -300,8 +377,7 @@ class CryoEDFrame(LabelFrame):
                     else:
                         self.image_scale = config.calibration[self.state]['pixelsize'][self.mag] * self.binsize * self.software_binsize
                     
-                    t = threading.Thread(target=self.collect_montage, args=(self.var_num.get(),self.square_dir/f'square_{self.var_name.get()}.tiff',False), daemon=True)
-                    t.start()
+                    self.collect_montage(self.var_num.get(), self.square_dir/f'square_{self.var_name.get()}.tiff', self.mag, self.image_scale, False)
                     self.df_grid.loc[self.df_grid['grid']==selected_grid, 'img_location'] = Path(self.square_dir.name)/f'square_{self.var_name.get()}.tiff'
                 except IndexError:
                     raise RuntimeError('Please choose grid')
@@ -366,28 +442,22 @@ class CryoEDFrame(LabelFrame):
             except IndexError:
                 raise RuntimeError('Please choose grid, square and target')
 
-    def collect_montage(self, num_img, filepath, save_origin=True):
-        ctrl = self.ctrl
-        gm = self.ctrl.grid_montage()
-        current_pos = self.ctrl.stage.xy
-        pos, px_center, stage_center = gm.setup(nx=num_img, ny=num_img, stage_shift=current_pos)
+    def collect_montage(self, num_img, filepath, mag, image_scale, save_origin=True):
         self.lb_coll1.config(text='Collecting montage, please wait for a moment...')
-        gm.start(save_origin)
-        m = gm.to_montage()
-        m.calculate_montage_coords()
-        #m.optimize_montage_coords()
-        stitched = m.stitch()
-        h = {}
-        h['is_montage'] = True
-        h['center_pos'] = current_pos
-        h['mode'] = self.state
-        h['magnification'] = self.mag
-        h['ImageResolution'] = stitched.shape
-        h['stage_matrix'] = self.ctrl.get_stagematrix() # normalized need to multiple pixelsize
-        h['ImagePixelsize'] = self.image_scale
-        write_tiff(filepath, stitched, header=h)
-        self.ctrl.stage.xy = current_pos
-        self.lb_coll1.config(text=f'Montage completed. Saved dir: {filepath.parent}')
+        self.check_exposure_time()
+        params = {'exposure_time': self.var_exposure.get(), 
+                  'align': self.var_align.get(), 
+                  'align_roi': self.var_align_roi.get(), 
+                  'roi': self.roi, 
+                  'blank_beam': self.var_blank_beam.get(),
+                  'num_img': num_img, 
+                  'filepath': filepath, 
+                  'mag': mag, 
+                  'image_scale': image_scale, 
+                  'save_origin': save_origin}
+        self.q.put(('collect_montage', params))
+        self.triggerEvent.set()
+        self.lb_coll1.config(text=f'Save dir destination: {filepath.parent}')
 
     def collect_image(self, exposure, level, filepath):
         current_pos = self.ctrl.stage.xy
@@ -399,7 +469,6 @@ class CryoEDFrame(LabelFrame):
         h['magnification'] = self.mag
         h['stage_matrix'] = self.ctrl.get_stagematrix() # normalized need to multiple pixelsize
         write_tiff(filepath, arr, header=h)
-        self.ctrl.stage.xy = current_pos
         self.lb_coll1.config(text=f'{level} completed. Saved dir: {filepath.parent}')
 
     def get_pos(self):
@@ -466,7 +535,7 @@ class CryoEDFrame(LabelFrame):
                     print(self.df_target)
 
     def change_grid(self):
-        self.df_grid = pd.DataFrame(columns=['grid', 'x', 'y', 'pos_x', 'pos_y', 'img_location'])
+        self.df_grid = pd.DataFrame(columns=['grid', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'img_location'])
         self.df_square = pd.DataFrame(columns=['grid', 'square', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'img_location', '3DED'])
         self.df_target = pd.DataFrame(columns=['grid', 'square', 'target', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'diff_location', '3DED'])
         self.tv_whole_grid.delete(*self.tv_whole_grid.get_children())
@@ -509,25 +578,41 @@ class CryoEDFrame(LabelFrame):
             for index in range(len(selected_target_df)):
                 self.tv_target.insert("",'end', text="Item_"+str(index), values=(index, selected_target_df.loc[index,'pos_x'],selected_target_df.loc[index,'pos_y'],selected_target_df.loc[index,'pos_z']))
 
+    def check_exposure_time(self):
+        if config.camera.interface == "DM":
+            try:
+                frametime = config.settings.default_frame_time
+                n = decimal.Decimal(str(self.var_exposure.get())) / decimal.Decimal(str(frametime))
+                self.var_exposure.set(decimal.Decimal(str(frametime)) * int(n))
+            except TclError as e:
+                if 'expected floating-point number but got ""' in e.args[0]:
+                    pass
+
+    def auto_height(self):
+        self.check_exposure_time()
+        params = {'stage_tilt': self.var_stage_tilt.get(), 
+                  'exposure_time': self.var_exposure.get(),
+                  'wait_interval': self.var_wait_interval.get(),
+                  'defocus': self.var_defocus.get(),
+                  'align': self.var_align.get(),
+                  'align_roi': self.var_align_roi.get(),
+                  'roi': self.roi}
+        self.q.put(('auto_height', params))
+        self.triggerEvent.set()
+    
     def update_z_square(self):
-        if self.var_auto_height.get():
-            pass
-        else:
-            selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
-            selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
-            z = self.ctrl.stage.z
-            self.df_square.loc[(self.df_square['grid']==selected_grid) & (self.df_square['square']==selected_square), 'pos_z'] = z
+        selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+        selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
+        z = self.ctrl.stage.z
+        self.df_square.loc[(self.df_square['grid']==selected_grid) & (self.df_square['square']==selected_square), 'pos_z'] = z
 
     def update_z_target(self):
-        if self.var_auto_height.get():
-            pass
-        else:
-            selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
-            selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
-            selected_target = self.tv_target.get_children().index(self.tv_target.selection()[0])
-            z = self.ctrl.stage.z
-            self.df_target.loc[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square) & 
-                                (self.df_target['target']==selected_target), 'pos_z'] = z
+        selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+        selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
+        selected_target = self.tv_target.get_children().index(self.tv_target.selection()[0])
+        z = self.ctrl.stage.z
+        self.df_target.loc[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square) & 
+                            (self.df_target['target']==selected_target), 'pos_z'] = z
 
     def go_xy(self):
         level = self.var_level.get()
@@ -698,9 +783,53 @@ class CryoEDFrame(LabelFrame):
             for index in range(len(self.df_grid)):
                 self.tv_whole_grid.insert("",'end', text="Item_"+str(index), values=(index, self.df_grid.loc[index,'pos_x'],self.df_grid.loc[index,'pos_y']))
 
-    def get_params(self, task=None):
-        params = {}
-        return params
+    def from_grid(self):
+        self.check_exposure_time()
+        params = {'whole_grid': self.df_grid,
+                  'grid_dir': self.grid_dir,
+                  'sample_name': self.var_name.get(),
+                  'stage_tilt': self.var_stage_tilt.get(), 
+                  'exposure_time': self.var_exposure.get(),
+                  'wait_interval': self.var_wait_interval.get(),
+                  'defocus': self.var_defocus.get(),
+                  'align': self.var_align.get(),
+                  'align_roi': self.var_align_roi.get(),
+                  'roi': self.roi,
+                  'blank_beam': self.var_blank_beam.get(),
+                  'num_img': self.var_num.get()}
+        self.q.put(('from_whole_grid_list', params))
+        self.triggerEvent.set()
+
+    def from_square(self):
+        self.check_exposure_time()
+        params = {'whole_grid': self.df_grid,
+                  'grid_square': self.df_square,
+                  'grid_dir': self.grid_dir,
+                  'sample_name': self.var_name.get(),
+                  'magnify': self.var_magnify.get(),
+                  'whole_grid_img_header': 
+                  'exposure_time': self.var_exposure.get(),
+                  'wait_interval': self.var_wait_interval.get(),
+                  'defocus': self.var_defocus.get(),
+                  'align': self.var_align.get(),
+                  'align_roi': self.var_align_roi.get(),
+                  'roi': self.roi,
+                  'blank_beam': self.var_blank_beam.get(),
+                  'pred_z': None}
+        self.q.put(('from_grid_square_list', params))
+        self.triggerEvent.set()
+
+    def from_target(self):
+        pself.check_exposure_time()
+        params = {'stage_tilt': self.var_stage_tilt.get(), 
+                  'exposure_time': self.var_exposure.get(),
+                  'wait_interval': self.var_wait_interval.get(),
+                  'defocus': self.var_defocus.get(),
+                  'align': self.var_align.get(),
+                  'align_roi': self.var_align_roi.get(),
+                  'roi': self.roi}
+        self.q.put(('from_target_list', params))
+        self.triggerEvent.set()
 
 def auto_eucentric_height(controller, **kwargs):
     from instamatic.experiments import TOMO
@@ -709,6 +838,14 @@ def auto_eucentric_height(controller, **kwargs):
 
     tomo_exp = TOMO.Experiment(ctrl=controller.ctrl, log=controller.log, flatfield=flatfield)
     success = tomo_exp.start_auto_eucentric_height(**kwargs)
+
+def collect_montage(controller, **kwargs):
+    from instamatic.experiments import Atlas
+    
+    flatfield = controller.module_io.get_flatfield()
+
+    atlas_exp = Atlas.Experiment(ctrl=controller.ctrl, log=controller.log, flatfield=flatfield)
+    atlas_exp.collect_montage(**kwargs)
 
 def from_whole_grid_list(controller, **kwargs):
     controller.log.info('Start acquiring grid square images from whole grid list.')
@@ -746,7 +883,7 @@ def from_target_list(controller, **kwargs):
 
 module = BaseModule(name='cryo', display_name='CryoED', tk_frame=CryoEDFrame, location='bottom')
 commands = {'auto_height': auto_eucentric_height, 'from_whole_grid_list': from_whole_grid_list, 'from_grid_square_list':from_grid_square_list,
-            'from_target_list': from_target_list}
+            'from_target_list': from_target_list, 'collect_montage': collect_montage}
 
 if __name__ == '__main__':
     root = Tk()

@@ -104,6 +104,18 @@ def read_tiff(fname: str) -> (np.array, dict):
 
         return img, header
 
+def read_tiff_header(fname: str) -> dict:
+    with tifffile.TiffFile(fname) as tiff:
+        page = tiff.pages[0]
+
+        if page.software == 'instamatic':
+            header = yaml.load(page.tags['ImageDescription'].value, Loader=yaml.Loader)
+        elif tiff.is_tvips:
+            header = tiff.tvips_metadata
+        else:
+            header = {}
+
+        return header
 
 def write_hdf5(fname: str, data, header: dict = None):
     """Simple function to write data to hdf5 format using h5py.

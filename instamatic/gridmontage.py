@@ -108,7 +108,15 @@ class GridMontage:
 
         return coords, px_center, stage_center
 
-    def start(self, save=True):
+    def obtain_image(self, exposure_time, align, align_roi, roi):
+        if align_roi:
+            img, h = self.ctrl.get_image(exposure_time, align=align, roi=roi)
+        else:
+            img, h = self.ctrl.get_image(exposure_time, align=align)
+        return img, h
+
+    def start(self, exposure_time, align, align_roi, roi, wait_interval=1.0, save=True, blank_beam=False, 
+            pre_acquire=None, post_acquire=None):
         """Start the experiment."""
         ctrl = self.ctrl
 
@@ -119,16 +127,20 @@ class GridMontage:
             ctrl.stage.eliminate_backlash_xy()
 
         def acquire_image(ctrl):
-            img, h = ctrl.get_image()
+            if blank_beam:
+                self.ctrl.beam.unblank(wait_interval)
+            img, h = self.obtain_image(exposure_time, align, align_roi, roi)
             buffer.append((img, h))
+            if blank_beam:
+                self.ctrl.beam.blank()
 
         def post_acquire(ctrl):
             pass
 
         ctrl.acquire_at_items(self.stagecoords,
                               acquire=acquire_image,
-                              pre_acquire=None,
-                              post_acquire=None)
+                              pre_acquire=pre_acquire,
+                              post_acquire=post_acquire)
 
         self.buffer = buffer
 
@@ -216,9 +228,7 @@ if __name__ == '__main__':
     m = gm.to_montage()
 
     # unoptimized coords
-    coords = m.get_montage_coords(dv)
-    m.plot_stitched(coords)
+    coords = m.calculate_montage_coords(dv, plot=True)
 
     # get coords optimized using cross correlation
-    coords2 = m.get_montage_coords(optimize=True)
-    m.plot_stitched(coords2)
+    coords2 = m.optimize_montage_coords(plot=True)

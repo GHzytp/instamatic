@@ -44,14 +44,14 @@ class Beam(State):
         return bool(self._getter())
 
     def blank(self, delay: float = 0.0) -> None:
-        """Turn the beamblank on, optionally wait for `delay` in ms to allow
+        """Turn the beamblank on, optionally wait for `delay` in s to allow
         the beam to settle."""
         self._setter(True)
         if delay:
             time.sleep(delay)
 
     def unblank(self, delay: float = 0.0) -> None:
-        """Turn the beamblank off, optionally wait for `delay` in ms to allow
+        """Turn the beamblank off, optionally wait for `delay` in s to allow
         the beam to settle."""
         self._setter(False)
         if delay:
