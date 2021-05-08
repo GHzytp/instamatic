@@ -106,7 +106,7 @@ class CryoEDFrame(LabelFrame):
         self.ShowSquareButton.grid(row=5, column=4, sticky='EW')
         self.ShowTargetButton = Button(frame, text='Show Target', width=11, command=self.show_target, state=NORMAL)
         self.ShowTargetButton.grid(row=5, column=5, sticky='EW', padx=5)
-        self.RunTargetButton = Button(frame, text='Run Target', width=11, command=self.run_target, state=NORMAL)
+        self.RunTargetButton = Button(frame, text='Pred Z', width=11, command=self.pred_z, state=NORMAL)
         self.RunTargetButton.grid(row=5, column=6, sticky='EW')
 
         self.e_eucentric_tilt = Spinbox(frame, textvariable=self.var_stage_tilt, width=8, from_=-20.0, to=20.0, increment=0.01)
@@ -264,7 +264,7 @@ class CryoEDFrame(LabelFrame):
         else:
             self.stream_frame.panel.coords(self.stream_frame.roi, self.roi[0][1], self.roi[0][0], self.roi[1][1], self.roi[1][0])
 
-    def run_target(self):
+    def pred_z(self):
         pass
 
     def show_grid_montage(self):
