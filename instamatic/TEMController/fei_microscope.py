@@ -41,6 +41,26 @@ D      Diffraction mode as entered from higher magnification imaging modes
 FUNCTION_MODES = {1: 'LM', 2: 'Mi', 3: 'SA', 4: 'Mh', 5: 'LAD', 6: 'D'}
 STEM_FOCUS_STRATEGY = {1: 'Intensity', 2: 'Objective', 3: 'StepSize', 4: 'Both'}
 
+class AcqShutterMode(IntEnum):
+    PRE_SPECIMEN = 0
+    POST_SPECIMEN = 1
+    BOTH = 2
+
+class AcqImageSize(IntEnum):
+    FULL = 0
+    HALF = 1
+    QUARTER = 2
+
+class AcqImageCorrection(IntEnum):
+    UNPROCESSED = 0
+    DEFAULT = 1
+
+class AcqExposureMode(IntEnum):
+    NONE = 0
+    SIMULTANEOUS = 1
+    PRE_EXPOSURE = 2
+    PRE_EXPOSURE_PAUSE = 3
+
 # Unit: nm/pixelg
 MagnificationMapping = {}
 MagnificationRanges = config.microscope.ranges['LM']+ config.microscope.ranges['Mi'] + config.microscope.ranges['SA'] + config.microscope.ranges['Mh']
@@ -56,6 +76,13 @@ for index, value in enumerate(config.microscope.ranges['D'], start=1):
 CameraLengthMapping_LAD = {}
 for index, value in enumerate(config.microscope.ranges['LAD'], start=1):
     CameraLengthMapping_LAD[index] = value
+
+def _parse_enum(type, item):
+    """Try to parse 'item' (string or integer) to enum 'type'"""
+    try:
+        return type[item]
+    except KeyError:
+        return type(item)
 
 def move_stage(x=None, y=None, z=None, a=None, b=None, speed=1):
     """Rotate stage function. Mainly for start a new process and move the stage to achieve non-blocking stage manipulation"""
@@ -1331,6 +1358,146 @@ class FEIMicroscope:
         self.acq_tem.Detectors.AcqParams.ImageSize = 2
         self.acq_tem.Detectors.AcqParams.Binning = 8
         ff = self.acq_tem.AcquireImages()
+
+    def query_acq_devices(self):
+        ccds = []
+        ccdCollection = self.acq_tem.CCDCameras
+        for i in range(len(ccdCollection)):
+            ccd = ccdCollection[i]
+            print(f'found CCD camera: {ccd.Name()}')
+            ccds.append(ccd.Name())
+        return ccds
+        
+    def query_acq_detectors(self):
+        stems = []
+        STEMDetectors = self.acq_tem.STEMDetectors
+        for i in range(len(STEMDetectors)):
+            stem = STEMDetectors[i]
+            print(f'found STEM detector: {stem.Name()}')
+            stems.append(stem.Name())
+        return stems
+
+    def add_acq_device(self, name):
+        self.acq_tem.AddAcqDeviceByName(name)
+
+    def remove_acq_device(self, name):
+        self.acq_tem.RemoveAcqDeviceByName(name)
+
+    def remove_all_acq_device(self):
+        self.acq_tem.RemoveAllAcqDevices()
+
+    def get_stem_detector_param(self, det):
+        """Create dict with STEM detector parameters"""
+        info = det.Info
+        param = det.AcqParams
+        return {
+            "brightness": info.Brightness,
+            "contrast": info.Contrast,
+            "image_size": AcqImageSize(param.ImageSize).name,
+            "binning": param.Binning,
+            "dwelltime(s)": param.DwellTime
+        }
+
+    def get_camera_param(self, ccd):
+        """Create dict with camera parameters"""
+        info = ccd.Info
+        param = ccd.AcqParams
+        return {
+            "image_size": AcqImageSize(param.ImageSize).name,
+            "exposure(s)": param.ExposureTime,
+            "binning": param.Binning,
+            "correction": AcqImageCorrection(param.ImageCorrection).name,
+            "exposure_mode": AcqExposureMode(param.ExposureMode).name,
+            "shutter_mode": AcqShutterMode(info.ShutterMode).name,
+            "pre_exposure(s)": param.PreExposureTime,
+            "pre_exposure_pause(s)": param.PreExposurePauseTime
+        }
+
+    def set_camera_param(self, ccd, values):
+        """Set camera parameters"""
+        info = ccd.Info
+        param = ccd.AcqParams
+        # Silently ignore failures
+        try:
+            param.ImageSize = _parse_enum(AcqImageSize, values["image_size"])
+        except Exception:
+            pass
+        try:
+            param.ExposureTime = values["exposure(s)"]
+        except Exception:
+            pass
+        try:
+            param.Binning = values["binning"]
+        except Exception:
+            pass
+        try:
+            param.ImageCorrection = _parse_enum(AcqImageCorrection, values["correction"])
+        except Exception:
+            pass
+        try:
+            param.ExposureMode = _parse_enum(AcqExposureMode, values["exposure_mode"])
+        except Exception:
+            pass
+        try:
+            info.ShutterMode = _parse_enum(AcqShutterMode, values["shutter_mode"])
+        except Exception:
+            pass
+        try:
+            param.PreExposureTime = values["pre_exposure(s)"]
+        except Exception:
+            pass
+        try:
+            param.PreExposurePauseTime = values["pre_exposure_pause(s)"]
+        except Exception:
+            pass
+
+    def set_stem_detector_param(self, det, values):
+        """Set STEM detector parameters"""
+        info = det.Info
+        param = det.AcqParams
+        # Silently ignore failures
+        try:
+            info.Brightness = values["brightness"]
+        except Exception:
+            pass
+        try:
+            info.Contrast = values["contrast"]
+        except Exception:
+            pass
+        try:
+            param.ImageSize = _parse_enum(AcqImageSize, values["image_size"])
+        except Exception:
+            pass
+        try:
+            param.Binning = values["binning"]
+        except Exception:
+            pass
+        try:
+            param.DwellTime = values["dwelltime(s)"]
+        except Exception:
+            pass
+
+    def acquire_img(self):
+        images = self.acq_tem.AcquireImages()
+        if len(images) != 1:
+            print('Image acquired from multiple or no image is acquired.')
+        return images[0].Array
+
+    def get_stage_limits(self):
+        """
+        Returns dictionary with min/max tuples for all holder axes.
+        The tuples are the values, the axis names are the keys.
+        For axes "x", "y", "z" the unit is meters
+        For axes "a", "b" the unit is radians
+        """
+        result = {}
+        for axis in ('x', 'y', 'z', 'a', 'b'):
+            mn, mx, unit = self.stage_tem.AxisData(axis)
+            if axis in ('x', 'y', 'z'):
+                result[axis] = (mn * 1e9, mx * 1e9)
+            elif axis in ('a', 'b'):
+                result[axis] = (mn * 180 / pi, mx * 180 / pi)
+        return result
 
     def getProbeDefocus(self):
         """The amount of probe defocus (in nm). Accessible only in Probe mode."""
