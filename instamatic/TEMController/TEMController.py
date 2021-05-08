@@ -24,8 +24,12 @@ _cam = None
 _holder = None
 _data_stream = None
 _image_stream = None
+_tia_image_stream = None
+_fei_image_stream = None
 
 default_cam = config.camera.name
+default_tia_cam = config.settings.tiacamera
+default_fei_cam = config.settings.feicamera
 default_tem = config.microscope.name
 default_holder = config.holder.name
 
@@ -33,7 +37,8 @@ use_tem_server = config.settings.use_tem_server
 use_cam_server = config.settings.use_cam_server
 
 
-def initialize(tem_name: str = default_tem, cam_name: str = default_cam, holder_name: str = default_holder, stream: bool = True) -> 'TEMController':
+def initialize(tem_name: str = default_tem, cam_name: str = default_cam, holder_name: str = default_holder, 
+            tia_cam_name: str = default_tia_cam, fei_cam_name: str = default_fei_cam, stream: bool = True) -> 'TEMController':
     """Initialize TEMController object giving access to the TEM and Camera
     interfaces.
 
@@ -78,8 +83,17 @@ def initialize(tem_name: str = default_tem, cam_name: str = default_cam, holder_
         if _data_stream is None and _image_stream is None:
             _data_stream, _image_stream = start_streaming()
 
+    global _tia_image_stream
+    if tia_cam_name:
+        _tia_image_stream = None
+
+    global _fei_image_stream
+    if fei_cam_name:
+        _fei_image_stream = None
+
     global _ctrl
-    ctrl = _ctrl = TEMController(tem=_tem, cam=_cam, holder=_holder, data_stream=_data_stream, image_stream=_image_stream)
+    ctrl = _ctrl = TEMController(tem=_tem, cam=_cam, holder=_holder, data_stream=_data_stream, image_stream=_image_stream, 
+                                tia_image_stream=_tia_image_stream, fei_image_stream=_fei_image_stream)
 
     return ctrl
 
@@ -105,7 +119,7 @@ class TEMController:
     cam: Camera control object (see instamatic.camera) [optional]
     """
 
-    def __init__(self, tem, cam=None, holder=None, data_stream=None, image_stream=None):
+    def __init__(self, tem, cam=None, holder=None, data_stream=None, image_stream=None, tia_image_stream=None, fei_image_stream=None):
         super().__init__()
 
         self._executor = ThreadPoolExecutor(max_workers=1)
@@ -115,6 +129,8 @@ class TEMController:
         self.holder = holder
         self.data_stream = data_stream
         self.image_stream = image_stream
+        self.tia_image_stream = tia_image_stream
+        self.fei_image_stream = fei_image_stream
 
         self.gunshift = GunShift(tem)
         self.guntilt = GunTilt(tem)
@@ -832,21 +848,31 @@ def main_entry():
                         help='Simulate microscope connection (default: False)')
 
     parser.add_argument('-c', '--camera',
-                        action='store', type=str, dest='tem_name',
+                        action='store', type=str, dest='cam_name',
                         help='Camera configuration to load.')
+
+    parser.add_argument('-tc', '--tiacamera',
+                        action='store', type=str, dest='tia_cam_name',
+                        help='TIA camera configuration to load.')
+
+    parser.add_argument('-fc', '--feicamera',
+                        action='store', type=str, dest='fei_cam_name',
+                        help='FEI camera configuration to load.')
 
     parser.add_argument('-h', '--holder',
                         action='store', type=str, dest='holder_name',
                         help='Holder configuration to load.')
 
     parser.add_argument('-t', '--tem',
-                        action='store', type=str, dest='cam_name',
+                        action='store', type=str, dest='tem_name',
                         help='TEM configuration to load.')
 
     parser.set_defaults(
         simulate=False,
         tem_name=default_tem,
         cam_name=default_cam,
+        tia_cam_name=default_tia_cam,
+        fei_cam_name=default_fei_cam,
         holder_name=default_holder
     )
 
@@ -855,7 +881,8 @@ def main_entry():
     if options.simulate:
         config.settings.simulate = True
 
-    ctrl = initialize(tem_name=options.tem_name, cam_name=options.cam_name, holder_name=options.holder_name)
+    ctrl = initialize(tem_name=options.tem_name, cam_name=options.cam_name, holder_name=options.holder_name, 
+                    tia_cam_name=options.tia_cam_name, fei_cam_name=options.fei_cam_name)
 
     from IPython import embed
     embed(banner1='\nAssuming direct control.\n')
