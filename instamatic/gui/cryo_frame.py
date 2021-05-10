@@ -1,5 +1,6 @@
 import threading
 import time
+import decimal
 from pathlib import Path
 from datetime import datetime
 from tkinter import filedialog, messagebox
@@ -222,7 +223,7 @@ class CryoEDFrame(LabelFrame):
         self.var_y0 = IntVar(value=int(self.dimension[1]*0.25))
         self.var_x1 = IntVar(value=int(self.dimension[0]*0.75))
         self.var_y1 = IntVar(value=int(self.dimension[1]*0.75))
-        self.var_blank_beam = BooleanVar(value=True)
+        self.var_blank_beam = BooleanVar(value=False)
         self.var_magnify = IntVar(value=5)
 
     def set_trigger(self, trigger=None, q=None):
