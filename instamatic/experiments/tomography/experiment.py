@@ -161,7 +161,7 @@ class Experiment:
         # Measured defocus
         direction =  self.calc_direction(shift_focus, beam_tilt, beamtilt_matrix)
         # Actual defocus is the opposite of the direction to 0 defocus
-        measured_defocus = - direction * (np.linalg.norm(shift_focus) / 2 / np.tan(np.deg2rad(beam_tilt)) - cs * 1e6 * np.tan(np.deg2rad(beam_tilt))**2)
+        measured_defocus = direction * (np.linalg.norm(shift_focus) / 2 / np.tan(np.deg2rad(beam_tilt)) - cs * 1e6 * np.tan(np.deg2rad(beam_tilt))**2)
         print(f'Meansured defocus: {measured_defocus} nm')
         self.ctrl.beamtilt.xy = (0, 0)
 
@@ -210,7 +210,7 @@ class Experiment:
         return direction
 
     def start_auto_eucentric_height(self, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, 
-                        roi: list, defocus: int, stage_tilt: float, blank_beam: bool = False, ask: bool = True):
+                        roi: list, defocus: int, stage_tilt: float, blank_beam: bool = False, ask: bool = True, show_drift: bool = False):
         """Find eucentric height automatically using the method in FEI TEM Tomography"""
         if blank_beam:
             self.ctrl.beam.blank()
@@ -272,11 +272,12 @@ class Experiment:
         z = self.ctrl.stage.z
         self.ctrl.stage.z = z + delta_z
         self.ctrl.stage.a = 0
-        self.ctrl.stage.xy = current_pos
-        time.sleep(wait_interval)
-        img_0_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
-        drift = self.calc_shift_images(img_0_1, img_0_2, align_roi, roi)
-        print(f"Drift during auto height: {drift * h['ImagePixelsize']}nm")
+        if show_drift:
+            self.ctrl.stage.xy = current_pos
+            time.sleep(wait_interval)
+            img_0_2, h = self.obtain_image(exposure_time, align, align_roi, roi)
+            drift = self.calc_shift_images(img_0_1, img_0_2, align_roi, roi)
+            print(f"Drift during auto height: {drift * h['ImagePixelsize']}nm")
         self.ctrl.objfocus.set(current_defocus)
 
     def start_auto_collection_stage_tilt(self, exposure_time: float, end_angle: float, stepsize: float, wait_interval: float, 

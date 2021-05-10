@@ -5,6 +5,7 @@ import multiprocessing
 
 import comtypes.client
 from numpy import pi
+from enum import IntEnum
 
 from instamatic import config
 from instamatic.exceptions import FEIValueError
