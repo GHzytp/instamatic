@@ -109,7 +109,7 @@ class AcquireAtItems:
     def move_to_item(self, item):
         """Move the stage to the stage coordinates given by the NavItem."""
         try:
-            x = item.stage_x * 1000  # um -> nm, for pyserialem
+            x = item.stage_x * 1000  # um -> nm, for pyserialem (has these attributes, usually it's a list)
             y = item.stage_y * 1000  # um -> nm
             z = item.stage_z * 1000  # um -> nm
         except AttributeError:
@@ -131,7 +131,7 @@ class AcquireAtItems:
 
         set_xy(x=x, y=y)
 
-    def start(self, start_index: int = 0):
+    def start(self, stop_event=None, start_index: int = 0):
         """Start serial acquisition protocol.
 
         Parameters
@@ -140,7 +140,6 @@ class AcquireAtItems:
             Start acquisition from this item.
         """
         import time
-        import msvcrt
 
         ctrl = self.ctrl
         nav_items = self.nav_items[start_index:]
@@ -148,7 +147,6 @@ class AcquireAtItems:
         ntot = len(nav_items)
 
         print(f'\nAcquiring on {ntot} items.')
-        print('Press <Ctrl-C> or ⬛ to interrupt.\n')
 
         # self.move_to_item(nav_items[0])  # pre-move (why do we need this?)
         self.pre_acquire(ctrl)
@@ -170,6 +168,12 @@ class AcquireAtItems:
                 print(repr(e.with_traceback(None)))
                 print(f'\nAcquisition was interrupted during item `{item}`!')
                 break
+
+            if stop_event is not None:
+                if stop_event.is_set():
+                    stop_event.clear()
+                    print(f'\nAcquisition was stopped during item `{item}`!')
+                    break
 
         t1 = time.perf_counter()
 

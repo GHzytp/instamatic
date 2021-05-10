@@ -66,18 +66,18 @@ class GridMontage:
 
         vect = np.array((res_x - overlap_x, res_y - overlap_y))
 
-        grid = make_grid((nx, ny), direction=self.direction, zigzag=self.zigzag)
+        grid = make_grid((nx, ny), direction=self.direction, zigzag=self.zigzag, flip=self.flip)
         grid_indices = sorted_grid_indices(grid)
-        px_coords = grid_indices * vect
+        px_coords = (grid_indices + 0.5) * vect
 
-        px_center = vect * ((np.array(grid.shape) / 2) - 0.5)
+        px_center = vect * (np.array(grid.shape) / 2)
 
         self.stagematrix = self.ctrl.get_stagematrix(binning=binning) # stage matrix here considered pixelsize, camera binning and software binning
 
-        stage_center = np.dot(px_center, self.stagematrix) - stage_shift
-        stagepos = np.dot(px_coords, self.stagematrix)
+        stage_center = stage_shift
+        stagepos = np.dot(px_center-px_coords, self.stagematrix)
 
-        coords = (stagepos - stage_center).astype(int)
+        coords = (stagepos + stage_center).astype(int)
 
         mode = self.ctrl.mode.get()
         magnification = self.ctrl.magnification.value
@@ -159,7 +159,15 @@ class GridMontage:
                     stagecoords=self.stagecoords,
                     pixelsize=self.pixelsize,
                     )
-        m.update_gridspec(flip=not self.flip)  # BUG: Work-around for gridspec madness
+        if self.direction == 'downup':
+            m.update_gridspec(direction='updown', flip=self.flip)
+        elif self.direction == 'updown':
+            m.update_gridspec(direction='downup', flip=self.flip)
+        elif self.direction == 'leftright':
+            m.update_gridspec(direction='rightleft', flip=self.flip)
+        elif self.direction == 'rightleft':
+            m.update_gridspec(direction='leftright', flip=self.flip)  
+        # BUG: Work-around for gridspec madness
         # Possibly related is that images are rotated 90 deg. in SerialEM mrc files
 
         return m

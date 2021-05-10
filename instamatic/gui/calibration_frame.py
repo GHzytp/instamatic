@@ -1056,7 +1056,10 @@ class CalibrationFrame(LabelFrame):
             i = 0
             with tqdm(total=100, ncols=60, bar_format='{l_bar}{bar}') as pbar:
                 for dx, dy in np.stack([x_grid, y_grid]).reshape(2, -1).T:
-                    self.backlash_correction((x_cent+dx, y_cent+dy))
+                    if i % step_size == 0:
+                        self.backlash_correction((x_cent+dx, y_cent+dy))
+                    else:
+                        self.ctrl.stage.xy = (x_cent+dx, y_cent+dy)
                     self.lb_coll1.config(text=str(pbar))
                     outfile = self.stage_calib_path / f'calib_stage_{i:04d}'
 
@@ -1109,7 +1112,7 @@ class CalibrationFrame(LabelFrame):
 
     def backlash_correction(self, stage_cent):
         if self.var_step_size.get() < 1000:
-            self.ctrl.stage.set_xy_with_backlash_correction(*stage_cent, step=7500, settle_delay=0.64)
+            self.ctrl.stage.set_xy_with_backlash_correction(*stage_cent, step=10000, settle_delay=0.64)
         else:
             self.ctrl.stage.set_xy_with_backlash_correction(*stage_cent, step=10000, settle_delay=0.64)
 
