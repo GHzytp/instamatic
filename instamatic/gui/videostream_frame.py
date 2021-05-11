@@ -101,6 +101,8 @@ class VideoStreamFrame(LabelFrame):
         self.var_show_center = BooleanVar(value=True)
         self.var_show_res = BooleanVar(value=True)
         self.var_resolution = DoubleVar(value=0)
+        self.var_click_and_go = BooleanVar(value=False)
+        self.var_backlash = BooleanVar(value=False)
 
         self.var_apply_stretch = BooleanVar(value=False)
         self.var_azimuth = DoubleVar(value=config.calibration.stretch_azimuth)
@@ -178,14 +180,16 @@ class VideoStreamFrame(LabelFrame):
 
         frame = Frame(master)
 
-        Checkbutton(frame, width=15, text='Show Center', variable=self.var_show_center, command=self.show_center).grid(row=1, column=0, sticky='we')
-        Checkbutton(frame, width=15, text='Show Resolution', variable=self.var_show_res, command=self.show_res).grid(row=1, column=1, sticky='we', padx=5)
-        self.l_resolution = Label(frame, width=15, text='')
+        Checkbutton(frame, text='Show Center', variable=self.var_show_center, command=self.show_center).grid(row=1, column=0, sticky='we')
+        Checkbutton(frame, text='Show Resolution', variable=self.var_show_res, command=self.show_res).grid(row=1, column=1, sticky='we', padx=5)
+        self.l_resolution = Label(frame, text='')
         self.l_resolution.grid(row=1, column=2)
-        self.e_resolution = Entry(frame, width=15, textvariable=self.var_resolution, state=DISABLED)
+        self.e_resolution = Entry(frame, textvariable=self.var_resolution, state=DISABLED)
         self.e_resolution.grid(row=1, column=3, padx=5)
         self.check_tem_state()
         Button(frame, width=ewidth, text='Check', command=self.check_tem_state).grid(row=1, column=4)
+        Checkbutton(frame, text='Click&Go', variable=self.var_click_and_go, command=self.click_and_go).grid(row=1, column=5, sticky='we')
+        Checkbutton(frame, text='Backlash', variable=self.var_backlash).grid(row=1, column=6, sticky='we')
 
         frame.pack()
 
@@ -215,6 +219,29 @@ class VideoStreamFrame(LabelFrame):
             else:
                 self.res_shell_panel = self.panel.create_oval((dimension[1]-dimension[0])/2, 0, (dimension[1]+dimension[0])/2, dimension[0], outline='red')
             self.panel.pack(side='left', padx=5, pady=5)
+
+    def click_and_go(self):
+        if self.var_click_and_go.get():
+            self.panel.bind("<Double-Button-1>", self._mouse_double_clicked)
+        else:
+            self.panel.unbind("<Double-Button-1>")
+
+    def _mouse_double_clicked(self, event):
+        t = threading.Thread(target=self.go_to_target_pixel_pos, args=(event.x, event.y), daemon=True)
+        t.start()
+
+    def go_to_target_pixel_pos(self, x, y):
+        stage_matrix = np.array(self.ctrl.get_stagematrix())[::-1]
+        stage_cent = np.array(self.ctrl.stage.xy)
+        print(f'Stage center: {stage_cent}')
+        pixel_cent = np.array(self.dimension[::-1])/2
+        target_pixel_pos = np.array((x, y))
+        target_stage_pos = np.round((target_pixel_pos - pixel_cent) @ stage_matrix + stage_cent)
+        if self.var_backlash.get():
+            self.ctrl.stage.set_xy_with_backlash_correction(x=target_stage_pos[0], y=target_stage_pos[1])
+        else:
+            self.ctrl.stage.xy = target_stage_pos
+        print(f'Position: {self.ctrl.stage.xy}')
 
     def apply_stretch(self):
         pass

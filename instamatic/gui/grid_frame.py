@@ -391,7 +391,7 @@ class GridFrame(LabelFrame):
 
     def _generate_stage_position(self):
         if self.map_info is not None:
-            pixel_center = np.array(self.map_info['ImageResolution'])/2
+            pixel_center = np.array(self.map_info['ImageResolution'][::-1])/2
             stage_pos = self.point_list[['pos_x', 'pos_y']].to_numpy() # pixel coordination (relative to (0,0))
             stage_pos -= pixel_center
             stage_matrix = np.array(self.map_info['stage_matrix'])
