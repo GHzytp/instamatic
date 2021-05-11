@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
+from scipy.interpolate import Rbf
 
 from .base_module import BaseModule
 from .modules import MODULES
@@ -37,6 +38,7 @@ class CryoEDFrame(LabelFrame):
         self.last_grid = None
         self.last_square = None
         self.grid_montage_path = None
+        self.z_interpolator = None
         self.ctrl = TEMController.get_instance()
         self.dimension = self.ctrl.cam.dimension
         self.binsize = self.ctrl.cam.default_binsize
@@ -266,7 +268,10 @@ class CryoEDFrame(LabelFrame):
             self.stream_frame.panel.coords(self.stream_frame.roi, self.roi[0][1], self.roi[0][0], self.roi[1][1], self.roi[1][0])
 
     def pred_z(self):
-        pass
+        try:
+            self.z_interpolator = Rbf((self.df_grid['pos_x'], self.df_grid['pos_y'], self.df_grid['pos_z']))
+        except ValueError:
+            print('Interpolated data series cannot contain nan or inf values.')
 
     def show_grid_montage(self):
         self.grid_frame.map_path = str(self.grid_montage_path)
@@ -483,7 +488,7 @@ class CryoEDFrame(LabelFrame):
         self.position_list, path = GridWindow(self).get_selected_positions()
 
         if self.position_list is not None:
-            z = self.ctrl.stage.z
+            z = np.round(self.ctrl.stage.z)
             if level == 'Whole':
                 last_num_grid = len(self.df_grid)
                 self.df_grid = self.df_grid.append(self.position_list, ignore_index=True)
@@ -554,6 +559,7 @@ class CryoEDFrame(LabelFrame):
         self.square_dir = None
         self.last_grid = None
         self.last_square = None
+        self.z_interpolator = None
 
     def update_grid(self, event):
         selected = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
@@ -610,14 +616,14 @@ class CryoEDFrame(LabelFrame):
     def update_z_square(self):
         selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
         selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
-        z = self.ctrl.stage.z
+        z = np.round(self.ctrl.stage.z)
         self.df_square.loc[(self.df_square['grid']==selected_grid) & (self.df_square['square']==selected_square), 'pos_z'] = z
 
     def update_z_target(self):
         selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
         selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
         selected_target = self.tv_target.get_children().index(self.tv_target.selection()[0])
-        z = self.ctrl.stage.z
+        z = np.round(self.ctrl.stage.z)
         self.df_target.loc[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square) & 
                             (self.df_target['target']==selected_target), 'pos_z'] = z
 
@@ -765,6 +771,7 @@ class CryoEDFrame(LabelFrame):
     def load_grid(self):
         dir_name = filedialog.askdirectory(initialdir=self.grid_dir, title='Load Whole Grid')
         if dir_name != '':
+            self.z_interpolator = None
             self.tv_grid_square.delete(*self.tv_grid_square.get_children())
             self.tv_target.delete(*self.tv_target.get_children())
             self.tv_whole_grid.delete(*self.tv_whole_grid.get_children())
@@ -821,7 +828,7 @@ class CryoEDFrame(LabelFrame):
                   'align_roi': self.var_align_roi.get(),
                   'roi': self.roi,
                   'blank_beam': self.var_blank_beam.get(),
-                  'pred_z': None}
+                  'pred_z': self.z_interpolator}
         self.q.put(('from_grid_square_list', params))
         self.triggerEvent.set()
 

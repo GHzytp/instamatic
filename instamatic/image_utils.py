@@ -54,7 +54,7 @@ def translation(im0,
         return [t0, t1]
 
 
-def autoscale(img: np.ndarray, maxdim: int = 512) -> (np.ndarray, float):
+def autoscale(img: np.ndarray, maxdim: int = 1024) -> (np.ndarray, float):
     """Scale the image to fit the maximum dimension given by `maxdim` Returns
     the scaled image, and the image scale."""
     if maxdim:

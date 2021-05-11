@@ -86,7 +86,7 @@ class Experiment:
             square_dir.mkdir(exist_ok=True, parents=True)
             filepath = square_dir / f'square_{sample_name}.tiff'
             self.collect_montage(exposure_time, align, align_roi, roi, blank_beam, num_img, filepath, mag, image_scale, save_origin=False)
-            whole_grid.loc[index, 'pos_z'] = self.ctrl.stage.z
+            whole_grid.loc[index, 'pos_z'] = np.round(self.ctrl.stage.z)
             whole_grid.loc[index, 'img_location'] = Path(square_dir.name) / f'square_{sample_name}.tiff'
             num += 1
 
@@ -106,9 +106,10 @@ class Experiment:
             square_img_pixel = header['ImagePixelsize']
             square_stage_center = np.array(header['center_pos'])
             square_pixel_center = square_img_shape / 2
-            target_pixelsize = square_img_pixel / magnify
             state = self.ctrl.mode.state
             mag = self.ctrl.magnification.get()
+            target_pixelsize = square_img_pixel / magnify
+            '''
             rec = None
             for magnification, pixelsize in config.calibration[state]['pixelsize'].items():
                 difference = abs(pixelsize - target_pixelsize)
@@ -122,7 +123,7 @@ class Experiment:
                     target_pixelsize = pixelsize
                     print(f'Target mag: {target_magnification}')
                     break
-
+            '''
             for index2, point in no_target_img_df.iterrows(): 
                 self.ctrl.stage.xy = point['pos_x'], point['pos_y']
                 time.sleep(wait_interval)
@@ -138,9 +139,9 @@ class Experiment:
                 filepath = target_dir / f'target_{sample_name}.tiff'
                 write_tiff(filepath, arr, header=h)
                 if pred_z is None:
-                    grid_square.loc[index2, 'pos_z'] = self.ctrl.stage.z
+                    grid_square.loc[index2, 'pos_z'] = np.round(self.ctrl.stage.z)
                 else:
-                    grid_square.loc[index2, 'pos_z'] = pred_z(current_pos)
+                    grid_square.loc[index2, 'pos_z'] = np.round(pred_z(*current_pos))
                 grid_square.loc[index2, 'img_location'] = Path(target_dir.parent.name) / Path(target_dir.name) / f'target_{sample_name}.tiff'
                 num += 1
 

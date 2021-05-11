@@ -400,7 +400,8 @@ class GridFrame(LabelFrame):
             stage_pos = stage_pos @ stage_matrix # stage coordination (include pixelsize already)
             stage_pos += np.array(self.map_info['center_pos'])
             stage_pos = np.round(stage_pos)
-            stage_pos_df = pd.DataFrame({'x':self.point_list['pos_x'], 'y':self.point_list['pos_y'], 'pos_x':stage_pos[:,0], 'pos_y':stage_pos[:,1]})
+            stage_pos_df = pd.DataFrame({'x': np.round(self.point_list['pos_x']), 'y': np.round(self.point_list['pos_y']), 
+                                        'pos_x': stage_pos[:,0], 'pos_y': stage_pos[:,1]})
             path = Path(self.map_path).parent
             return stage_pos_df, path
         else:
