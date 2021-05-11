@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from scipy.interpolate import Rbf
 
 from .base_module import BaseModule
@@ -19,9 +20,11 @@ from instamatic import TEMController
 from instamatic.formats import write_tiff
 from instamatic.utils import suppress_stderr
 from instamatic.gui.grid_window import GridWindow
-from instamatic.utils.widgets import MultiListbox, Hoverbox
+from instamatic.utils.widgets import MultiListbox, Hoverbox, ShowMatplotlibFig
 
 from pyserialem.navigation import sort_nav_items_by_shortest_path
+
+DRAW = False
 
 class CryoEDFrame(LabelFrame):
     """GUI panel for Cryo electron diffraction data collection protocol."""
@@ -269,7 +272,20 @@ class CryoEDFrame(LabelFrame):
 
     def pred_z(self):
         try:
-            self.z_interpolator = Rbf((self.df_grid['pos_x'], self.df_grid['pos_y'], self.df_grid['pos_z']))
+            self.z_interpolator = Rbf(self.df_grid['pos_x'], self.df_grid['pos_y'], self.df_grid['pos_z'])
+            if DRAW:
+                x = np.linspace(min(self.df_grid['pos_x']), max(self.df_grid['pos_x']), 30)
+                y = np.linspace(min(self.df_grid['pos_y']), max(self.df_grid['pos_y']), 30)
+                xu, yu = np.meshgrid(x, y)
+                z_pred = self.z_interpolator(xu, yu)
+                fig = plt.figure()
+                ax = fig.add_subplot(111, projection='3d')
+                ax.scatter(xu, yu, z_pred, c='r', marker='o')
+                ax.set_xlabel('X Label')
+                ax.set_ylabel('Y Label')
+                ax.set_zlabel('Z Label')
+                ShowMatplotlibFig(self, fig, title='predict eucentric height')
+            print('Interpolation done.')
         except ValueError:
             print('Interpolated data series cannot contain nan or inf values.')
 

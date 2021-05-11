@@ -8,7 +8,7 @@ from tkinter import *
 from tkinter.ttk import *
 
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
 
 class MultiListbox(tk.Frame):
@@ -177,9 +177,11 @@ class ShowMatplotlibFig(tk.Toplevel):
         button = Button(self, text='Dismiss', command=self.close)
         button.pack(side=BOTTOM)
         self.canvas = canvas = FigureCanvasTkAgg(fig, master=self)
-        canvas.show()
+        canvas.draw()
         canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=True)
         # canvas._tkcanvas.pack(side=self, fill=BOTH, expand=True)
+        self.toolbar = NavigationToolbar2Tk(canvas, self)
+        self.toolbar.update()
         self.wm_protocol('WM_DELETE_WINDOW', self.close)
         self.focus_set()
         self.wait_window(self)
@@ -188,7 +190,6 @@ class ShowMatplotlibFig(tk.Toplevel):
         self.canvas.get_tk_widget().destroy()
         self.destroy()    # this is necessary on Windows to prevent
         # Fatal Python Error: PyEval_RestoreThread: NULL tstate
-        plt.clf()
         plt.close('all')
 
 class popupWindow(tk.Toplevel):
