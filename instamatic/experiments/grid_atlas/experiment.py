@@ -44,12 +44,16 @@ class Experiment:
             img, h = self.ctrl.get_image(exposure_time, align=align)
         return img, h
 
+    def eliminate_backlash(self, ctrl):
+        print('Attempting to eliminate backlash...')
+        ctrl.stage.eliminate_backlash_xy()
+
     def collect_montage(self, exposure_time: float, align: bool, align_roi: bool, roi: list, blank_beam: bool, num_img: int, 
                         filepath: str, mag: int, image_scale: float, save_origin=True):
         gm = self.ctrl.grid_montage()
         current_pos = self.ctrl.stage.xy
         pos, px_center, stage_center = gm.setup(nx=num_img, ny=num_img, stage_shift=current_pos)
-        gm.start(exposure_time=exposure_time, align=align, align_roi=align_roi, roi=roi, save=save_origin, blank_beam=blank_beam)
+        gm.start(exposure_time=exposure_time, align=align, align_roi=align_roi, roi=roi, save=save_origin, blank_beam=blank_beam, pre_acquire=self.eliminate_backlash)
         m = gm.to_montage()
         m.calculate_montage_coords()
         #m.optimize_montage_coords()

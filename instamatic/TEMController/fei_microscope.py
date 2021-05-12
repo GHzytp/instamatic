@@ -1362,20 +1362,20 @@ class FEIMicroscope:
 
     def query_acq_devices(self):
         ccds = []
-        ccdCollection = self.acq_tem.CCDCameras
+        ccdCollection = self.acq_tem.Cameras
         for i in range(len(ccdCollection)):
             ccd = ccdCollection[i]
-            print(f'found CCD camera: {ccd.Name()}')
-            ccds.append(ccd.Name())
+            print(f'found CCD camera: {ccd.Info.Name}')
+            ccds.append(ccd.Info.Name)
         return ccds
         
     def query_acq_detectors(self):
         stems = []
-        STEMDetectors = self.acq_tem.STEMDetectors
+        STEMDetectors = self.acq_tem.Detectors
         for i in range(len(STEMDetectors)):
             stem = STEMDetectors[i]
-            print(f'found STEM detector: {stem.Name()}')
-            stems.append(stem.Name())
+            print(f'found STEM detector: {stem.Info.Name}')
+            stems.append(stem.Info.Name)
         return stems
 
     def add_acq_device(self, name):
