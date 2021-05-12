@@ -318,7 +318,7 @@ class Stage:
         if settle_delay:
             time.sleep(settle_delay)
 
-    def eliminate_backlash_xy(self, step: float = 5000, settle_delay: float = 0.200) -> None:
+    def eliminate_backlash_xy(self, step: float = 10000, settle_delay: float = 0.500) -> None:
         """Eliminate backlash by in XY by moving the stage away from the
         current position, and approaching it from the common direction. Uses
         `set_xy_with_backlash_correction` internally.

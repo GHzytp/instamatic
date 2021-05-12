@@ -75,7 +75,7 @@ class GridMontage:
         self.stagematrix = self.ctrl.get_stagematrix(binning=binning) # stage matrix here considered pixelsize, camera binning and software binning
 
         stage_center = stage_shift
-        stagepos = np.dot(px_center-px_coords, self.stagematrix)
+        stagepos = np.dot(px_coords-px_center, self.stagematrix)
 
         coords = (stagepos + stage_center).astype(int)
 
@@ -122,10 +122,6 @@ class GridMontage:
 
         buffer = []
 
-        def eliminate_backlash(ctrl):
-            print('Attempting to eliminate backlash...')
-            ctrl.stage.eliminate_backlash_xy()
-
         def acquire_image(ctrl):
             if blank_beam:
                 self.ctrl.beam.unblank(wait_interval)
@@ -133,9 +129,6 @@ class GridMontage:
             buffer.append((img, h))
             if blank_beam:
                 self.ctrl.beam.blank()
-
-        def post_acquire(ctrl):
-            pass
 
         ctrl.acquire_at_items(self.stagecoords,
                               acquire=acquire_image,
@@ -159,14 +152,7 @@ class GridMontage:
                     stagecoords=self.stagecoords,
                     pixelsize=self.pixelsize,
                     )
-        if self.direction == 'downup':
-            m.update_gridspec(direction='updown', flip=self.flip)
-        elif self.direction == 'updown':
-            m.update_gridspec(direction='downup', flip=self.flip)
-        elif self.direction == 'leftright':
-            m.update_gridspec(direction='rightleft', flip=self.flip)
-        elif self.direction == 'rightleft':
-            m.update_gridspec(direction='leftright', flip=self.flip)  
+        #m.update_gridspec(flip=not self.flip)
         # BUG: Work-around for gridspec madness
         # Possibly related is that images are rotated 90 deg. in SerialEM mrc files
 

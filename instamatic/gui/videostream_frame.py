@@ -3,6 +3,7 @@ import time
 from datetime import datetime
 from tkinter import *
 from tkinter.ttk import *
+from tkinter import messagebox
 
 import numpy as np
 import numexpr as ne
@@ -103,6 +104,9 @@ class VideoStreamFrame(LabelFrame):
         self.var_resolution = DoubleVar(value=0)
         self.var_click_and_go = BooleanVar(value=False)
         self.var_backlash = BooleanVar(value=False)
+        self.var_calib = BooleanVar(value=False)
+        self.var_calib_x_wait = DoubleVar(value=0)
+        self.var_calib_y_wait = DoubleVar(value=0)
 
         self.var_apply_stretch = BooleanVar(value=False)
         self.var_azimuth = DoubleVar(value=config.calibration.stretch_azimuth)
@@ -190,6 +194,7 @@ class VideoStreamFrame(LabelFrame):
         Button(frame, width=ewidth, text='Check', command=self.check_tem_state).grid(row=1, column=4)
         Checkbutton(frame, text='Click&Go', variable=self.var_click_and_go, command=self.click_and_go).grid(row=1, column=5, sticky='we')
         Checkbutton(frame, text='Backlash', variable=self.var_backlash).grid(row=1, column=6, sticky='we')
+        Checkbutton(frame, text='Calib', variable=self.var_calib, command=self.activate_calib).grid(row=1, column=7, sticky='we')
 
         frame.pack()
 
@@ -226,9 +231,19 @@ class VideoStreamFrame(LabelFrame):
         else:
             self.panel.unbind("<Double-Button-1>")
 
+    def activate_calib(self):
+        if self.var_calib.get():
+            self.panel.bind("<ButtonPress-1>", self._mouse_single_clicked)
+        else:
+            self.panel.unbind("<ButtonPress-1>")
+
     def _mouse_double_clicked(self, event):
         t = threading.Thread(target=self.go_to_target_pixel_pos, args=(event.x, event.y), daemon=True)
         t.start()
+
+    def _mouse_single_clicked(self, event):
+        self.var_calib_x_wait.set(event.x)
+        self.var_calib_y_wait.set(event.y)
 
     def go_to_target_pixel_pos(self, x, y):
         stage_matrix = np.array(self.ctrl.get_stagematrix())[::-1]
@@ -242,6 +257,11 @@ class VideoStreamFrame(LabelFrame):
         else:
             self.ctrl.stage.xy = target_stage_pos
         print(f'Position: {self.ctrl.stage.xy}')
+        if self.var_calib.get():
+            if messagebox.askokcancel("Calibration", f"Click the target on the image after the stage movement is finished."):
+                self.panel.wait_variable(self.var_calib_y_wait)
+                actual_pixel_pos = np.array((self.var_calib_x_wait.get(), self.var_calib_y_wait.get()))
+                print(f'Actual pixel position: {actual_pixel_pos}, target pixel position: {target_pixel_pos}, pixel center: {pixel_cent}, target stage position: {target_stage_pos}, stage matrix: {stage_matrix}, stage center: {stage_cent}')
 
     def show_center(self):
         if self.var_show_center.get():

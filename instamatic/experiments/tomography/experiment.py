@@ -244,6 +244,7 @@ class Experiment:
         # Moving z
         if ask:
             if not messagebox.askokcancel("Continue", f"Change of z height is {delta_z}. Move stage and continue?"):
+                self.ctrl.objfocus.set(current_defocus)
                 return
 
         z = self.ctrl.stage.z
