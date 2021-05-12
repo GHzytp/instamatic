@@ -90,7 +90,7 @@ class CalibrationFrame(LabelFrame):
         Label(frame, text='Diff Defocus', width=11).grid(row=0, column=4, sticky='W')
         self.e_diff_focus= Spinbox(frame, width=7, textvariable=self.var_diff_defocus, from_=-100000, to=100000, increment=1, state=NORMAL)
         self.e_diff_focus.grid(row=0, column=5, sticky='EW', padx=5)
-        Checkbutton(frame, text='Manual', variable=self.var_manual, state=NORMAL)
+        Checkbutton(frame, text='Manual', variable=self.var_manual, state=NORMAL).grid(row=0, column=6, sticky='EW')
         
         self.set_gui_diffobj()
 
@@ -551,7 +551,12 @@ class CalibrationFrame(LabelFrame):
                 pixelsize = config.calibration[state]['pixelsize'][magnification] * self.binsize * self.software_binsize
 
             self.lb_coll0.config(text=f'Beam Tilt calibration started. Gridsize: {grid_size} | Stepsize: {step_size:.2f}')
-            img_cent, scale = autoscale(img_cent)
+            if self.var_manual.get():
+                self.stream_frame.panel.bind("<ButtonPress-1>", self.stream_frame._mouse_single_clicked)
+                self.stream_frame.panel.wait_variable(self.stream_frame.var_calib_y_wait)
+                pixel_cent = np.array((self.stream_frame.var_calib_y_wait.get(), self.stream_frame.var_calib_x_wait.get()))
+            else:
+                img_cent, scale = autoscale(img_cent)
 
             pixel_cent = find_beam_center(img_cent) / scale
             print('Beamtilt: x={} | y={}'.format(*beamtilt_cent))
@@ -574,9 +579,13 @@ class CalibrationFrame(LabelFrame):
 
                     comment = f'Calib beam tilt {i}: dx={dx} - dy={dy}'
                     img, h = self.ctrl.get_image(exposure=exposure, out=outfile, comment=comment, header_keys='BeamTilt')
-                    img = imgscale(img, scale)
 
-                    shift, error, phasediff = phase_cross_correlation(img_cent, img, upsample_factor=10)
+                    if self.var_manual.get():
+                        self.stream_frame.panel.wait_variable(self.stream_frame.var_calib_y_wait)
+                        shift = pixel_cent - np.array((self.stream_frame.var_calib_y_wait.get(), self.stream_frame.var_calib_x_wait.get()))
+                    else:
+                        img = imgscale(img, scale)
+                        shift, error, phasediff = phase_cross_correlation(img_cent, img, upsample_factor=10) 
 
                     beamtilt = np.array(self.ctrl.beamtilt.get())
                     beampos.append(beamtilt)
@@ -587,7 +596,11 @@ class CalibrationFrame(LabelFrame):
 
             self.ctrl.beamtilt.set(*beamtilt_cent) # reset beam to center
 
-            shifts = np.array(shifts) * pixelsize / scale
+            if self.var_manual.get():
+                shifts = np.array(shifts) * pixelsize
+                self.stream_frame.panel.unbind("<ButtonPress-1>")
+            else:
+                shifts = np.array(shifts) * pixelsize / scale # Axis ordering is consistent with numpy (e.g. Z, Y, X)
             beampos = np.array(beampos) - np.array(beamtilt_cent)
 
             fit_result = fit_affine_transformation(shifts, beampos, rotation=True, scaling=True, translation=True)
@@ -674,7 +687,12 @@ class CalibrationFrame(LabelFrame):
                 pixelsize = config.calibration[state]['pixelsize'][magnification] * self.binsize * self.software_binsize
 
             self.lb_coll0.config(text=f'Image Shift 1 calibration started. Gridsize: {grid_size} | Stepsize: {step_size:.2f}')
-            img_cent, scale = autoscale(img_cent)
+            if self.var_manual.get():
+                self.stream_frame.panel.bind("<ButtonPress-1>", self.stream_frame._mouse_single_clicked)
+                self.stream_frame.panel.wait_variable(self.stream_frame.var_calib_y_wait)
+                pixel_cent = np.array((self.stream_frame.var_calib_y_wait.get(), self.stream_frame.var_calib_x_wait.get()))
+            else:
+                img_cent, scale = autoscale(img_cent)
 
             pixel_cent = find_beam_center(img_cent) / scale
             print('IS1: x={} | y={}'.format(*IS1_cent))
@@ -697,9 +715,13 @@ class CalibrationFrame(LabelFrame):
 
                     comment = f'Calib image shift 1 {i}: dx={dx} - dy={dy}'
                     img, h = self.ctrl.get_image(exposure=exposure, out=outfile, comment=comment, header_keys='ImageShift1')
-                    img = imgscale(img, scale)
 
-                    shift, error, phasediff = phase_cross_correlation(img_cent, img, upsample_factor=10)
+                    if self.var_manual.get():
+                        self.stream_frame.panel.wait_variable(self.stream_frame.var_calib_y_wait)
+                        shift = pixel_cent - np.array((self.stream_frame.var_calib_y_wait.get(), self.stream_frame.var_calib_x_wait.get()))
+                    else:
+                        img = imgscale(img, scale)
+                        shift, error, phasediff = phase_cross_correlation(img_cent, img, upsample_factor=10) 
 
                     imageshift1 = np.array(self.ctrl.imageshift1.get())
                     beampos.append(imageshift1)
@@ -710,7 +732,11 @@ class CalibrationFrame(LabelFrame):
 
             self.ctrl.imageshift1.set(*IS1_cent) # reset beam to center
 
-            shifts = np.array(shifts) * pixelsize / scale
+            if self.var_manual.get():
+                shifts = np.array(shifts) * pixelsize
+                self.stream_frame.panel.unbind("<ButtonPress-1>")
+            else:
+                shifts = np.array(shifts) * pixelsize / scale # Axis ordering is consistent with numpy (e.g. Z, Y, X)
             beampos = np.array(beampos) - np.array(IS1_cent)
 
             fit_result = fit_affine_transformation(shifts, beampos, rotation=True, scaling=True, translation=True)
@@ -796,7 +822,12 @@ class CalibrationFrame(LabelFrame):
                 pixelsize = config.calibration[state]['pixelsize'][magnification] * self.binsize * self.software_binsize
 
             self.lb_coll0.config(text=f'Image Shift 2 calibration started. Gridsize: {grid_size} | Stepsize: {step_size:.2f}')
-            img_cent, scale = autoscale(img_cent)
+            if self.var_manual.get():
+                self.stream_frame.panel.bind("<ButtonPress-1>", self.stream_frame._mouse_single_clicked)
+                self.stream_frame.panel.wait_variable(self.stream_frame.var_calib_y_wait)
+                pixel_cent = np.array((self.stream_frame.var_calib_y_wait.get(), self.stream_frame.var_calib_x_wait.get()))
+            else:
+                img_cent, scale = autoscale(img_cent)
 
             pixel_cent = find_beam_center(img_cent) / scale
             print('IS2: x={} | y={}'.format(*IS2_cent))
@@ -819,9 +850,13 @@ class CalibrationFrame(LabelFrame):
 
                     comment = f'Calib image shift 2 {i}: dx={dx} - dy={dy}'
                     img, h = self.ctrl.get_image(exposure=exposure, out=outfile, comment=comment, header_keys='ImageShift2')
-                    img = imgscale(img, scale)
 
-                    shift, error, phasediff = phase_cross_correlation(img_cent, img, upsample_factor=10)
+                    if self.var_manual.get():
+                        self.stream_frame.panel.wait_variable(self.stream_frame.var_calib_y_wait)
+                        shift = pixel_cent - np.array((self.stream_frame.var_calib_y_wait.get(), self.stream_frame.var_calib_x_wait.get()))
+                    else:
+                        img = imgscale(img, scale)
+                        shift, error, phasediff = phase_cross_correlation(img_cent, img, upsample_factor=10) 
 
                     imageshift2 = np.array(self.ctrl.imageshift2.get())
                     beampos.append(imageshift2)
@@ -832,7 +867,11 @@ class CalibrationFrame(LabelFrame):
 
             self.ctrl.imageshift2.set(*IS2_cent) # reset beam to center
 
-            shifts = np.array(shifts) * pixelsize / scale
+            if self.var_manual.get():
+                shifts = np.array(shifts) * pixelsize
+                self.stream_frame.panel.unbind("<ButtonPress-1>")
+            else:
+                shifts = np.array(shifts) * pixelsize / scale # Axis ordering is consistent with numpy (e.g. Z, Y, X)
             beampos = np.array(beampos) - np.array(IS2_cent)
 
             fit_result = fit_affine_transformation(shifts, beampos, rotation=True, scaling=True, translation=True)
@@ -1049,8 +1088,10 @@ class CalibrationFrame(LabelFrame):
 
             self.lb_coll0.config(text=f'Stage calibration started. Gridsize: {grid_size} | Stepsize: {step_size:.2f}')
             if self.var_manual.get():
-                pixel_cent = img_cent.shape / 2
-            else
+                self.stream_frame.panel.bind("<ButtonPress-1>", self.stream_frame._mouse_single_clicked)
+                self.stream_frame.panel.wait_variable(self.stream_frame.var_calib_y_wait)
+                pixel_cent = np.array((self.stream_frame.var_calib_y_wait.get(), self.stream_frame.var_calib_x_wait.get()))
+            else:
                 img_cent, scale = autoscale(img_cent)
 
             print('Stage: x={} | y={}'.format(*stage_cent))
@@ -1072,11 +1113,12 @@ class CalibrationFrame(LabelFrame):
 
                     comment = f'Calib stage {i}: dx={dx} - dy={dy}'
                     img, h = self.ctrl.get_image(exposure=exposure, out=outfile, comment=comment, header_keys='StagePosition')
-                    img = imgscale(img, scale)
 
                     if self.var_manual.get():
-                        shift = pixel_cent - 
+                        self.stream_frame.panel.wait_variable(self.stream_frame.var_calib_y_wait)
+                        shift = pixel_cent - np.array((self.stream_frame.var_calib_y_wait.get(), self.stream_frame.var_calib_x_wait.get()))
                     else:
+                        img = imgscale(img, scale)
                         shift, error, phasediff = phase_cross_correlation(img_cent, img, upsample_factor=10) 
 
                     stageshift = np.array(self.ctrl.stage.xy)
@@ -1090,6 +1132,7 @@ class CalibrationFrame(LabelFrame):
 
             if self.var_manual.get():
                 shifts = np.array(shifts) * pixelsize
+                self.stream_frame.panel.unbind("<ButtonPress-1>")
             else:
                 shifts = np.array(shifts) * pixelsize / scale # Axis ordering is consistent with numpy (e.g. Z, Y, X)
             stagepos = np.array(stagepos) - stage_cent # transform from nm to pixel, coordinate: up and right bigger, different from image coordinate (down and right bigger)
