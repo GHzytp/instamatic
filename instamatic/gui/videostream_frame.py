@@ -162,7 +162,7 @@ class VideoStreamFrame(LabelFrame):
         self.e_display_range = Spinbox(frame, width=ewidth, textvariable=self.var_display_range, from_=1, to=self.display_range_default, increment=1000)
         self.e_display_range.grid(row=1, column=3)
 
-        Checkbutton(frame, text='Apply Stretch', variable=self.var_apply_stretch, command=self.apply_stretch).grid(row=1, column=4, sticky='W')
+        Checkbutton(frame, text='Apply Stretch', variable=self.var_apply_stretch).grid(row=1, column=4, sticky='W')
         self.e_amplitude = Spinbox(frame, textvariable=self.var_amplitude, width=6, from_=0.0, to=100.0, increment=0.01)
         self.e_amplitude.grid(row=1, column=5, sticky='EW')
         Hoverbox(self.e_amplitude, 'Stretch amplitude')
@@ -184,7 +184,7 @@ class VideoStreamFrame(LabelFrame):
         Checkbutton(frame, text='Show Resolution', variable=self.var_show_res, command=self.show_res).grid(row=1, column=1, sticky='we', padx=5)
         self.l_resolution = Label(frame, text='')
         self.l_resolution.grid(row=1, column=2)
-        self.e_resolution = Entry(frame, textvariable=self.var_resolution, state=DISABLED)
+        self.e_resolution = Entry(frame, width=7, textvariable=self.var_resolution, state=DISABLED)
         self.e_resolution.grid(row=1, column=3, padx=5)
         self.check_tem_state()
         Button(frame, width=ewidth, text='Check', command=self.check_tem_state).grid(row=1, column=4)
@@ -242,9 +242,6 @@ class VideoStreamFrame(LabelFrame):
         else:
             self.ctrl.stage.xy = target_stage_pos
         print(f'Position: {self.ctrl.stage.xy}')
-
-    def apply_stretch(self):
-        pass
 
     def show_center(self):
         if self.var_show_center.get():

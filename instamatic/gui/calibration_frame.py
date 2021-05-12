@@ -8,7 +8,9 @@ from tkinter.ttk import *
 from tqdm import tqdm
 
 from .base_module import BaseModule
+from .modules import MODULES
 from instamatic import config
+from instamatic import TEMController
 from instamatic.utils.fit import fit_affine_transformation
 from instamatic.utils.widgets import Spinbox
 from instamatic.utils import suppress_stderr
@@ -29,8 +31,6 @@ class CalibrationFrame(LabelFrame):
         LabelFrame.__init__(self, parent, text='Calibration')
 
         self.parent = parent
-
-        from instamatic import TEMController
         self.ctrl = TEMController.get_instance()
         self.mode = self.ctrl.mode.state
         self.calib_path = config.locations['work'] / 'calibration'
@@ -39,6 +39,10 @@ class CalibrationFrame(LabelFrame):
         self.binsize = self.ctrl.cam.default_binsize
         self.software_binsize = config.settings.software_binsize
         self.wait_interval = 1
+        try:
+            self.stream_frame = [module for module in MODULES if module.name == 'stream'][0].frame
+        except IndexError:
+            self.stream_frame = None
 
         self.cam_buffer = []
 
@@ -54,6 +58,12 @@ class CalibrationFrame(LabelFrame):
         self.e_current.grid(row=0, column=3, sticky='EW', padx=5)
         self.b_toggle_screen = Checkbutton(frame, text='Toggle screen', variable=self.var_toggle_screen, command=self.toggle_screen, state=NORMAL)
         self.b_toggle_screen.grid(row=0, column=4, sticky='EW', padx=5)
+        if self.ctrl.tem.interface == "fei":
+            self.o_mode = OptionMenu(frame, self.var_mode, self.mode, 'LM', 'Mi', 'SA', 'Mh', 'LAD', 'D', command=self.set_mode)
+        else:
+            self.o_mode = OptionMenu(frame, self.var_mode, self.mode, 'diff', 'mag1', 'mag2', 'lowmag', 'samag', command=self.set_mode)
+        self.o_mode.grid(row=0, column=5, sticky='EW')
+        
         self.StartButton = Button(frame, text='Start Cam Calib', command=self.start_cam_calib, state=NORMAL)
         self.StartButton.grid(row=1, column=0, sticky='EW')
         self.ContinueButton = Button(frame, text='Continue Calib', command=self.continue_cam_calib, state=DISABLED)
@@ -64,29 +74,24 @@ class CalibrationFrame(LabelFrame):
         self.DarkRefButton.grid(row=1, column=3, sticky='EW', padx=5)
         self.GainNormButton = Button(frame, text='Gain Normalize', command=self.start_gain_normalize, state=NORMAL)
         self.GainNormButton.grid(row=1, column=4, sticky='EW')
-        
+        self.c_toggle_defocus = Checkbutton(frame, text='Toggle defocus', variable=self.var_toggle_diff_defocus, command=self.toggle_diff_defocus, state=NORMAL)
+        self.c_toggle_defocus.grid(row=1, column=5, sticky='W')
 
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
 
         frame = Frame(self)
 
-        Label(frame, text='Grid Size', width=15).grid(row=0, column=0, sticky='W')
-        self.e_grid_size = Spinbox(frame, width=10, textvariable=self.var_grid_size, from_=0, to=20, increment=1, state=NORMAL)
+        Label(frame, text='Grid Size', width=8).grid(row=0, column=0, sticky='W')
+        self.e_grid_size = Spinbox(frame, width=7, textvariable=self.var_grid_size, from_=0, to=20, increment=1, state=NORMAL)
         self.e_grid_size.grid(row=0, column=1, sticky='EW', padx=5)
-        Label(frame, text='Step Size', width=15).grid(row=0, column=2, sticky='W')
-        self.e_step_size = Spinbox(frame, width=10, textvariable=self.var_step_size, from_=0, to=10000, increment=0.01, state=NORMAL)
+        Label(frame, text='Step Size', width=8).grid(row=0, column=2, sticky='W')
+        self.e_step_size = Spinbox(frame, width=7, textvariable=self.var_step_size, from_=0, to=10000, increment=0.01, state=NORMAL)
         self.e_step_size.grid(row=0, column=3, sticky='EW', padx=5)
+        Label(frame, text='Diff Defocus', width=11).grid(row=0, column=4, sticky='W')
+        self.e_diff_focus= Spinbox(frame, width=7, textvariable=self.var_diff_defocus, from_=-100000, to=100000, increment=1, state=NORMAL)
+        self.e_diff_focus.grid(row=0, column=5, sticky='EW', padx=5)
+        Checkbutton(frame, text='Manual', variable=self.var_manual, state=NORMAL)
         
-        Label(frame, text='Diff Defocus', width=15).grid(row=1, column=0, sticky='W')
-        self.e_diff_focus= Spinbox(frame, width=10, textvariable=self.var_diff_defocus, from_=-100000, to=100000, increment=1, state=NORMAL)
-        self.e_diff_focus.grid(row=1, column=1, sticky='EW', padx=5)
-        self.c_toggle_defocus = Checkbutton(frame, text='Toggle defocus', variable=self.var_toggle_diff_defocus, command=self.toggle_diff_defocus, state=NORMAL)
-        self.c_toggle_defocus.grid(row=1, column=2, sticky='W')
-        if self.ctrl.tem.interface == "fei":
-            self.o_mode = OptionMenu(frame, self.var_mode, self.mode, 'LM', 'Mi', 'SA', 'Mh', 'LAD', 'D', command=self.set_mode)
-        else:
-            self.o_mode = OptionMenu(frame, self.var_mode, self.mode, 'diff', 'mag1', 'mag2', 'lowmag', 'samag', command=self.set_mode)
-        self.o_mode.grid(row=1, column=3, sticky='EW', padx=5)
         self.set_gui_diffobj()
 
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
@@ -143,6 +148,7 @@ class CalibrationFrame(LabelFrame):
         self.var_grid_size = IntVar(value=5)
         self.var_step_size = DoubleVar(value=1000)
         self.var_mode = StringVar(value=self.mode)
+        self.var_manual = BooleanVar(value=False)
 
     def set_trigger(self, trigger=None, q=None):
         self.triggerEvent = trigger
@@ -1042,7 +1048,10 @@ class CalibrationFrame(LabelFrame):
                 pixelsize = config.calibration[state]['pixelsize'][magnification] * self.binsize * self.software_binsize
 
             self.lb_coll0.config(text=f'Stage calibration started. Gridsize: {grid_size} | Stepsize: {step_size:.2f}')
-            img_cent, scale = autoscale(img_cent)
+            if self.var_manual.get():
+                pixel_cent = img_cent.shape / 2
+            else
+                img_cent, scale = autoscale(img_cent)
 
             print('Stage: x={} | y={}'.format(*stage_cent))
 
@@ -1067,7 +1076,10 @@ class CalibrationFrame(LabelFrame):
                     img, h = self.ctrl.get_image(exposure=exposure, out=outfile, comment=comment, header_keys='StagePosition')
                     img = imgscale(img, scale)
 
-                    shift, error, phasediff = phase_cross_correlation(img_cent, img, upsample_factor=10) 
+                    if self.var_manual.get():
+                        shift = pixel_cent - 
+                    else:
+                        shift, error, phasediff = phase_cross_correlation(img_cent, img, upsample_factor=10) 
 
                     stageshift = np.array(self.ctrl.stage.xy)
                     stagepos.append(stageshift)
@@ -1078,7 +1090,10 @@ class CalibrationFrame(LabelFrame):
 
             self.ctrl.stage.xy = stage_cent # reset beam to center
 
-            shifts = np.array(shifts) * pixelsize / scale # Axis ordering is consistent with numpy (e.g. Z, Y, X)
+            if self.var_manual.get():
+                shifts = np.array(shifts) * pixelsize
+            else:
+                shifts = np.array(shifts) * pixelsize / scale # Axis ordering is consistent with numpy (e.g. Z, Y, X)
             stagepos = np.array(stagepos) - stage_cent # transform from nm to pixel, coordinate: up and right bigger, different from image coordinate (down and right bigger)
 
             fit_result = fit_affine_transformation(shifts, stagepos, rotation=True, scaling=True, translation=False)
