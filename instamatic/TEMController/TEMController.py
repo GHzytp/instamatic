@@ -761,7 +761,7 @@ class TEMController:
         else:
             h['ImagePixelsize'] = config.calibration[mode]['pixelsize'][mag] * binsize * software_binsize
         
-        #h['ImageRotation'] = config.calibration[mode]['rotation'][mag]
+        h['ImageMode'] = mode
         h['ImageComment'] = comment
         h['ImageCameraName'] = self.cam.name
         h['ImageCameraDimensions'] = self.cam.getCameraDimensions()

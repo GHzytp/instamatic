@@ -27,7 +27,7 @@ class VideoStreamFrame(LabelFrame):
         LabelFrame.__init__(self, parent, text='Stream')
 
         self.parent = parent
-
+        self.right_click_cnt = 0
         self.stream = stream
         self.app = app
         self.binsize = self.stream.default_binsize
@@ -104,6 +104,7 @@ class VideoStreamFrame(LabelFrame):
         self.var_resolution = DoubleVar(value=0)
         self.var_click_and_go = BooleanVar(value=False)
         self.var_backlash = BooleanVar(value=False)
+        self.var_measure = BooleanVar(value=False)
         self.var_calib = BooleanVar(value=False)
         self.var_calib_x_wait = DoubleVar(value=0)
         self.var_calib_y_wait = DoubleVar(value=0)
@@ -194,7 +195,8 @@ class VideoStreamFrame(LabelFrame):
         Button(frame, width=ewidth, text='Check', command=self.check_tem_state).grid(row=1, column=4)
         Checkbutton(frame, text='Click&Go', variable=self.var_click_and_go, command=self.click_and_go).grid(row=1, column=5, sticky='we')
         Checkbutton(frame, text='Backlash', variable=self.var_backlash).grid(row=1, column=6, sticky='we')
-        Checkbutton(frame, text='Calib', variable=self.var_calib, command=self.activate_calib).grid(row=1, column=7, sticky='we')
+        Checkbutton(frame, text='Measure', variable=self.var_measure, command=self.activate_measure).grid(row=1, column=7, sticky='we')
+        Checkbutton(frame, text='Calib', variable=self.var_calib, command=self.activate_calib).grid(row=1, column=8, sticky='we')
 
         frame.pack()
 
@@ -237,6 +239,12 @@ class VideoStreamFrame(LabelFrame):
         else:
             self.panel.unbind("<ButtonPress-1>")
 
+    def activate_measure(self):
+        if self.var_measure.get():
+            self.panel.bind("<ButtonPress-3>", self._mouse_right_clicked)
+        else:
+            self.panel.unbind("<ButtonPress-3>")
+
     def _mouse_double_clicked(self, event):
         t = threading.Thread(target=self.go_to_target_pixel_pos, args=(event.x, event.y), daemon=True)
         t.start()
@@ -244,6 +252,18 @@ class VideoStreamFrame(LabelFrame):
     def _mouse_single_clicked(self, event):
         self.var_calib_x_wait.set(event.x)
         self.var_calib_y_wait.set(event.y)
+
+    def _mouse_right_clicked(self, event):
+        if self.right_click_cnt == 0:
+            self.start_pos = np.array((event.x, event.y))
+            self.right_click_cnt += 1
+        elif self.right_click_cnt == 1:
+            mode = self.ctrl.mode.state
+            mag = self.ctrl.magnification.get()
+            pixelsize = self.get_pixel_size(mode, mag)
+            self.end_pos = np.array((event.x, event.y))
+            self.right_click_cnt = 0
+            print(f'Measured length: {np.linalg.norm(self.end_pos - self.start_pos) * pixelsize}nm')
 
     def go_to_target_pixel_pos(self, x, y):
         stage_matrix = np.array(self.ctrl.get_stagematrix())[::-1]
@@ -275,24 +295,25 @@ class VideoStreamFrame(LabelFrame):
         else:
             self.panel.itemconfigure(self.res_shell_panel, state='hidden')
 
+    def get_pixel_size(self, mode, mag):
+        software_binsize = config.settings.software_binsize
+        if software_binsize is None:
+            pixelsize = config.calibration[mode]['pixelsize'][mag] * self.binsize
+        else:
+            pixelsize = config.calibration[mode]['pixelsize'][mag] * self.binsize * software_binsize
+        return pixelsize
+
     def check_tem_state(self):
         mode = self.ctrl.mode.state
         if mode in ('D', 'LAD', 'diff'):
             self.l_resolution.config(text='Resolution (Å)')
             camera_length = self.ctrl.magnification.get()
-            if config.settings.software_binsize is None:
-                pixelsize = config.calibration[mode]['pixelsize'][camera_length] * self.binsize
-            else:
-                pixelsize = config.calibration[mode]['pixelsize'][camera_length] * self.binsize * config.settings.software_binsize
+            pixelsize = self.get_pixel_size(mode, camera_length)
             self.var_resolution.set(round(1 / (pixelsize * min(self.dimension) / 2), 2))
         else:
             self.l_resolution.config(text='Resolution (nm)')
             mag = self.ctrl.magnification.get()
-            software_binsize = config.settings.software_binsize
-            if config.settings.software_binsize is None:
-                pixelsize = config.calibration[mode]['pixelsize'][mag] * self.binsize
-            else:
-                pixelsize = config.calibration[mode]['pixelsize'][mag] * self.binsize * software_binsize
+            pixelsize = self.get_pixel_size(mode, mag)
             self.var_resolution.set(round(pixelsize * min(self.dimension) / 2, 1))
 
     def pause_stream(self):
@@ -455,12 +476,6 @@ def start_gui(stream):
     vsframe.pack(side='top', fill='both', expand=True)
     root.mainloop()
     root.destroy()
-
-
-def ipy_embed(*args, **kwargs):
-    """Embed an ipython terminal."""
-    import IPython
-    IPython.embed(*args, **kwargs)
 
 
 if __name__ == '__main__':

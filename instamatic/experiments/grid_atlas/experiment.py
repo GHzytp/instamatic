@@ -113,7 +113,6 @@ class Experiment:
             state = self.ctrl.mode.state
             mag = self.ctrl.magnification.get()
             target_pixelsize = square_img_pixel / magnify
-            '''
             rec = None
             for magnification, pixelsize in config.calibration[state]['pixelsize'].items():
                 difference = abs(pixelsize - target_pixelsize)
@@ -127,7 +126,8 @@ class Experiment:
                     target_pixelsize = pixelsize
                     print(f'Target mag: {target_magnification}')
                     break
-            '''
+            self.ctrl.magnification.set(target_magnification)
+            
             for index2, point in no_target_img_df.iterrows(): 
                 self.ctrl.stage.xy = point['pos_x'], point['pos_y']
                 time.sleep(wait_interval)
@@ -153,3 +153,6 @@ class Experiment:
         # In diffraction mode, use beam shift to each crystal location and collection diffraction pattern.
         for index, point in target.iterrows(): 
             pass 
+
+    def design_acqusition_scheme(self):
+        pass

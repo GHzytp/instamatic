@@ -57,6 +57,7 @@ class IndexFrame(LabelFrame):
         self.current_radius = None
         self.software_binsize = config.settings.software_binsize
         self.indexing_path = config.locations['work'] / 'indexing'
+        self.right_click_cnt = 0
 
         self.init_vars()
 
@@ -147,6 +148,7 @@ class IndexFrame(LabelFrame):
         self.e_thickness = Entry(frame, textvariable=self.var_thickness, width=8, state=NORMAL)
         self.e_thickness.grid(row=2, column=14, sticky='EW')
         Label(frame, text='Å').grid(row=2, column=15, sticky='EW')
+        Checkbutton(frame, text='Measure', variable=self.var_measure, command=self.activate_measure).grid(row=2, column=16, columnspan=2, sticky='we')
 
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
 
@@ -186,7 +188,8 @@ class IndexFrame(LabelFrame):
         self.ax = self.fig.add_subplot(1, 1, 1)
         self.canvas = FigureCanvasTkAgg(self.fig, frame)
         self.canvas.draw()
-        self.canvas.get_tk_widget().grid(row=0, column=0, padx=5)
+        self.canvas_tk_widget = self.canvas.get_tk_widget()
+        self.canvas_tk_widget.grid(row=0, column=0, padx=5)
         self.toolbar = NavigationToolbar2Tk(self.canvas, frame, pack_toolbar=False)
         self.toolbar.update()
         self.toolbar.grid(row=1, column=0, padx=5)
@@ -244,6 +247,7 @@ class IndexFrame(LabelFrame):
         self.var_find_peaks = BooleanVar(value=False)
         self.var_thickness = DoubleVar(value=400.0)
         self.var_show_hkl = BooleanVar(value=False)
+        self.var_measure = BooleanVar(value=False)
 
     def process_all(self):
         if self.img is not None:
@@ -293,6 +297,28 @@ class IndexFrame(LabelFrame):
             print('Image processing finished.')
             self.canvas.draw()
 
+    def activate_measure(self):
+        if self.var_measure.get():
+            self.canvas_tk_widget.bind("<ButtonPress-3>", self._mouse_right_clicked)
+        else:
+            self.canvas_tk_widget.unbind("<ButtonPress-3>")
+
+    def _mouse_right_clicked(self, event):
+        if self.right_click_cnt == 0:
+            self.start_pos = np.array((event.x, event.y))
+            self.right_click_cnt += 1
+        elif self.right_click_cnt == 1:
+            pixelsize = self.img_header['ImagePixelsize']
+            self.end_pos = np.array((event.x, event.y))
+            self.right_click_cnt = 0
+            if self.img_header['ImageMode'] in ('diff', 'D'):
+                print(f'Measured reciprocal length: {np.linalg.norm(self.end_pos - self.start_pos) * pixelsize}Å^-1')
+            else:
+                print(f'Measured length: {np.linalg.norm(self.end_pos - self.start_pos) * pixelsize}nm')
+
+    def reset_variables(self):
+        self.right_click_cnt = 0
+
     def acquire_image(self):
         self.ax.cla()
         self.counter = 0
@@ -305,6 +331,7 @@ class IndexFrame(LabelFrame):
         self.ax.set_xlim(0, self.img.shape[1]-1)
         self.ax.set_ylim(self.img.shape[0]-1, 0)
         self.canvas.draw()
+        self.reset_variables()
 
     def open_image(self):
         self.ax.cla()
@@ -338,6 +365,7 @@ class IndexFrame(LabelFrame):
             self.ax.set_xlim(0, self.img.shape[1]-1)
             self.ax.set_ylim(self.img.shape[0]-1, 0)
             self.canvas.draw()
+            self.reset_variables()
 
     def open_from_frame(self):
         if self.img_path != '' and self.img_path is not None:
@@ -349,6 +377,7 @@ class IndexFrame(LabelFrame):
             self.ax.set_xlim(0, self.img.shape[1]-1)
             self.ax.set_ylim(self.img.shape[0]-1, 0)
             self.canvas.draw()
+            self.reset_variables()
 
     def show_center(self):
         if self.var_show_center.get():

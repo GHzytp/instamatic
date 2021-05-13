@@ -41,6 +41,7 @@ class GridFrame(LabelFrame):
         self.cryo_frame = None
         self.map_on_canvas = None
         self.last_selected_position = None
+        self.right_click_cnt = 0
 
         self.init_vars()
         
@@ -66,6 +67,7 @@ class GridFrame(LabelFrame):
         self.e_tolerance.grid(row=2, column=0, stick='EW')
         self.FindSquareButton = Button(frame, text='Find Squares', width=12, command=self.find_squares, state=NORMAL)
         self.FindSquareButton.grid(row=2, column=1, sticky='EW', padx=5)
+        Checkbutton(frame, text='Measure', variable=self.var_measure, command=self.activate_measure).grid(row=2, column=2, sticky='EW')
         
         self.zoom_slider = tk.Scale(frame, variable=self.var_zoom, from_=0.02, to=1, resolution=0.01, showvalue=1, orient=HORIZONTAL, command=self.set_zoom)
         self.zoom_slider.grid(row=3, column=0, columnspan=3, sticky='EW')
@@ -117,6 +119,7 @@ class GridFrame(LabelFrame):
     def init_vars(self):
         self.var_zoom = DoubleVar(value=1.0)
         self.var_tolerance = DoubleVar(value=0.1)
+        self.var_measure = BooleanVar(value=False)
 
     def clear_all(self):
         self.canvas.delete('all')
@@ -134,6 +137,7 @@ class GridFrame(LabelFrame):
         self.map_on_canvas = None
         self.select_flag = 0
         self.last_selected_position = None
+        self.right_click_cnt = 0
 
     def open_map(self):
         if self.init_dir is None:
@@ -286,6 +290,22 @@ class GridFrame(LabelFrame):
         self.canvas.unbind("<ButtonPress-1>")
         self.canvas.unbind("<ButtonRelease-1>")
         self.canvas.unbind("<B1-Motion>")
+
+    def activate_measure(self):
+        if self.var_measure.get():
+            self.canvas.bind('<ButtonPress-3>', self._mouse_right_clicked)
+        else:
+            self.canvas.unbind("<ButtonPress-3>")
+
+    def _mouse_right_clicked(self, event):
+        if self.right_click_cnt == 0:
+            self.start_pos = np.array((event.x, event.y))
+            self.right_click_cnt += 1
+        elif self.right_click_cnt == 1:
+            pixelsize = self.map_info['ImagePixelsize']
+            self.end_pos = np.array((event.x, event.y))
+            self.right_click_cnt = 0
+            print(f'Measured length: {np.linalg.norm(self.end_pos - self.start_pos) * pixelsize / self.last_scale}nm')
 
     def set_zoom(self, event=None):
         if self.image is not None:
