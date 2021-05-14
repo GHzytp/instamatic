@@ -555,7 +555,7 @@ def read_image(filename, index=None, cache=None, no_strict_mrc=False, force_volu
         util.close(filename, f)
     # assert(numpy.alltrue(numpy.logical_not(numpy.isnan(out))))
     # if header_image_dtype.newbyteorder()==h.dtype:out = out.byteswap()
-    return out, header
+    return out[::-1], header
 
 
 def reshape_data(out, h, index, count, force_volume=False):
