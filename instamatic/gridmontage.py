@@ -116,7 +116,7 @@ class GridMontage:
         return img, h
 
     def start(self, exposure_time, align, align_roi, roi, wait_interval=1.0, save=True, blank_beam=False, 
-            pre_acquire=None, post_acquire=None):
+            pre_acquire=None, post_acquire=None, backlash=True):
         """Start the experiment."""
         ctrl = self.ctrl
 
@@ -133,7 +133,8 @@ class GridMontage:
         ctrl.acquire_at_items(self.stagecoords,
                               acquire=acquire_image,
                               pre_acquire=pre_acquire,
-                              post_acquire=post_acquire)
+                              post_acquire=post_acquire,
+                              backlash=backlash)
 
         self.buffer = buffer
 

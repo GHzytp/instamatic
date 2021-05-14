@@ -263,7 +263,7 @@ class VideoStreamFrame(LabelFrame):
             pixelsize = self.get_pixel_size(mode, mag)
             self.end_pos = np.array((event.x, event.y))
             self.right_click_cnt = 0
-            print(f'Measured length: {np.linalg.norm(self.end_pos - self.start_pos) * pixelsize}nm')
+            print(f'Start position: {self.start_pos}; End position: {self.end_pos};\nMeasured length: {np.linalg.norm(self.end_pos - self.start_pos) * pixelsize}nm')
 
     def go_to_target_pixel_pos(self, x, y):
         stage_matrix = np.array(self.ctrl.get_stagematrix())[::-1]

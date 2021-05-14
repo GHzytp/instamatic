@@ -5,6 +5,7 @@ import multiprocessing
 
 import comtypes.client
 from numpy import pi
+import numpy as np
 from enum import IntEnum
 
 from instamatic import config
@@ -1360,13 +1361,13 @@ class FEIMicroscope:
         self.acq_tem.Detectors.AcqParams.Binning = 8
         ff = self.acq_tem.AcquireImages()
 
-    def query_acq_devices(self):
+    def query_acq_cameras(self):
         ccds = []
         ccdCollection = self.acq_tem.Cameras
         for i in range(len(ccdCollection)):
             ccd = ccdCollection[i]
             print(f'found CCD camera: {ccd.Info.Name}')
-            ccds.append(ccd.Info.Name)
+            ccds.append(ccd)
         return ccds
         
     def query_acq_detectors(self):
@@ -1375,7 +1376,7 @@ class FEIMicroscope:
         for i in range(len(STEMDetectors)):
             stem = STEMDetectors[i]
             print(f'found STEM detector: {stem.Info.Name}')
-            stems.append(stem.Info.Name)
+            stems.append(stem)
         return stems
 
     def add_acq_device(self, name):
@@ -1387,10 +1388,10 @@ class FEIMicroscope:
     def remove_all_acq_device(self):
         self.acq_tem.RemoveAllAcqDevices()
 
-    def get_stem_detector_param(self, det):
+    def get_detector_param(self, det):
         """Create dict with STEM detector parameters"""
         info = det.Info
-        param = det.AcqParams
+        param = self.acq_tem.Detectors.AcqParams
         return {
             "brightness": info.Brightness,
             "contrast": info.Contrast,
@@ -1415,9 +1416,9 @@ class FEIMicroscope:
         }
 
     def set_camera_param(self, ccd, values):
-        """Set camera parameters"""
+        """Set camera parameters (For some reason set camera parameter did not work, only set detector parameters worked)"""
         info = ccd.Info
-        param = ccd.AcqParams
+        param = self.acq_tem.Detectors.AcqParams
         # Silently ignore failures
         try:
             param.ImageSize = _parse_enum(AcqImageSize, values["image_size"])
@@ -1452,10 +1453,10 @@ class FEIMicroscope:
         except Exception:
             pass
 
-    def set_stem_detector_param(self, det, values):
+    def set_detector_param(self, det, values):
         """Set STEM detector parameters"""
         info = det.Info
-        param = det.AcqParams
+        param = self.acq_tem.Detectors.AcqParams
         # Silently ignore failures
         try:
             info.Brightness = values["brightness"]
@@ -1482,7 +1483,7 @@ class FEIMicroscope:
         images = self.acq_tem.AcquireImages()
         if len(images) != 1:
             print('Image acquired from multiple or no image is acquired.')
-        return images[0].Array
+        return np.array(images[0].AsSafeArray, dtype=np.uint16)
 
     def get_stage_limits(self):
         """

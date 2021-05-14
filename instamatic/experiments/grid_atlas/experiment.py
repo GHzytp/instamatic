@@ -37,6 +37,7 @@ class Experiment:
         self.binsize = ctrl.cam.default_binsize
         self.software_binsize = config.settings.software_binsize
         self.beam_shift_matrix = np.array(config.calibration.beam_shift_matrix).reshape(2, 2)
+        self.magnification_induced_pixelshift = np.array(config.calibration.relative_pixel_shift_4300_1150)
 
     def obtain_image(self, exposure_time, align, align_roi, roi):
         if align_roi:
@@ -54,7 +55,10 @@ class Experiment:
         gm = self.ctrl.grid_montage()
         current_pos = self.ctrl.stage.xy
         pos, px_center, stage_center = gm.setup(nx=num_img, ny=num_img, stage_shift=current_pos)
-        gm.start(exposure_time=exposure_time, align=align, align_roi=align_roi, roi=roi, save=save_origin, blank_beam=blank_beam, pre_acquire=self.eliminate_backlash)
+        if num_img > 1:
+            gm.start(exposure_time=exposure_time, align=align, align_roi=align_roi, roi=roi, save=save_origin, blank_beam=blank_beam, pre_acquire=self.eliminate_backlash)
+        elif num_img == 1:
+            gm.start(exposure_time=exposure_time, align=align, align_roi=align_roi, roi=roi, save=save_origin, blank_beam=blank_beam, backlash=False)
         m = gm.to_montage()
         m.calculate_montage_coords()
         #m.optimize_montage_coords()
@@ -100,7 +104,7 @@ class Experiment:
 
     def from_grid_square_list(self, whole_grid, grid_square, grid_dir, pred_z, stop_event, magnify: int, sample_name: str, blank_beam: bool,
                         exposure_time: float, wait_interval: float,  align: bool, align_roi: bool, roi: list, defocus: int):
-        # go to the position at target level, predict the eucentric height, take an image
+        # go to the position at target level, predict the eucentric height, take an image. Shift exists between different magnification. 
         stop_event.clear()
         square_img_df = whole_grid[whole_grid['img_location'].notna()]
         current_defocus = self.ctrl.objfocus.value
@@ -112,31 +116,11 @@ class Experiment:
             num = len(grid_square[grid_square['grid']==grid_num]) - len(no_target_img_df)
 
             header = read_tiff_header(grid_dir/square_img)
-            square_img_shape = np.array(header['ImageResolution'])
             stage_matrix = np.array(header['stage_matrix'])
-            square_img_pixel = header['ImagePixelsize']
-            square_stage_center = np.array(header['center_pos'])
-            square_pixel_center = square_img_shape / 2
-            state = self.ctrl.mode.state
-            mag = self.ctrl.magnification.get()
-            target_pixelsize = square_img_pixel / magnify
-            rec = None
-            for magnification, pixelsize in config.calibration[state]['pixelsize'].items():
-                difference = abs(pixelsize - target_pixelsize)
-                if rec is None:
-                    rec = difference
-                    continue
-                if difference < rec:
-                    rec = difference
-                else:
-                    target_magnification = magnification
-                    target_pixelsize = pixelsize
-                    print(f'Target mag: {target_magnification}')
-                    break
-            self.ctrl.magnification.set(target_magnification)
+            magnification_induced_stageshift = self.magnification_induced_pixelshift @ stage_matrix
 
             for index2, point in no_target_img_df.iterrows(): 
-                self.ctrl.stage.xy = point['pos_x'], point['pos_y']
+                self.ctrl.stage.set_xy_with_backlash_correction(x=point['pos_x']+magnification_induced_stageshift[0], y=point['pos_y']+magnification_induced_stageshift[1])
                 if blank_beam:
                     self.ctrl.beam.unblank(wait_interval)
                 time.sleep(wait_interval)
@@ -146,7 +130,6 @@ class Experiment:
                     self.ctrl.beam.blank()
                 h['is_montage'] = False
                 h['center_pos'] = current_pos
-                h['magnification'] = target_magnification
                 h['stage_matrix'] = self.ctrl.get_stagematrix() # normalized need to multiple pixelsize
                 target_dir = grid_dir / Path(grid['img_location']).parent / f"Target_{num+1}"
                 target_dir.mkdir(exist_ok=True, parents=True)
