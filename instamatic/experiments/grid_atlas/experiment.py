@@ -37,7 +37,7 @@ class Experiment:
         self.binsize = ctrl.cam.default_binsize
         self.software_binsize = config.settings.software_binsize
         self.beam_shift_matrix = np.array(config.calibration.beam_shift_matrix).reshape(2, 2)
-        self.magnification_induced_pixelshift = np.array(config.calibration.relative_pixel_shift_4300_1150)
+        self.magnification_induced_pixelshift = np.array(config.calibration.relative_pixel_shift_square_target)
 
     def obtain_image(self, exposure_time, align, align_roi, roi):
         if align_roi:
@@ -77,10 +77,16 @@ class Experiment:
                         blank_beam: bool, num_img: int, align: bool, align_roi: bool, roi: list, defocus: int, stage_tilt: float):
         # go to the position at grid square level, find the eucentric height, take a montage
         stop_event.clear()
+        mag = self.ctrl.magnification.get()
+        if mag != config.calibration.magnification_levels[1]:
+            if messagebox.askokcancel("Continue", f"Change magnification to {config.calibration.magnification_levels[1]}?"):
+                self.ctrl.magnification.set(config.calibration.magnification_levels[1])
+            else:
+                print(f'Must be in {config.calibration.magnification_levels[1]}x magnification.')
+                return
         no_square_img_df = whole_grid[whole_grid['img_location'].isna()]
         num = len(whole_grid) - len(no_square_img_df)
         state = self.ctrl.mode.state
-        mag = self.ctrl.magnification.get()
         if self.software_binsize is None:
             image_scale = config.calibration[state]['pixelsize'][mag] * self.binsize #nm->um
         else:
@@ -106,6 +112,13 @@ class Experiment:
                         exposure_time: float, wait_interval: float,  align: bool, align_roi: bool, roi: list, defocus: int):
         # go to the position at target level, predict the eucentric height, take an image. Shift exists between different magnification. 
         stop_event.clear()
+        mag = self.ctrl.magnification.get()
+        if mag != config.calibration.magnification_levels[1]:
+            if messagebox.askokcancel("Continue", f"Change magnification to {config.calibration.magnification_levels[1]}?"):
+                self.ctrl.magnification.set(config.calibration.magnification_levels[1])
+            else:
+                print(f'Must be in {config.calibration.magnification_levels[1]}x magnification.')
+                return
         square_img_df = whole_grid[whole_grid['img_location'].notna()]
         current_defocus = self.ctrl.objfocus.value
         self.ctrl.objfocus.value = current_defocus + defocus
@@ -151,6 +164,8 @@ class Experiment:
                         wait_interval: float, align: bool, align_roi: bool, roi: list):
         # In diffraction mode, use beam shift to each crystal location and collection diffraction pattern.
         stop_event.clear()
+        if not messagebox.askokcancel("Continue", f"Please make sure the beam was in probe mode or C3 aperture was inserted."):
+            return
         state = self.ctrl.mode.state
         if state not in ('D', 'diff'):
             print(f'Please switch to diffraction mode.')
