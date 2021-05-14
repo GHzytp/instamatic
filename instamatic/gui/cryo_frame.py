@@ -42,6 +42,7 @@ class CryoEDFrame(LabelFrame):
         self.last_square = None
         self.grid_montage_path = None
         self.z_interpolator = None
+        self.stop_event = threading.Event()
         self.ctrl = TEMController.get_instance()
         self.dimension = self.ctrl.cam.dimension
         self.binsize = self.ctrl.cam.default_binsize
@@ -151,6 +152,8 @@ class CryoEDFrame(LabelFrame):
         self.FromSquareButton.grid(row=8, column=1, sticky='EW', padx=5)
         self.FromTargetButton = Button(frame, text='From Target', width=11, command=self.from_target, state=NORMAL)
         self.FromTargetButton.grid(row=8, column=2, sticky='EW')
+        self.StopButton = Button(frame, text='Stop', width=11, command=self.stop_event.set, state=NORMAL)
+        self.StopButton.grid(row=8, column=3, sticky='EW')
 
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
 
@@ -493,7 +496,6 @@ class CryoEDFrame(LabelFrame):
         arr, h = self.ctrl.get_image(exposure=exposure)
         h['is_montage'] = False
         h['center_pos'] = current_pos
-        h['mode'] = self.state
         h['magnification'] = self.mag
         h['stage_matrix'] = self.ctrl.get_stagematrix() # normalized need to multiple pixelsize
         write_tiff(filepath, arr, header=h)
@@ -826,7 +828,8 @@ class CryoEDFrame(LabelFrame):
                   'align_roi': self.var_align_roi.get(),
                   'roi': self.roi,
                   'blank_beam': self.var_blank_beam.get(),
-                  'num_img': self.var_num.get()}
+                  'num_img': self.var_num.get(),
+                  'stop_event': self.stop_event}
         self.q.put(('from_whole_grid_list', params))
         self.triggerEvent.set()
 
@@ -844,19 +847,24 @@ class CryoEDFrame(LabelFrame):
                   'align_roi': self.var_align_roi.get(),
                   'roi': self.roi,
                   'blank_beam': self.var_blank_beam.get(),
-                  'pred_z': self.z_interpolator}
+                  'pred_z': self.z_interpolator,
+                  'stop_event': self.stop_event}
         self.q.put(('from_grid_square_list', params))
         self.triggerEvent.set()
 
     def from_target(self):
         pself.check_exposure_time()
-        params = {'stage_tilt': self.var_stage_tilt.get(), 
+        params = {'grid_square': self.df_square,
+                  'target': self.df_target,
+                  'grid_dir': self.grid_dir,
+                  'sample_name': self.var_name.get(),
                   'exposure_time': self.var_exposure.get(),
                   'wait_interval': self.var_wait_interval.get(),
-                  'defocus': self.var_defocus.get(),
                   'align': self.var_align.get(),
                   'align_roi': self.var_align_roi.get(),
-                  'roi': self.roi}
+                  'roi': self.roi,
+                  'blank_beam': self.var_blank_beam.get(),
+                  'stop_event': self.stop_event}
         self.q.put(('from_target_list', params))
         self.triggerEvent.set()
 

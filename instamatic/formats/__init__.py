@@ -18,6 +18,7 @@ from .mrc import write_image as write_mrc
 from .cbfimage import CbfImage
 from .emdVelox import fileEMDVelox
 from .emd import fileEMD
+from .dm import dmReader
 
 def read_image(fname: str) -> (np.array, dict):
     """Guess filetype by extension."""
@@ -34,6 +35,8 @@ def read_image(fname: str) -> (np.array, dict):
         img, h = read_cbf(fname)
     elif ext in ('.emd'):
         img, h = read_emd(fname)
+    elif ext in ('dm3', 'dm4'):
+        img, h = read_dm(fname)
     else:
         raise OSError(f'Cannot open file {fname}, unknown extension: {ext}')
     return img, h
@@ -58,6 +61,13 @@ def read_emd(fname: str):
             return im0, metadata0
     except:
         raise OSError(f'Cannot open this emd file')
+
+def read_dm(fname: str):
+    dm_file = dmReader(fname)
+    header = {}
+    header['pixelSize'] = dm_file['pixelSize'][0]
+    header['pixelUnit'] = dm_file['pixelUnit'][0]
+    return dm_file['data'], header
 
 def write_tiff(fname: str, data, header: dict = None):
     """Simple function to write a tiff file.

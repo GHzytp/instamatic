@@ -36,6 +36,7 @@ class Experiment:
 
         self.binsize = ctrl.cam.default_binsize
         self.software_binsize = config.settings.software_binsize
+        self.beam_shift_matrix = np.array(config.calibration.beam_shift_matrix).reshape(2, 2)
 
     def obtain_image(self, exposure_time, align, align_roi, roi):
         if align_roi:
@@ -61,7 +62,6 @@ class Experiment:
         h = {}
         h['is_montage'] = True
         h['center_pos'] = current_pos
-        h['mode'] = self.ctrl.mode.state
         h['magnification'] = mag
         h['ImageResolution'] = stitched.shape
         h['stage_matrix'] = self.ctrl.get_stagematrix() # normalized need to multiple pixelsize
@@ -69,9 +69,10 @@ class Experiment:
         write_tiff(filepath, stitched, header=h)
         self.ctrl.stage.xy = current_pos
 
-    def from_whole_grid_list(self, whole_grid, grid_dir, sample_name: str, exposure_time: float, wait_interval: float, 
+    def from_whole_grid_list(self, whole_grid, grid_dir, stop_event, sample_name: str, exposure_time: float, wait_interval: float, 
                         blank_beam: bool, num_img: int, align: bool, align_roi: bool, roi: list, defocus: int, stage_tilt: float):
         # go to the position at grid square level, find the eucentric height, take a montage
+        stop_event.clear()
         no_square_img_df = whole_grid[whole_grid['img_location'].isna()]
         num = len(whole_grid) - len(no_square_img_df)
         state = self.ctrl.mode.state
@@ -93,11 +94,17 @@ class Experiment:
             whole_grid.loc[index, 'pos_z'] = np.round(self.ctrl.stage.z)
             whole_grid.loc[index, 'img_location'] = Path(square_dir.name) / f'square_{sample_name}.tiff'
             num += 1
+            if stop_event.is_set():
+                stop_event.clear()
+                break
 
-    def from_grid_square_list(self, whole_grid, grid_square, grid_dir, pred_z, magnify: int, sample_name: str, blank_beam: bool,
+    def from_grid_square_list(self, whole_grid, grid_square, grid_dir, pred_z, stop_event, magnify: int, sample_name: str, blank_beam: bool,
                         exposure_time: float, wait_interval: float,  align: bool, align_roi: bool, roi: list, defocus: int):
         # go to the position at target level, predict the eucentric height, take an image
+        stop_event.clear()
         square_img_df = whole_grid[whole_grid['img_location'].notna()]
+        current_defocus = self.ctrl.objfocus.value
+        self.ctrl.objfocus.value = current_defocus + defocus
         for index1, grid in square_img_df.iterrows():
             grid_num = grid['grid']
             square_img = grid['img_location']
@@ -127,16 +134,19 @@ class Experiment:
                     print(f'Target mag: {target_magnification}')
                     break
             self.ctrl.magnification.set(target_magnification)
-            
+
             for index2, point in no_target_img_df.iterrows(): 
                 self.ctrl.stage.xy = point['pos_x'], point['pos_y']
+                if blank_beam:
+                    self.ctrl.beam.unblank(wait_interval)
                 time.sleep(wait_interval)
                 current_pos = self.ctrl.stage.xy
                 arr, h = self.obtain_image(exposure_time, align, align_roi, roi)
+                if blank_beam:
+                    self.ctrl.beam.blank()
                 h['is_montage'] = False
                 h['center_pos'] = current_pos
-                h['mode'] = state
-                h['magnification'] = mag
+                h['magnification'] = target_magnification
                 h['stage_matrix'] = self.ctrl.get_stagematrix() # normalized need to multiple pixelsize
                 target_dir = grid_dir / Path(grid['img_location']).parent / f"Target_{num+1}"
                 target_dir.mkdir(exist_ok=True, parents=True)
@@ -148,11 +158,51 @@ class Experiment:
                     grid_square.loc[index2, 'pos_z'] = np.round(pred_z(*current_pos))
                 grid_square.loc[index2, 'img_location'] = Path(target_dir.parent.name) / Path(target_dir.name) / f'target_{sample_name}.tiff'
                 num += 1
+                if stop_event.is_set():
+                    self.ctrl.objfocus.value = current_defocus
+                    stop_event.clear()
+                    return
+        self.ctrl.objfocus.value = current_defocus
 
-    def from_target_list(self, target, exposure_time: float, wait_interval: float, align: bool, align_roi: bool, roi: list):
+    def from_target_list(self, grid_square, target, grid_dir, stop_event, sample_name: str, blank_beam: bool, exposure_time: float, 
+                        wait_interval: float, align: bool, align_roi: bool, roi: list):
         # In diffraction mode, use beam shift to each crystal location and collection diffraction pattern.
-        for index, point in target.iterrows(): 
-            pass 
+        stop_event.clear()
+        state = self.ctrl.mode.state
+        if state not in ('D', 'diff'):
+            print(f'Please switch to diffraction mode.')
+            return 
+        cam_len = self.ctrl.magnification.get()
+        target_img_df = grid_square[grid_square['img_location'].notna()]
+        for index1, square in target_img_df.iterrows():
+            grid_num = square['grid']
+            square_num = square['square']
+            target_img = square['img_location']
+            target_dir = grid_dir/target_img.parent
+            header = read_tiff_header(grid_dir/target_img)
+            square_img_shape = np.array(header['ImageResolution'])
+            square_img_pixelsize = header['ImagePixelsize']
+            square_pixel_center = square_img_shape / 2
+            no_diff_targets = target[(target['grid']==grid_num) & (target['square']==square_num) & (target['diff_location'].isna())]
+            num = len(target[(target['grid']==grid_num) & (target['square']==square_num)]) - len(no_diff_targets)
+            for index2, point in no_diff_targets.iterrows(): 
+                # beam shift
+                beam_shift = square_img_pixelsize * (square_pixel_center - np.array((point['x'], point[y]))) @ self.beam_shift_matrix
+                self.ctrl.beamshift.xy = beam_shift
+                if blank_beam:
+                    self.ctrl.beam.unblank(wait_interval)
+                else:
+                    time.sleep(wait_interval)
+                arr, h = self.obtain_image(exposure_time, align, align_roi, roi)
+                if blank_beam:
+                    self.ctrl.beam.blank()
+                filepath = target_dir / f'target_diff_{sample_name}.tiff'
+                write_tiff(filepath, arr, header=h)
+                target.loc[index2, 'diff_location'] = Path(target_dir.parent.name) / Path(target_dir.name) / f'target_diff_{sample_name}_{num}.tiff'
+                num += 1
+                if stop_event.is_set():
+                    stop_event.clear()
+                    return
 
     def design_acqusition_scheme(self):
         pass

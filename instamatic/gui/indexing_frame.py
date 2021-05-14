@@ -25,10 +25,7 @@ from instamatic.tools import find_beam_center, find_beam_center_with_beamstop
 from instamatic.utils.peakfinders2d import subtract_background_median, find_peaks_regionprops, im_reconstruct
 from instamatic.utils.indexer import Indexer, get_indices
 from instamatic.utils.projector import Projector
-from instamatic.formats import read_tiff, read_hdf5, read_cbf, read_emd
-from instamatic.formats.mrc import read_image as read_mrc
-from instamatic.formats.adscimage import read_adsc
-from instamatic.formats.dm import dmReader
+from instamatic.formats import read_image
 from instamatic.utils.widgets import Hoverbox, Spinbox, popupWindow
 
 
@@ -308,13 +305,19 @@ class IndexFrame(LabelFrame):
             self.start_pos = np.array((event.x, event.y))
             self.right_click_cnt += 1
         elif self.right_click_cnt == 1:
-            pixelsize = self.img_header['ImagePixelsize']
-            self.end_pos = np.array((event.x, event.y))
-            self.right_click_cnt = 0
-            if self.img_header['ImageMode'] in ('diff', 'D'):
-                print(f'Measured reciprocal length: {np.linalg.norm(self.end_pos - self.start_pos) * pixelsize}Å^-1')
-            else:
-                print(f'Measured length: {np.linalg.norm(self.end_pos - self.start_pos) * pixelsize}nm')
+            try:
+                pixelsize = self.img_header['ImagePixelsize']
+                self.end_pos = np.array((event.x, event.y))
+                self.right_click_cnt = 0
+                if self.img_header['ImageMode'] in ('diff', 'D'):
+                    print(f'Measured reciprocal length: {np.linalg.norm(self.end_pos - self.start_pos) * pixelsize}Å^-1')
+                else:
+                    print(f'Measured length: {np.linalg.norm(self.end_pos - self.start_pos) * pixelsize}nm')
+            except KeyError:
+                pixelsize = self.img_header['pixelSize']
+                self.end_pos = np.array((event.x, event.y))
+                self.right_click_cnt = 0
+                print(f"Measured length or reciprocal length: {np.linalg.norm(self.end_pos - self.start_pos) * pixelsize} {self.img_header['pixelUnit']}")
 
     def reset_variables(self):
         self.right_click_cnt = 0
@@ -340,26 +343,7 @@ class IndexFrame(LabelFrame):
                                         ('tiff files', '*.tiff'), ('tif files', '*.tif'), ('emd files', '*.emd'), ('cbf files', '*.cbf'), ('all files', '*.*')))
         if self.img_path != '':
             self.counter = 0
-            self.img_path = Path(self.img_path)
-            suffix = self.img_path.suffix
-            if suffix in ('.tif', '.tiff'):
-                self.img, self.img_header = read_tiff(self.img_path)
-            elif suffix in ('.h5'):
-                self.img, self.img_header = read_hdf5(self.img_path)
-            elif suffix == '.mrc':
-                #self.img, self.img_header = read_mrc(img_path)
-                with mrcfile.open(self.img_path, permissive=True) as f:
-                    self.img = f.data
-                    self.img_header = {name:f.header[name] for name in f.header.dtype.names}
-            elif suffix in ('.img', '.smv'):
-                self.img, self.img_header = read_adsc(self.img_path)
-            elif suffix == '.cbf':
-                self.img, self.img_header = read_cbf(self.img_path)
-            elif suffix in ('.dm3', '.dm4'):
-                self.img = dmReader(self.img_path)['data']
-                self.img_header = None
-            elif suffix == '.emd':
-                self.img, self.img_header = read_emd(self.img_path)
+            self.img, self.img_header = read_image(self.img_path)
             pprint.pprint(self.img_header)
             self.img_on_canvas = self.ax.imshow(self.img)
             self.ax.set_xlim(0, self.img.shape[1]-1)
