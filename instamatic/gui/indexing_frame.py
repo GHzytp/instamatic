@@ -25,7 +25,7 @@ from instamatic.tools import find_beam_center, find_beam_center_with_beamstop
 from instamatic.utils.peakfinders2d import subtract_background_median, find_peaks_regionprops, im_reconstruct
 from instamatic.utils.indexer import Indexer, get_indices
 from instamatic.utils.projector import Projector
-from instamatic.formats import read_image
+from instamatic.formats import read_image, read_tiff
 from instamatic.utils.widgets import Hoverbox, Spinbox, popupWindow
 
 

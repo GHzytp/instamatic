@@ -1367,7 +1367,7 @@ class FEIMicroscope:
         for i in range(len(ccdCollection)):
             ccd = ccdCollection[i]
             print(f'found CCD camera: {ccd.Info.Name}')
-            ccds.append(ccd)
+            ccds.append(ccd.Info.Name)
         return ccds
         
     def query_acq_detectors(self):
@@ -1376,7 +1376,7 @@ class FEIMicroscope:
         for i in range(len(STEMDetectors)):
             stem = STEMDetectors[i]
             print(f'found STEM detector: {stem.Info.Name}')
-            stems.append(stem)
+            stems.append(stem.Info.Name)
         return stems
 
     def add_acq_device(self, name):
@@ -1388,8 +1388,17 @@ class FEIMicroscope:
     def remove_all_acq_device(self):
         self.acq_tem.RemoveAllAcqDevices()
 
-    def get_detector_param(self, det):
+    def get_detector_param(self, det_name):
         """Create dict with STEM detector parameters"""
+        STEMDetectors = self.acq_tem.Detectors
+        det = None
+        for i in range(len(STEMDetectors)):
+            if STEMDetectors[i].Info.Name == det_name:
+                det = STEMDetectors[i]
+                break
+        if det is None:
+            print('Wrong detector name.')
+            return
         info = det.Info
         param = self.acq_tem.Detectors.AcqParams
         return {
@@ -1400,8 +1409,17 @@ class FEIMicroscope:
             "dwelltime(s)": param.DwellTime
         }
 
-    def get_camera_param(self, ccd):
+    def get_camera_param(self, ccd_name):
         """Create dict with camera parameters"""
+        ccdCollection = self.acq_tem.Cameras
+        ccd = None
+        for i in range(len(ccdCollection)):
+            if ccdCollection[i].Info.Name == ccd_name:
+                ccd = ccdCollection[i]
+                break
+        if ccd is None:
+            print('Wrong ccd name.')
+            return
         info = ccd.Info
         param = ccd.AcqParams
         return {
@@ -1415,8 +1433,17 @@ class FEIMicroscope:
             "pre_exposure_pause(s)": param.PreExposurePauseTime
         }
 
-    def set_camera_param(self, ccd, values):
+    def set_camera_param(self, ccd_name, values):
         """Set camera parameters (For some reason set camera parameter did not work, only set detector parameters worked)"""
+        ccdCollection = self.acq_tem.Cameras
+        ccd = None
+        for i in range(len(ccdCollection)):
+            if ccdCollection[i].Info.Name == ccd_name:
+                ccd = ccdCollection[i]
+                break
+        if ccd is None:
+            print('Wrong ccd name.')
+            return
         info = ccd.Info
         param = self.acq_tem.Detectors.AcqParams
         # Silently ignore failures
@@ -1453,8 +1480,17 @@ class FEIMicroscope:
         except Exception:
             pass
 
-    def set_detector_param(self, det, values):
+    def set_detector_param(self, det_name, values):
         """Set STEM detector parameters"""
+        STEMDetectors = self.acq_tem.Detectors
+        det = None
+        for i in range(len(STEMDetectors)):
+            if STEMDetectors[i].Info.Name == det_name:
+                det = STEMDetectors[i]
+                break
+        if det is None:
+            print('Wrong detector name.')
+            return
         info = det.Info
         param = self.acq_tem.Detectors.AcqParams
         # Silently ignore failures
@@ -1483,8 +1519,9 @@ class FEIMicroscope:
         images = self.acq_tem.AcquireImages()
         if len(images) != 1:
             print('Image acquired from multiple or no image is acquired.')
-        return np.array(images[0].AsSafeArray, dtype=np.uint16)
-
+            return
+        return np.array(images[0].AsSafeArray, dtype=np.uint16).T
+        
     def get_stage_limits(self):
         """
         Returns dictionary with min/max tuples for all holder axes.

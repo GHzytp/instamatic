@@ -17,7 +17,7 @@ from .base_module import BaseModule
 from .modules import MODULES
 from instamatic import config
 from instamatic import TEMController
-from instamatic.formats import write_tiff
+from instamatic.formats import write_tiff, read_tiff_header
 from instamatic.utils import suppress_stderr
 from instamatic.gui.grid_window import GridWindow
 from instamatic.utils.widgets import MultiListbox, Hoverbox, ShowMatplotlibFig
@@ -45,6 +45,7 @@ class CryoEDFrame(LabelFrame):
         self.stop_event = threading.Event()
         self.ctrl = TEMController.get_instance()
         self.dimension = self.ctrl.cam.dimension
+        self.magnification_induced_pixelshift = np.array(config.calibration.relative_pixel_shift_square_target)
         self.binsize = self.ctrl.cam.default_binsize
         self.software_binsize = config.settings.software_binsize
         self.indexing_frame = [module for module in MODULES if module.name == 'indexing'][0].frame
@@ -93,6 +94,7 @@ class CryoEDFrame(LabelFrame):
         self.DelSquareButton.grid(row=4, column=1, sticky='EW', padx=5)
         self.DelTargetButton = Button(frame, text='Del Target', width=11, command=self.del_target, state=NORMAL)
         self.DelTargetButton.grid(row=4, column=2, sticky='EW')
+        Checkbutton(frame, text='Bashlash', variable=self.var_backlash).grid(row=4, column=3, sticky='EW', padx=5)
         self.SaveGridButton = Button(frame, text='Change Grid', width=11, command=self.change_grid, state=NORMAL)
         self.SaveGridButton.grid(row=4, column=4, sticky='EW')
         self.SaveGridButton = Button(frame, text='Save Grid', width=11, command=self.save_grid, state=NORMAL)
@@ -101,9 +103,9 @@ class CryoEDFrame(LabelFrame):
         self.LoadGridButton.grid(row=4, column=6, sticky='EW')
         
 
-        self.GoXYButton = Button(frame, text='Go to XY', width=11, command=self.go_xy, state=NORMAL)
+        self.GoXYButton = Button(frame, text='Go to XY', width=11, command=lambda: self.start_thread(self.go_xy), state=NORMAL)
         self.GoXYButton.grid(row=5, column=0, sticky='EW')
-        self.GoXYZButton = Button(frame, text='Go to XYZ', width=11, command=self.go_xyz, state=NORMAL)
+        self.GoXYZButton = Button(frame, text='Go to XYZ', width=11, command=lambda: self.start_thread(self.go_xyz), state=NORMAL)
         self.GoXYZButton.grid(row=5, column=1, sticky='EW', padx=5)
         self.ShowGridButton = Button(frame, text='Show Mont', width=11, command=self.show_grid_montage, state=NORMAL)
         self.ShowGridButton.grid(row=5, column=2, sticky='EW')
@@ -122,12 +124,9 @@ class CryoEDFrame(LabelFrame):
         self.e_defocus = Spinbox(frame, textvariable=self.var_defocus, width=8, from_=-20000, to=20000, increment=1)
         self.e_defocus.grid(row=6, column=1, sticky='EW', padx=5)
         Hoverbox(self.e_defocus, 'Target defocus value')
-        self.e_magnify = Spinbox(frame, textvariable=self.var_magnify, width=8, from_=2, to=10, increment=1)
-        self.e_magnify.grid(row=6, column=2, sticky='EW')
-        Hoverbox(self.e_magnify, 'Magnify of target image compared with square image')
+        Checkbutton(frame, text='Mag shift', variable=self.var_mag_shift).grid(row=6, column=2, sticky='EW')
         Checkbutton(frame, text='Blank', variable=self.var_blank_beam).grid(row=6, column=3, sticky='EW', padx=5)
-        self.AutoheightButton = Button(frame, text='Auto height', width=11, command=self.auto_height, state=NORMAL)
-        self.AutoheightButton.grid(row=6, column=4, sticky='EW')
+        Checkbutton(frame, text='Auto height', variable=self.var_auto_height, command=self.auto_height).grid(row=6, column=4, sticky='EW')
         self.UpdateZButton = Button(frame, text='Z Square', width=11, command=self.update_z_square, state=NORMAL)
         self.UpdateZButton.grid(row=6, column=5, sticky='EW', padx=5)
         self.UpdateZButton = Button(frame, text='Z Target', width=11, command=self.update_z_target, state=NORMAL)
@@ -232,11 +231,17 @@ class CryoEDFrame(LabelFrame):
         self.var_x1 = IntVar(value=int(self.dimension[0]*0.75))
         self.var_y1 = IntVar(value=int(self.dimension[1]*0.75))
         self.var_blank_beam = BooleanVar(value=False)
-        self.var_magnify = IntVar(value=5)
+        self.var_mag_shift = BooleanVar(value=False)
+        self.var_auto_height = BooleanVar(value=True)
+        self.var_backlash = BooleanVar(value=False)
 
     def set_trigger(self, trigger=None, q=None):
         self.triggerEvent = trigger
         self.q = q
+
+    def start_thread(self, func, *args):
+        t = threading.Thread(target=func, args=args, daemon=True)
+        t.start()
 
     def enable_roi(self):
         self.e_x0.config(state=NORMAL)
@@ -598,12 +603,12 @@ class CryoEDFrame(LabelFrame):
         if self.last_square != selected_square or self.last_grid != selected_grid:
             self.last_square = selected_square
             self.last_grid = selected_grid
-            square_img_location = self.df_grid.loc[self.df_grid['grid']==selected, 'img_location'].values[0]
+            square_img_location = self.df_grid.loc[self.df_grid['grid']==selected_grid, 'img_location'].values[0]
             if type(square_img_location) is not float:
                 self.square_dir = (self.grid_dir/square_img_location).parent
             target_img_location = self.df_square.loc[(self.df_square['grid']==selected_grid)&(self.df_square['square']==selected_square), 'img_location'].values[0]
             if type(target_img_location) is not float:
-                self.target_dir = (self.target_dir/target_img_location).parent
+                self.target_dir = (self.grid_dir/target_img_location).parent
             self.tv_target.delete(*self.tv_target.get_children())
             selected_target_df = self.df_target[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square)].reset_index().drop(['index'], axis=1)
             for index in range(len(selected_target_df)):
@@ -620,16 +625,17 @@ class CryoEDFrame(LabelFrame):
                     pass
 
     def auto_height(self):
-        self.check_exposure_time()
-        params = {'stage_tilt': self.var_stage_tilt.get(), 
-                  'exposure_time': self.var_exposure.get(),
-                  'wait_interval': self.var_wait_interval.get(),
-                  'defocus': self.var_defocus.get(),
-                  'align': self.var_align.get(),
-                  'align_roi': self.var_align_roi.get(),
-                  'roi': self.roi}
-        self.q.put(('auto_height', params))
-        self.triggerEvent.set()
+        if self.var_auto_height.get():
+            self.check_exposure_time()
+            params = {'stage_tilt': self.var_stage_tilt.get(), 
+                      'exposure_time': self.var_exposure.get(),
+                      'wait_interval': self.var_wait_interval.get(),
+                      'defocus': self.var_defocus.get(),
+                      'align': self.var_align.get(),
+                      'align_roi': self.var_align_roi.get(),
+                      'roi': self.roi}
+            self.q.put(('auto_height', params))
+            self.triggerEvent.set()
     
     def update_z_square(self):
         selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
@@ -645,13 +651,19 @@ class CryoEDFrame(LabelFrame):
         self.df_target.loc[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square) & 
                             (self.df_target['target']==selected_target), 'pos_z'] = z
 
+    def move_stage_xy(self, x, y):
+        if self.var_backlash.get():
+            self.ctrl.stage.set_xy_with_backlash_correction(x=x, y=y)
+        else:
+            self.ctrl.stage.xy = (x, y)
+
     def go_xy(self):
         level = self.var_level.get()
         if level == 'Whole':
             try:
                 selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
                 selected_df = self.df_grid[(self.df_grid['grid']==selected_grid)]
-                self.ctrl.stage.xy = (selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
+                self.move_stage_xy(selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
             except IndexError:
                 raise RuntimeError('Please select a grid position')
         elif level == 'Square':
@@ -659,7 +671,15 @@ class CryoEDFrame(LabelFrame):
                 selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
                 selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
                 selected_df = self.df_square[(self.df_square['grid']==selected_grid) & (self.df_square['square']==selected_square)]
-                self.ctrl.stage.xy = (selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
+                if self.var_mag_shift.get():
+                    selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+                    map_path = str(self.grid_dir/self.df_grid.loc[self.df_grid['grid']==selected_grid, 'img_location'].values[0])
+                    header = read_tiff_header(map_path)
+                    stage_matrix = np.array(header['stage_matrix'])
+                    magnification_induced_stageshift = self.magnification_induced_pixelshift @ stage_matrix
+                    self.move_stage_xy(selected_df['pos_x'].values[0]+magnification_induced_stageshift[0], selected_df['pos_y'].values[0]+magnification_induced_stageshift[1])
+                else:
+                    self.move_stage_xy(selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
             except IndexError:
                 raise RuntimeError('Please select a grid and a square position')
         elif level == 'Target':
@@ -678,7 +698,7 @@ class CryoEDFrame(LabelFrame):
             try:
                 selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
                 selected_df = self.df_grid[(self.df_grid['grid']==selected_grid)]
-                self.ctrl.stage.xy = (selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
+                self.move_stage_xy(selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
             except IndexError:
                 raise RuntimeError('Please select a grid position')
         elif level == 'Square':
@@ -686,8 +706,16 @@ class CryoEDFrame(LabelFrame):
                 selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
                 selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
                 selected_df = self.df_square[(self.df_square['grid']==selected_grid) & (self.df_square['square']==selected_square)]
-                self.ctrl.stage.xy = (selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
                 self.ctrl.stage.z = selected_df['pos_z'].values[0]
+                if self.var_mag_shift.get():
+                    selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
+                    map_path = str(self.grid_dir/self.df_grid.loc[self.df_grid['grid']==selected_grid, 'img_location'].values[0])
+                    header = read_tiff_header(map_path)
+                    stage_matrix = np.array(header['stage_matrix'])
+                    magnification_induced_stageshift = self.magnification_induced_pixelshift @ stage_matrix
+                    self.move_stage_xy(selected_df['pos_x'].values[0]+magnification_induced_stageshift[0], selected_df['pos_y'].values[0]+magnification_induced_stageshift[1])
+                else:
+                    self.move_stage_xy(selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
             except IndexError:
                 raise RuntimeError('Please select a grid and a square position')
         elif level == 'Target':
@@ -696,8 +724,8 @@ class CryoEDFrame(LabelFrame):
                 selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
                 selected_target = self.tv_target.get_children().index(self.tv_target.selection()[0])
                 selected_df = self.df_target[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square) & (self.df_target['target']==selected_target)]
-                self.ctrl.stage.xy =  (selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
                 self.ctrl.stage.z = selected_df['pos_z'].values[0]
+                self.move_stage_xy(selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
             except IndexError:
                 raise RuntimeError('Please select a grid, a square and a target position')
 
@@ -829,6 +857,7 @@ class CryoEDFrame(LabelFrame):
                   'roi': self.roi,
                   'blank_beam': self.var_blank_beam.get(),
                   'num_img': self.var_num.get(),
+                  'auto_height': self.var_auto_height.get(),
                   'stop_event': self.stop_event}
         self.q.put(('from_whole_grid_list', params))
         self.triggerEvent.set()
@@ -839,7 +868,6 @@ class CryoEDFrame(LabelFrame):
                   'grid_square': self.df_square,
                   'grid_dir': self.grid_dir,
                   'sample_name': self.var_name.get(),
-                  'magnify': self.var_magnify.get(),
                   'exposure_time': self.var_exposure.get(),
                   'wait_interval': self.var_wait_interval.get(),
                   'defocus': self.var_defocus.get(),
@@ -853,7 +881,7 @@ class CryoEDFrame(LabelFrame):
         self.triggerEvent.set()
 
     def from_target(self):
-        pself.check_exposure_time()
+        self.check_exposure_time()
         params = {'grid_square': self.df_square,
                   'target': self.df_target,
                   'grid_dir': self.grid_dir,
