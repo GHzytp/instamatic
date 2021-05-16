@@ -84,7 +84,7 @@ class TemServer(threading.Thread):
         # print(func_name, args, kwargs)
         if hasattr(self.tem, func_name):
             f = getattr(self.tem, func_name)
-        elif hasattr(self.sw, func_name):
+        if hasattr(self.sw, func_name):
             f = getattr(self.sw, func_name)
         ret = f(*args, **kwargs)
         return ret
@@ -115,11 +115,12 @@ def handle(conn, q):
 
 
 def main():
+    '''
     if config.settings.tem_require_admin:
         from instamatic import admin
         if not admin.is_admin():
-            admin.run_as_admin(__file__)
-            exit()
+            admin.run_as_admin()
+    '''
 
     import argparse
 

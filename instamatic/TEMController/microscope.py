@@ -14,7 +14,7 @@ def get_tem(interface: str):
     if config.settings.tem_require_admin:
         from instamatic import admin
         if not admin.is_admin():
-            raise PermissionError('Access to the TEM interface requires admin rights.')
+            print('Better to access the TEM interface with admin rights.')
 
     if simulate or interface == 'simulate':
         from .simu_microscope import SimuMicroscope as cls
@@ -83,8 +83,9 @@ def Software(name: str = None, use_server: bool = False):
         name = default_sw
 
     if use_server:
-        from .microscope_client import MicroscopeClient as SoftwareClient
+        from .microscope_client import SoftwareClient
         sw = SoftwareClient(name=name)
+        return sw
     else:
         cls = get_software(name)
         if cls is not None:

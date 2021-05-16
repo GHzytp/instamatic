@@ -17,7 +17,7 @@ from instamatic.server.serializer import loader
 
 HOST = config.settings.tem_server_host
 PORT = config.settings.tem_server_port
-MAX_IMAGE_SIZE = 8000
+MAX_IMAGE_SIZE = 4096
 BUFSIZE = MAX_IMAGE_SIZE*MAX_IMAGE_SIZE*4 #Might be made a input argument of the SoftwareClient
 
 
@@ -49,7 +49,6 @@ class MicroscopeClient:
         super().__init__()
 
         self.name = name
-        self.interface = config.microscope.interface
         self._bufsize = BUFSIZE
 
         try:
@@ -134,6 +133,7 @@ class MicroscopeClient:
             raise ConnectionError(f'Unknown status code: {status}')
 
     def _init_dict(self):
+        self.interface = config.microscope.interface
         from instamatic.TEMController.microscope import get_tem
         tem = get_tem(self.interface)
 
@@ -147,7 +147,6 @@ class MicroscopeClient:
 class SoftwareClient(MicroscopeClient):
     def __init__(self, name):
         super().__init__(name)
-        self.interface = config.settings.software
 
     def connect(self):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -159,10 +158,11 @@ class SoftwareClient(MicroscopeClient):
         print(f'Connected to TIA server ({HOST}:{PORT})')
 
     def _init_dict(self):
+        self.interface = config.settings.software
         from instamatic.TEMController.microscope import get_software
         software = get_software(self.interface)
 
-        self._dct = {key: value for key, value in tem.__dict__.items() if not key.startswith('_')}
+        self._dct = {key: value for key, value in software.__dict__.items() if not key.startswith('_')}
 
 
 class TraceVariable:

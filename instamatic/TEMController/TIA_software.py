@@ -79,6 +79,7 @@ class TIASoftware:
         window = self.tia.AddDisplayWindow()
         if window_name:
             window.Name = window_name
+            return window_name
         else:
             return window.Name
 
@@ -178,18 +179,13 @@ class TIASoftware:
         window = self._FindDisplayWindow(window_name)
         display = window.FindDisplay(display_name)
         image = display.FindObject(image_name)
-        return self._getData2DArray(image.Data)
-
-    def _getData2DArray(self, data_object):
-        return np.array(data_object.Array)
+        return np.array(image.Data.Array, dtype=np.uint16)
 
     def getPositionMarkers(self, window_name, display_name, position_marker_namelist):
         window = self._FindDisplayWindow(window_name)
         display = window.FindDisplay(display_name)
         return {
-            "{}".format(pmn): np.array(
-                [display.FindObject(pmn).Position.X, display.FindObject(pmn).Position.Y]
-            )
+            f"{pmn}": np.array([display.FindObject(pmn).Position.X, display.FindObject(pmn).Position.Y])
             for pmn in position_marker_namelist
         }
 
