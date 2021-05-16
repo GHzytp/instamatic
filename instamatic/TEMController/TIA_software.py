@@ -5,9 +5,9 @@ import comtypes.client
 
 
 class TIASoftware:
-    def __init__(self, name="TIA", tia=None):
+    def __init__(self, name="TIA"):
         self.name = name
-        self.tia = tia
+        self.tia = None
         self.cte = None
 
         self.workspace = {}
@@ -19,10 +19,12 @@ class TIASoftware:
             comtypes.CoInitialize()
 
         print("Initializing connection to TIA...")
-        self.tia = comtypes.client.CreateObject(
-            "ESVision.Application"
-        )  # , comtypes.CLSCTX_ALL)
-        # self.cte = comtypes.client.Constants(self.tia)
+        self.tia = comtypes.client.CreateObject("ESVision.Application", comtypes.CLSCTX_ALL)
+        self.cte = comtypes.client.Constants(self.tia)
+        self.acq = self.tia.AcquisitionManager()
+        self.beam_control = self.tia.BeamControl()
+        self.ccd = self.tia.CCDServer()
+        self.scan = self.tia.ScanningServer()
 
     def addVariable(self, varname, tia_object, tia_object_type):
         self.workspace[varname] = {}
@@ -258,13 +260,9 @@ class TIASoftware:
             self.workspace[range_name]["object"], nX, nY
         )
 
-    def Selection(
-        self, varname, source_position_collection_name, index_start, index_stop
-    ):
+    def Selection(self, varname, source_position_collection_name, index_start, index_stop):
         self.workspace[varname] = self.workspace[source_position_collection_name]
-        self.workspace[varname]["object"] = self.workspace[
-            source_position_collection_name
-        ]["object"].Selection(index_start, index_stop)
+        self.workspace[varname]["object"] = self.workspace[source_position_collection_name]["object"].Selection(index_start, index_stop)
 
     def RemoveAll(self, position_collection_name):
         self.workspace[position_collection_name]["object"].RemoveAll()
@@ -279,226 +277,207 @@ class TIASoftware:
     ### Acquisition manager functions ###
 
     def AcquisitionManager(self, varname):
-        acq = self.tia.AcquisitionManager()
-        self.addVariable(varname, acq, "AcquisitionManager")
+        self.addVariable(varname, self.acq, "AcquisitionManager")
 
     def IsAcquiring(self):
-        return self.tia.AcquisitionManager().IsAcquiring
+        return self.acq.IsAcquiring
 
     def CanStart(self):
-        return self.tia.AcquisitionManager().CanStart
+        return self.acq.CanStart
 
     def CanStop(self):
-        return self.tia.AcquisitionManager().CanStop
+        return self.acq.CanStop
 
     def Start(self):
-        self.tia.AcquisitionManager().Start()
+        self.acq.Start()
 
     def Stop(self):
-        self.tia.AcquisitionManager().Stop()
+        self.acq.Stop()
 
     def Acquire(self):
-        self.tia.AcquisitionManager().Acquire()
+        self.acq.Acquire()
 
     def AcquireSet(self, position_collection_name, dwelltime):
-        self.tia.AcquisitionManager().AcquireSet(
-            self.workspace[position_collection_name]["object"], dwelltime
-        )
+        self.acq.AcquireSet(self.workspace[position_collection_name]["object"], dwelltime)
 
     def IsCurrentSetup(self):
-        return self.tia.AcquisitionManager().IsCurrentSetup
+        return self.acq.IsCurrentSetup
 
     def DoesSetupExist(self, setup_name):
-        return self.tia.AcquisitionManager().DoesSetupExist(setup_name)
+        return self.acq.DoesSetupExist(setup_name)
 
     def CurrentSetup(self):
-        return self.tia.AcquisitionManager().CurrentSetup
+        return self.acq.CurrentSetup
 
     def SelectSetup(self, setup_name):
-        self.tia.AcquisitionManager().SelectSetup(setup_name)
+        self.acq.SelectSetup(setup_name)
 
     def AddSetup(self, setup_name):
-        self.tia.AcquisitionManager().AddSetup(setup_name)
+        self.acq.AddSetup(setup_name)
 
     def DeleteSetup(self, setup_name):
-        self.tia.AcquisitionManager().DeleteSetup(setup_name)
+        self.acq.DeleteSetup(setup_name)
 
     def LinkSignal(self, signal_name, window_name, display_name, image_name):
         window = self._FindDisplayWindow(window_name)
         display = window.FindDisplay(display_name)
         image = display.FindObject(image_name)
-        self.tia.AcquisitionManager().LinkSignal(signal_name, image)
+        self.acq.LinkSignal(signal_name, image)
 
     def UnlinkSignal(self, signal_name):
-        self.tia.AcquisitionManager().UnlinkSignal(signal_name)
+        self.acq.UnlinkSignal(signal_name)
 
     def UnlinkAllSignals(self):
-        self.tia.AcquisitionManager().UnlinkAllSignals()
+        self.acq.UnlinkAllSignals()
 
     def SignalNames(self):
-        return [sn for sn in self.tia.AcquisitionManager().SignalNames]
+        return [sn for sn in self.acq.SignalNames]
 
     def EnabledSignalNames(self):
-        return [esn for esn in self.tia.AcquisitionManager().EnabledSignalNames]
+        return [esn for esn in self.acq.EnabledSignalNames]
 
     def TypedSignalNames(self, signal_type):
         return [
-            tsn for tsn in self.tia.AcquisitionManager().TypedSignalNames(signal_type)
+            tsn for tsn in self.acq.TypedSignalNames(signal_type)
         ]
 
     ### Scanning server functions ###
 
     def ScanningServer(self, varname):
-        scan = self.tia.ScanningServer()
-        self.addVariable(varname, scan, "ScanningServer")
+        self.addVariable(varname, self.scan, "ScanningServer")
 
     def getScanningServer(self):
-        scan = self.tia.ScanningServer()
         return {
-            "AcquireMode": scan.AcquireMode,
-            "FrameWidth": scan.FrameWidth,
-            "FrameHeight": scan.FrameHeight,
-            "DwellTime": scan.DwellTime,
-            "ScanResolution": scan.ScanResolution,
-            "ScanMode": scan.ScanMode,
-            "ForceExternalScan": scan.ForceExternalScan,
-            "ReferencePosition": self._getPosition2D(scan.ReferencePosition),
-            "BeamPosition": self._getPosition2D(scan.BeamPosition),
-            "DriftRateX": scan.DriftRateX,
-            "DriftRateY": scan.DriftRateY,
-            "ScanRange": self._getRange2D(scan.ScanRange),
-            "SeriesSize": scan.SeriesSize,
-            "DwellTimeRange": self._getRange1D(scan.GetDwellTimeRange),
-            "TotalScanRange": self._getRange2D(scan.GetTotalScanRange),
+            "AcquireMode": self.scan.AcquireMode,
+            "FrameWidth": self.scan.FrameWidth,
+            "FrameHeight": self.scan.FrameHeight,
+            "DwellTime": self.scan.DwellTime,
+            "ScanResolution": self.scan.ScanResolution,
+            "ScanMode": self.scan.ScanMode,
+            "ForceExternalScan": self.scan.ForceExternalScan,
+            "ReferencePosition": self._getPosition2D(self.scan.ReferencePosition),
+            "BeamPosition": self._getPosition2D(self.scan.BeamPosition),
+            "DriftRateX": self.scan.DriftRateX,
+            "DriftRateY": self.scan.DriftRateY,
+            "ScanRange": self._getRange2D(self.scan.ScanRange),
+            "SeriesSize": self.scan.SeriesSize,
+            "DwellTimeRange": self._getRange1D(self.scan.GetDwellTimeRange),
+            "TotalScanRange": self._getRange2D(self.scan.GetTotalScanRange),
             "ScanResolutionRange": (
-                self._getRange1D(scan.GetScanResolutionRange)
-                if scan.ScanMode != 0
+                self._getRange1D(self.scan.GetScanResolutionRange)
+                if self.scan.ScanMode != 0
                 else None
-            ),
+            )
         }
 
     def setScanningServer(self, kwargs: dict):
-        scan = self.tia.ScanningServer()
         for key, val in kwargs.items():
-            setattr(scan, key, val)
+            setattr(self.scan, key, val)
 
     def setBeamPosition(self, position2d_name):
-        scan = self.tia.ScanningServer()
-        scan.BeamPosition = self.workspace[position2d_name]["object"]
+        self.scan.BeamPosition = self.workspace[position2d_name]["object"]
 
     def setScanRange(self, range2d_name):
-        scan = self.tia.ScanningServer()
-        scan.ScanRange = self.workspace[range2d_name]["object"]
+        self.scan.ScanRange = self.workspace[range2d_name]["object"]
 
     def MagnificationNames(self, mode):
-        scan = self.tia.ScanningServer()
-        return [mn for mn in scan.MagnificationNames(mode)]
+        return [mn for mn in self.scan.MagnificationNames(mode)]
 
     ### CCD server functions ###
 
     def CCDServer(self, varname):
-        ccd = self.tia.CCDServer()
-        self.addVariable(varname, ccd, "CCDServer")
+        self.addVariable(varname, self.ccd, "CCDServer")
 
     def getCCDServer(self):
-        ccd = self.tia.CCDServer()
         return {
-            "AcquireMode": ccd.AcquireMode,
-            "Camera": ccd.Camera,
-            "CameraInserted": ccd.CameraInserted,
-            "IntegrationTime": ccd.IntegrationTime,
-            "ReadoutRange": self._getRange2D(ccd.ReadoutRange),
-            "PixelReadoutRange": self._getRange2D(ccd.PixelReadoutRange),
-            "Binning": ccd.Binning,
-            "ReferencePosition": self._getPosition2D(ccd.ReferencePosition),
-            "ReadoutRate": ccd.ReadoutRate,
-            "DriftRateX": ccd.DriftRateX,
-            "DriftRateY": ccd.DriftRateY,
-            "BiasCorrection": ccd.BiasCorrection,
-            "GainCorrection": ccd.GainCorrection,
-            "SeriesSize": ccd.SeriesSize,
-            "IntegrationTimeRange": self._getRange1D(ccd.GetIntegrationTimeRange),
-            "TotalReadoutRange": self._getRange2D(ccd.GetTotalReadoutRange),
-            "TotalPixelReadoutRange": self._getRange2D(ccd.GetTotalPixelReadoutRange),
+            "AcquireMode": self.ccd.AcquireMode,
+            "Camera": self.ccd.Camera,
+            "CameraInserted": self.ccd.CameraInserted,
+            "IntegrationTime": self.ccd.IntegrationTime,
+            "ReadoutRange": self._getRange2D(self.ccd.ReadoutRange),
+            "PixelReadoutRange": self._getRange2D(self.ccd.PixelReadoutRange),
+            "Binning": self.ccd.Binning,
+            "ReferencePosition": self._getPosition2D(self.ccd.ReferencePosition),
+            "ReadoutRate": self.ccd.ReadoutRate,
+            "DriftRateX": self.ccd.DriftRateX,
+            "DriftRateY": self.ccd.DriftRateY,
+            "BiasCorrection": self.ccd.BiasCorrection,
+            "GainCorrection": self.ccd.GainCorrection,
+            "SeriesSize": self.ccd.SeriesSize,
+            "IntegrationTimeRange": self._getRange1D(self.ccd.GetIntegrationTimeRange),
+            "TotalReadoutRange": self._getRange2D(self.ccd.GetTotalReadoutRange),
+            "TotalPixelReadoutRange": self._getRange2D(self.ccd.GetTotalPixelReadoutRange),
         }
 
     def setCCDServer(self, kwargs: dict):
-        ccd = self.tia.CCDServer()
         for key, val in kwargs.items():
-            setattr(ccd, key, val)
+            setattr(self.ccd, key, val)
 
     def setReadoutRange(self, range2d_name):
-        ccd = self.tia.CCDServer()
-        ccd.ReadoutRange = self.workspace[range2d_name]["object"]
+        self.ccd.ReadoutRange = self.workspace[range2d_name]["object"]
 
     def setPixelReadoutRange(self, range2d_name):
-        ccd = self.tia.CCDServer()
-        ccd.PixelReadoutRange = self.workspace[range2d_name]["object"]
+        self.ccd.PixelReadoutRange = self.workspace[range2d_name]["object"]
 
     ### Scanning and CCD server ###
 
     def setReferencePosition(self, position2d_name, server="scan"):
         if server == "scan":
-            scan = self.tia.ScanningServer()
-            scan.ReferencePosition = self.workspace[position2d_name]["object"]
+            self.scan.ReferencePosition = self.workspace[position2d_name]["object"]
         elif server == "ccd":
-            ccd = self.tia.CCDServer()
-            ccd.ReferencePosition = self.workspace[position2d_name]["object"]
+            self.ccd.ReferencePosition = self.workspace[position2d_name]["object"]
 
     ### Beam control functions ###
 
     def BeamControl(self, varname):
-        beam_control = self.tia.BeamControl()
-        self.addVariable(varname, beam_control, "Beam Control")
+        self.addVariable(varname, self.beam_control, "Beam Control")
 
     def getBeamControl(self):
-        beam = self.tia.BeamControl()
         return {
-            "DwellTime": beam.DwellTime,
-            "PositionCalibrated": beam.PositionCalibrated,
+            "DwellTime": self.beam_control.DwellTime,
+            "PositionCalibrated": self.beam_control.PositionCalibrated,
         }
 
     def setBeamControl(self, kwargs: dict):
-        beam = self.tia.BeamControl()
         for key, val in kwargs.items():
-            setattr(beam, key, val)
+            setattr(self.beam_control, key, val)
 
     def StartBeamControl(self):
-        self.tia.BeamControl().Start()
+        self.beam_control.Start()
 
     def StopBeamControl(self):
-        self.tia.BeamControl().Stop()
+        self.beam_control.Stop()
 
     def ResetBeamControl(self):
-        self.tia.BeamControl().Reset()
+        self.beam_control.Reset()
 
     def SetSingleScan(self):
-        self.tia.BeamControl().SetSingleScan()
+        self.beam_control.SetSingleScan()
 
     def SetContinuousScan(self):
-        self.tia.BeamControl().SetContinuousScan()
+        self.beam_control.SetContinuousScan()
 
     def LoadPositions(self, position_collection_name):
-        self.tia.BeamControl().LoadPositions(
+        self.beam_control.LoadPositions(
             self.workspace[position_collection_name]["object"]
         )
 
     def SetLineScan(self, start_position_name, end_position_name):
-        self.tia.BeamControl().SetLineScan(
+        self.beam_control.SetLineScan(
             self.workspace[start_position_name]["object"],
             self.workspace[start_position_name]["object"],
         )
 
     def SetFrameScan(self, range_name, nX, nY):
-        self.tia.BeamControl().SetFrameScan(
+        self.beam_control.SetFrameScan(
             self.workspace[range_name]["object"], nX, nY
         )
 
     def MoveBeam(self, X, Y):
-        self.tia.BeamControl().MoveBeam(X, Y)
+        self.beam_control.MoveBeam(X, Y)
 
     def CanStartBeamControl(self):
-        return self.tia.BeamControl().CanStart
+        return self.beam_control.CanStart
 
     def IsScanning(self):
-        return self.tia.BeamControl().IsScanning
+        return self.beam_control.IsScanning
