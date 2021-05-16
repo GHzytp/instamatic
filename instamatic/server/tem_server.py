@@ -21,7 +21,7 @@ MAX_IMAGE_SIZE = 4096
 BUFSIZE = MAX_IMAGE_SIZE * MAX_IMAGE_SIZE * 4 #1024
 
 default_microscope = config.microscope.name
-default_software = None
+default_software = config.settings.software
 
 class TemServer(threading.Thread):
     """TEM communcation server.

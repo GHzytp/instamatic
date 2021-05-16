@@ -1,8 +1,9 @@
 from instamatic import config
 
 default_tem_interface = config.microscope.interface
+default_sw = config.settings.software
 
-__all__ = ['Microscope', 'get_tem', 'Software']
+__all__ = ['Microscope', 'get_tem', 'Software', 'get_software']
 
 
 def get_tem(interface: str):
@@ -78,6 +79,8 @@ def Software(name: str = None, use_server: bool = False):
 
     returns: software interface/acquisition class
     """
+    if name is None:
+        name = default_sw
 
     if use_server:
         from .microscope_client import MicroscopeClient as SoftwareClient

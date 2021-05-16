@@ -160,7 +160,7 @@ class TIASoftware:
         calibration = self.workspace[calibration_name]["object"]
         image = display.AddImage(image_name, size_x, size_y, calibration)
 
-    def getImage(self, window_name, display_name, image_name):
+    def getImageInfo(self, window_name, display_name, image_name):
         window = self._FindDisplayWindow(window_name)
         display = window.FindDisplay(display_name)
         image = display.FindObject(image_name)

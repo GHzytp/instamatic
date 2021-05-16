@@ -125,9 +125,7 @@ class Interface:
     def getActiveWindow(self):
         return self.tia.ActiveDisplayWindowName()
 
-    def addCalibration2D(
-        self, varname, offsetX, offsetY, deltaX, deltaY, calIndexX=0, calIndexY=0
-    ):
+    def addCalibration2D(self, varname, offsetX, offsetY, deltaX, deltaY, calIndexX=0, calIndexY=0):
         calib = Calibration2D.fromInterface(
             varname,
             self.tia,
@@ -436,9 +434,7 @@ class Calibration2D:
 
 
 class Range2D:
-    def __init__(
-        self, varname, tia_handle, StartX, StartY, EndX, EndY, SizeX, SizeY, Center
-    ):
+    def __init__(self, varname, tia_handle, StartX, StartY, EndX, EndY, SizeX, SizeY, Center):
         self.name = varname
         self.handle = tia_handle
         self.startX = StartX
@@ -1153,9 +1149,7 @@ class SpatialUnit:
 
 
 class BeamControl:
-    def __init__(
-        self, name, tia_handle, DwellTime=None, PositionCalibrated=None, ScanMode=None
-    ):
+    def __init__(self, name, tia_handle, DwellTime=None, PositionCalibrated=None, ScanMode=None):
         self.handle = tia_handle
         self.name = name
         self.dwellTime = DwellTime

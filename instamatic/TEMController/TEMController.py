@@ -8,7 +8,7 @@ from skimage.registration import phase_cross_correlation
 
 from .deflectors import *
 from .lenses import *
-from .microscope import Microscope
+from .microscope import Microscope, Software
 from .stage import *
 from .states import *
 from instamatic import config
@@ -26,18 +26,21 @@ _data_stream = None
 _image_stream = None
 _tia_image_stream = None
 _fei_image_stream = None
+_sw = None
 
 default_cam = config.camera.name
 default_tia_cam = config.settings.tiacamera
 default_fei_cam = config.settings.feicamera
 default_tem = config.microscope.name
 default_holder = config.holder.name
+default_sw = config.settings.software
 
 use_tem_server = config.settings.use_tem_server
 use_cam_server = config.settings.use_cam_server
+use_sw_server = config.settings.use_sw_server
 
 
-def initialize(tem_name: str = default_tem, cam_name: str = default_cam, holder_name: str = default_holder, 
+def initialize(tem_name: str = default_tem, cam_name: str = default_cam, holder_name: str = default_holder, sw_name: str = default_sw,
             tia_cam_name: str = default_tia_cam, fei_cam_name: str = default_fei_cam, stream: bool = True) -> 'TEMController':
     """Initialize TEMController object giving access to the TEM and Camera
     interfaces.
@@ -91,8 +94,13 @@ def initialize(tem_name: str = default_tem, cam_name: str = default_cam, holder_
     if fei_cam_name:
         _fei_image_stream = None
 
+    global _sw
+    if sw_name:
+        print(f"Software: {sw_name}{' (server)' if use_sw_server else ''}")
+        _sw = Software(sw_name, use_server=use_sw_server)
+
     global _ctrl
-    ctrl = _ctrl = TEMController(tem=_tem, cam=_cam, holder=_holder, data_stream=_data_stream, image_stream=_image_stream, 
+    ctrl = _ctrl = TEMController(tem=_tem, cam=_cam, holder=_holder, sw=_sw, data_stream=_data_stream, image_stream=_image_stream, 
                                 tia_image_stream=_tia_image_stream, fei_image_stream=_fei_image_stream)
 
     return ctrl
@@ -119,7 +127,7 @@ class TEMController:
     cam: Camera control object (see instamatic.camera) [optional]
     """
 
-    def __init__(self, tem, cam=None, holder=None, data_stream=None, image_stream=None, tia_image_stream=None, fei_image_stream=None):
+    def __init__(self, tem, cam=None, holder=None, sw=None, data_stream=None, image_stream=None, tia_image_stream=None, fei_image_stream=None):
         super().__init__()
 
         self._executor = ThreadPoolExecutor(max_workers=1)
@@ -127,6 +135,7 @@ class TEMController:
         self.tem = tem
         self.cam = cam
         self.holder = holder
+        self.sw = sw
         self.data_stream = data_stream
         self.image_stream = image_stream
         self.tia_image_stream = tia_image_stream

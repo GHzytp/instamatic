@@ -130,7 +130,7 @@ class VideoStreamFrame(LabelFrame):
             btn.pack(side='bottom', fill='both', padx=5)
 
     def header(self, master):
-        ewidth = 6
+        ewidth = 5
         lwidth = 12
 
         frame = Frame(master)
@@ -148,11 +148,12 @@ class VideoStreamFrame(LabelFrame):
 
         self.e_fps = Entry(frame, width=ewidth, textvariable=self.var_fps, state=DISABLED)
         self.e_interval = Entry(frame, width=ewidth, textvariable=self.var_interval, state=DISABLED)
-
         Label(frame, text='fps:').grid(row=1, column=0)
         self.e_fps.grid(row=1, column=1, sticky='we')
         Label(frame, width=lwidth, text='interval (ms):').grid(row=1, column=2)
         self.e_interval.grid(row=1, column=3, sticky='we')
+
+        Checkbutton(frame, text='Show Center', variable=self.var_show_center, command=self.show_center).grid(row=1, column=8, sticky='we')
 
         frame.pack()
 
@@ -163,7 +164,7 @@ class VideoStreamFrame(LabelFrame):
         Label(frame, text='Brightness').grid(row=1, column=0)
         self.e_brightness.grid(row=1, column=1)
 
-        Label(frame, width=lwidth, text='DisplayRange').grid(row=1, column=2)
+        Label(frame, width=6, text='Range').grid(row=1, column=2)
         self.e_display_range = Spinbox(frame, width=ewidth, textvariable=self.var_display_range, from_=1, to=self.display_range_default, increment=1000)
         self.e_display_range.grid(row=1, column=3)
 
@@ -180,19 +181,18 @@ class VideoStreamFrame(LabelFrame):
         self.e_cent_y = Spinbox(frame, textvariable=self.var_cent_y, width=6, from_=0.0, to=self.dimension[1], increment=0.1)
         self.e_cent_y.grid(row=1, column=8, sticky='EW')
         Hoverbox(self.e_cent_y, 'Stretch center position Y')
+        Checkbutton(frame, text='Resolution', variable=self.var_show_res, command=self.show_res).grid(row=1, column=9, sticky='we')
 
         frame.pack()
 
         frame = Frame(master)
 
-        Checkbutton(frame, text='Show Center', variable=self.var_show_center, command=self.show_center).grid(row=1, column=0, sticky='we')
-        Checkbutton(frame, text='Show Resolution', variable=self.var_show_res, command=self.show_res).grid(row=1, column=1, sticky='we', padx=5)
         self.l_resolution = Label(frame, text='')
         self.l_resolution.grid(row=1, column=2)
         self.e_resolution = Entry(frame, width=7, textvariable=self.var_resolution, state=DISABLED)
         self.e_resolution.grid(row=1, column=3, padx=5)
         self.check_tem_state()
-        Button(frame, width=ewidth, text='Check', command=self.check_tem_state).grid(row=1, column=4)
+        Button(frame, width=6, text='Check', command=self.check_tem_state).grid(row=1, column=4)
         Checkbutton(frame, text='Click&Go', variable=self.var_click_and_go, command=self.click_and_go).grid(row=1, column=5, sticky='we')
         Checkbutton(frame, text='Backlash', variable=self.var_backlash).grid(row=1, column=6, sticky='we')
         Checkbutton(frame, text='Measure', variable=self.var_measure, command=self.activate_measure).grid(row=1, column=7, sticky='we')

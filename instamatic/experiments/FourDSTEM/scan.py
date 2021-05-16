@@ -36,7 +36,7 @@ class Scanner:
         self.binsize = ctrl.cam.default_binsize
         self.wavelength = config.microscope.wavelength  # angstrom
 
-        self.beam_shift_matrix = np.array(config.calibration.beam_shift_matrix).reshape(2, 2)
+        self.beam_shift_matrix_C3 = np.array(config.calibration.beam_shift_matrix_C3).reshape(2, 2)
         self.beam_tilt_matrix_D = np.array(config.calibration.beam_tilt_matrix_D).reshape(2, 2)
         self.diffraction_shift_matrix = np.array(config.calibration.diffraction_shift_matrix).reshape(2, 2)
         self.stage_matrix_angle_D = np.array(config.calibration.stage_matrix_angle_D).reshape(2, 2)
@@ -50,7 +50,7 @@ class Scanner:
         pos0 = np.linspace(scan_from[0], scan_to[0], n)
         pos1 = np.linspace(scan_from[1], scan_to[1], n)
         pos = np.array([pos0, pos1]).T - orig_pos
-        beampos = pixelsize * pos @ self.beam_shift_matrix + orig_beampos
+        beampos = pixelsize * pos @ self.beam_shift_matrix_C3 + orig_beampos
 
         event_start.wait()
 
@@ -74,7 +74,7 @@ class Scanner:
         pos0 = np.linspace(scan_from[0], scan_to[0], nx)
         pos1 = np.linspace(scan_from[1], scan_to[1], ny)
         pos = np.array([pos0, pos1]).T - orig_pos
-        beampos = pixelsize * pos @ self.beam_shift_matrix + orig_beampos
+        beampos = pixelsize * pos @ self.beam_shift_matrix_C3 + orig_beampos
 
         if scan_pattern == 'XY scan':
             xv, yv = np.meshgrid(beampos[0], beampos[1])
@@ -154,7 +154,7 @@ class Scanner:
         pos0 = np.linspace(scan_from[0], scan_to[0], n)
         pos1 = np.linspace(scan_from[1], scan_to[1], n)
         pos = np.array([pos0, pos1]).T - orig_pos
-        beampos = pixelsize * pos @ self.beam_shift_matrix + orig_beampos
+        beampos = pixelsize * pos @ self.beam_shift_matrix_C3 + orig_beampos
 
         theta = np.arange(0, 360, num_sampling)
         tilt_x = angle * cos(theta)

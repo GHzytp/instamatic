@@ -202,7 +202,7 @@ It establishes a connection to the microscope and reads out the camera lengths a
     calib_config['camera_rotation_vs_stage_xy'] = 0
     calib_config['stretch_amplitude'] = 0
     calib_config['stretch_azimuth'] = 0
-    calib_config['beam_shift_matrix'] = [1, 0, 0, 1]
+    calib_config['beam_shift_matrix_C3'] = [1, 0, 0, 1]
     calib_config['beam_tilt_matrix_D'] = [1, 0, 0, 1]
     calib_config['beam_tilt_matrix_img'] = [1, 0, 0, 1]
     calib_config['stage_matrix_angle'] = [1, 0, 0, 1]

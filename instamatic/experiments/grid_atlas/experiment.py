@@ -36,7 +36,7 @@ class Experiment:
 
         self.binsize = ctrl.cam.default_binsize
         self.software_binsize = config.settings.software_binsize
-        self.beam_shift_matrix = np.array(config.calibration.beam_shift_matrix).reshape(2, 2)
+        self.beam_shift_matrix_C3 = np.array(config.calibration.beam_shift_matrix_C3).reshape(2, 2)
         self.magnification_induced_pixelshift = np.array(config.calibration.relative_pixel_shift_square_target)
 
     def obtain_image(self, exposure_time, align, align_roi, roi):
@@ -193,7 +193,7 @@ class Experiment:
             num = len(target[(target['grid']==grid_num) & (target['square']==square_num)]) - len(no_diff_targets)
             for index2, point in no_diff_targets.iterrows(): 
                 # beam shift
-                beam_shift = square_img_pixelsize * (square_pixel_center - np.array((point['y'], point['x']))) @ self.beam_shift_matrix
+                beam_shift = square_img_pixelsize * (square_pixel_center - np.array((point['y'], point['x']))) @ self.beam_shift_matrix_C3
                 self.ctrl.beamshift.xy = beam_shift
                 if blank_beam:
                     self.ctrl.beam.unblank(wait_interval)

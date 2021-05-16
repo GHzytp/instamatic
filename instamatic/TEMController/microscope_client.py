@@ -81,7 +81,8 @@ class MicroscopeClient:
                     break
 
         self._init_dict()
-        self.check_goniotool()
+        if config.settings.use_goniotool:
+            config.settings.use_goniotool = self.is_goniotool_available()
 
         atexit.register(self.s.close)
 
@@ -141,11 +142,27 @@ class MicroscopeClient:
     def __dir__(self):
         return self._dct.keys()
 
-    def check_goniotool(self):
-        """Check whether goniotool is available and update the config as
-        necessary."""
-        if config.settings.use_goniotool:
-            config.settings.use_goniotool = self.is_goniotool_available()
+        
+
+class SoftwareClient(MicroscopeClient):
+    def __init__(self, name):
+        super().__init__(name)
+        self.interface = config.settings.software
+
+    def connect(self):
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if HOST != 'localhost' and HOST != '127.0.0.1':
+            # if Host is localhost, start temserver directly. No need to open a console again.
+            self.s.settimeout(0.1)
+        self.s.connect((HOST, PORT))
+        self.s.settimeout(None)
+        print(f'Connected to TIA server ({HOST}:{PORT})')
+
+    def _init_dict(self):
+        from instamatic.TEMController.microscope import get_software
+        software = get_software(self.interface)
+
+        self._dct = {key: value for key, value in tem.__dict__.items() if not key.startswith('_')}
 
 
 class TraceVariable:
