@@ -24,6 +24,7 @@ all_modules = (
     'debug',
     'about',
     'io',
+    'tia',
 )
 
 try:

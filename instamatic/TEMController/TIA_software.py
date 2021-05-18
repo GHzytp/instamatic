@@ -8,7 +8,6 @@ class TIASoftware:
     def __init__(self, name="TIA"):
         self.name = name
         self.tia = None
-        self.cte = None
 
         self.workspace = {}
 
@@ -18,13 +17,12 @@ class TIASoftware:
         except WindowsError:
             comtypes.CoInitialize()
 
-        print("Initializing connection to TIA...")
-        self.tia = comtypes.client.CreateObject("ESVision.Application", comtypes.CLSCTX_ALL)
-        self.cte = comtypes.client.Constants(self.tia)
+        self.tia = comtypes.client.CreateObject("ESVision.Application")
         self.acq = self.tia.AcquisitionManager()
         self.beam_control = self.tia.BeamControl()
         self.ccd = self.tia.CCDServer()
         self.scan = self.tia.ScanningServer()
+        print(f"Initializing connection to {self.name}...")
 
     def addVariable(self, varname, tia_object, tia_object_type):
         self.workspace[varname] = {}
@@ -181,7 +179,7 @@ class TIASoftware:
         window = self._FindDisplayWindow(window_name)
         display = window.FindDisplay(display_name)
         image = display.FindObject(image_name)
-        return np.array(image.Data.Array, dtype=np.uint16)
+        return np.array(image.Data.Array, dtype=np.uint16).T[::-1]
 
     def getPositionMarkers(self, window_name, display_name, position_marker_namelist):
         window = self._FindDisplayWindow(window_name)

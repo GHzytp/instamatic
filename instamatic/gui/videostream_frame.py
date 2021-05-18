@@ -23,13 +23,12 @@ class VideoStreamFrame(LabelFrame):
     """GUI panel to continuously display the last frame streamed from the
     camera."""
 
-    def __init__(self, parent, stream, app=None):
+    def __init__(self, parent, stream):
         LabelFrame.__init__(self, parent, text='Stream')
 
         self.parent = parent
         self.right_click_cnt = 0
         self.stream = stream
-        self.app = app
         self.binsize = self.stream.default_binsize
         self.dimension = self.stream.dimension
         self.ctrl = get_instance()
@@ -58,11 +57,7 @@ class VideoStreamFrame(LabelFrame):
         self.update_frequency = 0.25
         self.last_interval = self.frametime
 
-        self._atexit_funcs = []
-
         #######################
-
-        self.parent = parent
 
         self.init_vars()
         self.buttonbox(self)
@@ -213,10 +208,6 @@ class VideoStreamFrame(LabelFrame):
             self.overflow = overflow
             self.overflow_tk = overflow_tk
 
-            self.roi = None
-
-            #self.panel = Label(master, image=image)
-            #self.panel.image = image
             self.panel = Canvas(master, width=dimension[1], height=dimension[0])
             self.image_on_panel = self.panel.create_image(0, 0, anchor=NW, image=image)
             self.overflow_on_panel = self.panel.create_image(0, 0, anchor=NW, image=overflow_tk)
@@ -375,12 +366,10 @@ class VideoStreamFrame(LabelFrame):
     def close(self):
         self.stream.close()
         self.parent.quit()
-        # for func in self._atexit_funcs:
-        # func()
 
     def start_stream(self):
         self.stream.update_frametime(self.frametime)
-        self.after(500, self.on_frame)
+        self.after(self.frame_delay, self.on_frame)
 
     def on_frame(self, event=None):
         #self.stream.lock.acquire(True)
@@ -429,8 +418,6 @@ class VideoStreamFrame(LabelFrame):
         if self.resize_image:
             image = image.resize((950, 950))
 
-        
-
         image = ImageTk.PhotoImage(image=image)
 
         #self.panel.configure(image=image)
@@ -439,7 +426,6 @@ class VideoStreamFrame(LabelFrame):
         self.image = image
 
         self.update_frametimes()
-        # self.parent.update_idletasks()
 
         self.after(self.frame_delay, self.on_frame)
 

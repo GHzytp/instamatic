@@ -167,7 +167,6 @@ class TEMController:
             else:
                 self.in_img_state()
 
-        self.autoblank = False
         self._saved_alignments = config.get_alignments()
 
         atexit.register(self.close)
@@ -743,9 +742,6 @@ class TEMController:
         mode = self.mode.get()
         mag = self.magnification.value
 
-        if self.autoblank:
-            self.beam.unblank()
-
         h['ImageGetTimeStart'] = time.perf_counter()
 
         if align and self.cam.cam.interface == 'DM':
@@ -756,10 +752,6 @@ class TEMController:
             arr = self.get_rotated_image(exposure=exposure, binsize=binsize)
 
         h['ImageGetTimeEnd'] = time.perf_counter()
-
-        if self.autoblank:
-            self.beam.blank()
-
         h['ImageGetTime'] = time.time()
         h['ImageExposureTime'] = exposure
         h['ImageBinsize'] = binsize
@@ -787,6 +779,23 @@ class TEMController:
             plt.show()
 
         return arr, h
+
+    def get_tia_image(self, window_name: str, display_name: str, image_name: str, header_keys: Tuple[str] = None):
+        if self.sw is None:
+            raise AttributeError(f"TIA software controller do not exist.")
+
+        if not header_keys:
+            h = {}
+        else:
+            h = self.to_dict(header_keys)
+
+        h['ImageGetTimeStart'] = time.perf_counter()
+        self.sw.Acquire()
+        arr = self.sw.getImageArray(window_name, display_name, image_name)
+        h['ImageGetTimeEnd'] = time.perf_counter()
+
+        return arr, h
+
 
     def store_diff_beam(self, name: str = 'beam', save_to_file: bool = False):
         """Record alignment for current diffraction beam. Stores Guntilt (for
