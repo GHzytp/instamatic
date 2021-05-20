@@ -78,8 +78,6 @@ class SWServer(threading.Thread):
         """Evaluate the function `func_name` on `self.tem` and call it with
         `args` and `kwargs`."""
         # print(func_name, args, kwargs)
-        if hasattr(self.tem, func_name):
-            f = getattr(self.tem, func_name)
         if hasattr(self.sw, func_name):
             f = getattr(self.sw, func_name)
         ret = f(*args, **kwargs)
@@ -121,7 +119,7 @@ def main():
     import argparse
 
     description = f"""
-Connects to the TEM and starts a server for microscope communication. Opens a socket on port {HOST}:{PORT}.
+Connects to the TEM and starts a server for microscope communication. Opens a socket on port {HOST}:{PORT_SW}.
 
 This program initializes a connection to the TEM as defined in the config. On some setups it must be run in admin mode in order to establish a connection (on JEOL TEMs, wait for the beep!). The purpose of this program is to isolate the microscope connection in a separate process for improved stability of the interface in case instamatic crashes or is started and stopped frequently. For running the GUI, the temserver is required. Another reason is that it allows for remote connections from different PCs. The connection goes over a TCP socket.
 

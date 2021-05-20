@@ -150,12 +150,12 @@ class MicroscopeClient:
             self.interface = config.settings.software
             from instamatic.TEMController.microscope import get_software
             software = get_software(self.interface)
+            self._dct = {key: value for key, value in software.__dict__.items() if not key.startswith('_')}
         elif self.__class__.__name__ == "MicroscopeClient":
             self.interface = config.microscope.interface
             from instamatic.TEMController.microscope import get_tem
             tem = get_tem(self.interface)
-
-        self._dct = {key: value for key, value in tem.__dict__.items() if not key.startswith('_')}
+            self._dct = {key: value for key, value in tem.__dict__.items() if not key.startswith('_')}
 
     def __dir__(self):
         return self._dct.keys()
