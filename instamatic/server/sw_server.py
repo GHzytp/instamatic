@@ -10,20 +10,20 @@ import traceback
 from .serializer import dumper
 from .serializer import loader
 from instamatic import config
-from instamatic.TEMController import Microscope
+from instamatic.TEMController import Software
 
 condition = threading.Condition()
 box = []
 
 HOST = config.settings.tem_server_host
-PORT_TEM = config.settings.tem_server_port
+PORT_SW = config.settings.sw_server_port
 MAX_IMAGE_SIZE = 4096
 BUFSIZE = MAX_IMAGE_SIZE * MAX_IMAGE_SIZE * 4 #1024
 
-default_microscope = config.microscope.name
+default_software = config.settings.software
 
-class TemServer(threading.Thread):
-    """TEM communcation server.
+class SWServer(threading.Thread):
+    """TIA communcation server.
 
     Takes a logger object `log`, command queue `q`, and name of the
     microscope `name` that is used to initialize the connection to the
@@ -32,21 +32,22 @@ class TemServer(threading.Thread):
     microscope instance.
     """
 
-    def __init__(self, log=None, q=None, microscope_name=None):
+    def __init__(self, log=None, q=None, software_name=None):
         super().__init__()
 
         self.log = log
         self.q = q
 
         # self.name is a reserved parameter for threads
-        self._microscope_name = microscope_name
+        self._software_name = software_name
 
         self.verbose = False
 
     def run(self):
         """Start the server thread."""
-        self.tem = Microscope(name=self._microscope_name, use_server=False)
-        print(f'Initialized connection to microscope: {self.tem.name}')
+        self.sw = Software(name=self._software_name, use_server=False)
+        if self.sw is not None:
+            print(f'Initialized connection to software: {self.sw.name}')
 
         while True:
             now = datetime.datetime.now().strftime('%H:%M:%S.%f')
@@ -83,6 +84,7 @@ class TemServer(threading.Thread):
             f = getattr(self.sw, func_name)
         ret = f(*args, **kwargs)
         return ret
+
 
 def handle(conn, q):
     """Handle incoming connection, put command on the Queue `q`, which is then
@@ -138,12 +140,12 @@ The response is returned as a serialized object.
         description=description,
         formatter_class=argparse.RawDescriptionHelpFormatter)
 
-    parser.add_argument('-t', '--microscope', action='store', dest='microscope',
-                        help="""Override microscope to use.""")
-    parser.set_defaults(microscope=default_microscope)
+    parser.add_argument('-s', '--software', action='store', dest='software',
+                        help="""Override software to use.""")
+    parser.set_defaults(software=default_software)
 
     options = parser.parse_args()
-    microscope = options.microscope
+    software = options.software
 
     date = datetime.datetime.now().strftime('%Y-%m-%d')
     logfile = config.locations['logs'] / f'instamatic_TEMServer_{date}.log'
@@ -155,15 +157,15 @@ The response is returned as a serialized object.
 
     q = queue.Queue(maxsize=100)
 
-    tem_reader = TemServer(microscope_name=microscope, log=log, q=q)
+    tem_reader = SWServer(software_name=software, log=log, q=q)
     tem_reader.start()
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind((HOST, PORT_TEM))
+    s.bind((HOST, PORT_SW))
     s.listen(5)
 
-    log.info(f'TEM server listening on {HOST}:{PORT_TEM}')
-    print(f'TEM server listening on {HOST}:{PORT_TEM}')
+    log.info(f'Software server listening on {HOST}:{PORT_SW}')
+    print(f'Software server listening on {HOST}:{PORT_SW}')
 
     with s:
         while True:

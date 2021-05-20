@@ -63,7 +63,7 @@ setup(
     author_email='s.smeets@tudelft.nl',
     license='GPL-3.0-only',
     keywords='electron-crystallography electron-microscopy electron-diffraction serial-crystallography 3D-electron-diffraction micro-ed data-collection automation',
-    ext_modules = ext_modules,
+    # ext_modules = ext_modules,
     classifiers=[
             'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7',
@@ -98,6 +98,7 @@ setup(
             'instamatic.learn = scripts.learn:main_entry',
             'instamatic.temserver = instamatic.server.tem_server:main',
             'instamatic.camserver = instamatic.server.cam_server:main',
+            'instamatic.swserver = instamatic.server.sw_server:main',
             'instamatic.dialsserver = instamatic.server.dials_server:main',
             'instamatic.VMserver = instamatic.server.vm_ubuntu_server:main',
             'instamatic.xdsserver = instamatic.server.xds_server:main',

@@ -17,6 +17,7 @@ from instamatic.server.serializer import loader
 
 HOST = config.settings.tem_server_host
 PORT_TEM = config.settings.tem_server_port
+PORT_SW = config.settings.sw_server_port
 MAX_IMAGE_SIZE = 4096
 BUFSIZE = MAX_IMAGE_SIZE*MAX_IMAGE_SIZE*4 #Might be made a input argument of the SoftwareClient
 
@@ -30,10 +31,16 @@ def kill_server(p):
     sp.call(['taskkill', '/F', '/T', '/PID', str(p.pid)])
 
 
-def start_server_in_subprocess():
+def start_tem_server_in_subprocess():
     cmd = 'instamatic.temserver.exe'
     p = sp.Popen(cmd, stdout=sp.DEVNULL)
     print(f'Starting TEM server ({HOST}:{PORT_TEM} on pid={p.pid})')
+    atexit.register(kill_server, p)
+
+def start_sw_server_in_subprocess():
+    cmd = 'instamatic.swserver.exe'
+    p = sp.Popen(cmd, stdout=sp.DEVNULL)
+    print(f'Starting software server ({HOST}:{PORT_SW} on pid={p.pid})')
     atexit.register(kill_server, p)
 
 
@@ -54,7 +61,10 @@ class MicroscopeClient:
         try:
             self.connect()
         except ConnectionRefusedError:
-            start_server_in_subprocess()
+            if self.__class__.__name__ == "SoftwareClient":
+                start_sw_server_in_subprocess()
+            elif self.__class__.__name__ == "MicroscopeClient":
+                start_tem_server_in_subprocess()
             for t in range(25):
                 try:
                     self.connect()
@@ -90,7 +100,10 @@ class MicroscopeClient:
         if HOST != 'localhost' and HOST != '127.0.0.1':
             # if Host is localhost, start temserver directly. No need to open a console again.
             self.s.settimeout(0.1)
-        self.s.connect((HOST, PORT_TEM))
+        if self.__class__.__name__ == "SoftwareClient":
+            self.s.connect((HOST, PORT_SW))
+        elif self.__class__.__name__ == "MicroscopeClient":
+            self.s.connect((HOST, PORT_TEM))
         self.s.settimeout(None)
         print(f'Connected to TEM server ({HOST}:{PORT_TEM})')
 
@@ -133,38 +146,23 @@ class MicroscopeClient:
             raise ConnectionError(f'Unknown status code: {status}')
 
     def _init_dict(self):
-        self.interface = config.microscope.interface
-        from instamatic.TEMController.microscope import get_tem
-        tem = get_tem(self.interface)
+        if self.__class__.__name__ == "SoftwareClient":
+            self.interface = config.settings.software
+            from instamatic.TEMController.microscope import get_software
+            software = get_software(self.interface)
+        elif self.__class__.__name__ == "MicroscopeClient":
+            self.interface = config.microscope.interface
+            from instamatic.TEMController.microscope import get_tem
+            tem = get_tem(self.interface)
 
         self._dct = {key: value for key, value in tem.__dict__.items() if not key.startswith('_')}
 
     def __dir__(self):
         return self._dct.keys()
 
-        
-
 class SoftwareClient(MicroscopeClient):
     def __init__(self, name):
         super().__init__(name)
-
-    def connect(self):
-        PORT_SW = config.settings.sw_server_port
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        if HOST != 'localhost' and HOST != '127.0.0.1':
-            # if Host is localhost, start temserver directly. No need to open a console again.
-            self.s.settimeout(0.1)
-        self.s.connect((HOST, PORT_SW))
-        self.s.settimeout(None)
-        print(f'Connected to TIA server ({HOST}:{PORT_SW})')
-
-    def _init_dict(self):
-        self.interface = config.settings.software
-        from instamatic.TEMController.microscope import get_software
-        software = get_software(self.interface)
-
-        self._dct = {key: value for key, value in software.__dict__.items() if not key.startswith('_')}
-
 
 class TraceVariable:
     """Simple class to trace a variable over time.
