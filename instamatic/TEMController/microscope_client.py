@@ -16,7 +16,7 @@ from instamatic.server.serializer import loader
 
 
 HOST = config.settings.tem_server_host
-PORT = config.settings.tem_server_port
+PORT_TEM = config.settings.tem_server_port
 MAX_IMAGE_SIZE = 4096
 BUFSIZE = MAX_IMAGE_SIZE*MAX_IMAGE_SIZE*4 #Might be made a input argument of the SoftwareClient
 
@@ -33,7 +33,7 @@ def kill_server(p):
 def start_server_in_subprocess():
     cmd = 'instamatic.temserver.exe'
     p = sp.Popen(cmd, stdout=sp.DEVNULL)
-    print(f'Starting TEM server ({HOST}:{PORT} on pid={p.pid})')
+    print(f'Starting TEM server ({HOST}:{PORT_TEM} on pid={p.pid})')
     atexit.register(kill_server, p)
 
 
@@ -90,9 +90,9 @@ class MicroscopeClient:
         if HOST != 'localhost' and HOST != '127.0.0.1':
             # if Host is localhost, start temserver directly. No need to open a console again.
             self.s.settimeout(0.1)
-        self.s.connect((HOST, PORT))
+        self.s.connect((HOST, PORT_TEM))
         self.s.settimeout(None)
-        print(f'Connected to TEM server ({HOST}:{PORT})')
+        print(f'Connected to TEM server ({HOST}:{PORT_TEM})')
 
     def __getattr__(self, func_name):
 
@@ -149,13 +149,14 @@ class SoftwareClient(MicroscopeClient):
         super().__init__(name)
 
     def connect(self):
+        PORT_SW = config.settings.sw_server_port
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         if HOST != 'localhost' and HOST != '127.0.0.1':
             # if Host is localhost, start temserver directly. No need to open a console again.
             self.s.settimeout(0.1)
-        self.s.connect((HOST, PORT))
+        self.s.connect((HOST, PORT_SW))
         self.s.settimeout(None)
-        print(f'Connected to TIA server ({HOST}:{PORT})')
+        print(f'Connected to TIA server ({HOST}:{PORT_SW})')
 
     def _init_dict(self):
         self.interface = config.settings.software
