@@ -151,7 +151,9 @@ def pixelcoord_to_movement(pixelcoord, transform_r, transform_t, reference_movem
     movement = reference_movement + transform_t + np.dot(pixelcoord - reference_pixel, r)
     return movement
 
+#--------------------------------------------------------------------------------
 # adpated from simple ctf from Albert Xu: https://github.com/alberttxu/simplectf
+
 def ctf(amplitude_contrast, chi_args):
     """Contrast Transfer Function
     amplitude_contrast - fraction between 0 and 1
@@ -161,25 +163,19 @@ def ctf(amplitude_contrast, chi_args):
 
 
 def chi(defocus_matrix, kx, ky, electron_wavelength, spherical_abberation, phase_shift):
-    """Phase perturbation term in cycles rather than radians.
+    """Phase perturbation term in cycles (sptial frequency) rather than radians.
     Units for arguments:
      defocus_matrix: 2x2 matrix whose eigenvalues z1, z2 are in microns
         z1 > z2
         Orthonormal eigenvectors associated with z1 & z2 are minor and major semiaxes
      kx, ky: angstrom^-1
-     electron_wavelength: picometers
+     electron_wavelength: in pm
      spherical_abberation: millimeters
      phase_shift: degrees (0 to 180)
     """
-    return (
-        -(100 * (1 / 2) * electron_wavelength * quadratic_form(defocus_matrix, kx, ky))
-        + 10
-        * (1 / 4)
-        * spherical_abberation
-        * electron_wavelength ** 3
-        * (kx ** 2 + ky ** 2) ** 2
-        + phase_shift / 360
-    )
+    return (- (100 * 0.5* electron_wavelength * quadratic_form(defocus_matrix, kx, ky))
+            + 10 * 0.25 * spherical_abberation * electron_wavelength ** 3 * (kx ** 2 + ky ** 2) ** 2
+            + phase_shift / 360)
 
 
 def quadratic_form(A, x1, x2):
@@ -194,36 +190,23 @@ def quadratic_form(A, x1, x2):
 class CTFModel:
     """Forward model for simulating CTF
     img - numpy image array
-    electron_wavelength - in picometers
+    electron_wavelength - in pm
     spherical_abberation - in mm
     amplitude_contrast - fraction between 0 and 1
     low_cutoff_res - in angstroms
     high_cutoff_res - in angstroms
     """
-
-    def __init__(
-        self,
-        img,
-        pixelsize,
-        electron_wavelength,
-        spherical_abberation,
-        amplitude_contrast,
-        low_cutoff_res=30,
-        high_cutoff_res=5,
-    ):
+    def __init__(self, img, pixelsize, electron_wavelength, spherical_abberation,
+                amplitude_contrast, low_cutoff_res=30, high_cutoff_res=5):
         self.pixelsize = pixelsize
         self.spherical_abberation = spherical_abberation
         self.amplitude_contrast = amplitude_contrast
         self.electron_wavelength = electron_wavelength
-        self.spectrum = np.log(
-            np.abs(fft.rfft2(img, s=(max(img.shape), max(img.shape))))
-        )
+        self.spectrum = np.log(np.abs(fft.rfft2(img, s=(max(img.shape), max(img.shape)))))
         # keep a copy of the full spectrum
         self.full_spectrum = self.spectrum
         # reduce the spectrum to a desired range and subtract background
-        self.spectrum = self._preprocess_spectrum(
-            self.spectrum, low_cutoff_res, high_cutoff_res
-        )
+        self.spectrum = self._preprocess_spectrum(self.spectrum, low_cutoff_res, high_cutoff_res)
 
     def _preprocess_spectrum(self, spectrum, low_cutoff_res, high_cutoff_res):
         """Cuts off low and high frequencies and then subtracts the background by
@@ -296,14 +279,9 @@ class CTFModel:
         freqencies = fft.rfftfreq(n=self.full_spectrum.shape[0], d=self.pixelsize)
         k_first_zero_crossing = freqencies[self._low_idx + first_zero_crossing_idx]
         chi_first_zero_crossing = -0.5
-        approximate_defocus = (
-            chi_first_zero_crossing
-            - 10
-            * (1 / 4)
-            * self.spherical_abberation
-            * self.electron_wavelength ** 3
-            * k_first_zero_crossing ** 4
-        ) * (-2 / (100 * self.electron_wavelength * k_first_zero_crossing ** 2))
+        approximate_defocus = (chi_first_zero_crossing - 10 * 0.25 * self.spherical_abberation
+                            * self.electron_wavelength ** 3 * k_first_zero_crossing ** 4) 
+                            * (-2 / (100 * self.electron_wavelength * k_first_zero_crossing ** 2))
         return approximate_defocus
 
     def _ctf_array(self, z1, z2, major_semiaxis_angle, phase_shift):
@@ -325,14 +303,8 @@ class CTFModel:
         ky = np.hstack((ky[: self._high_idx], ky[-self._high_idx :]))
         ky = fft.fftshift(ky)
         KX, KY = np.meshgrid(kx, ky)
-        chi_args = (
-            defocus_matrix,
-            KX,
-            KY,
-            self.electron_wavelength,
-            self.spherical_abberation,
-            phase_shift,
-        )
+        chi_args = (defocus_matrix, KX, KY, self.electron_wavelength,
+                    self.spherical_abberation, phase_shift)
         return ctf(self.amplitude_contrast, chi_args)
 
     def forward_model(self, z1, z2, major_semiaxis_angle, phase_shift):

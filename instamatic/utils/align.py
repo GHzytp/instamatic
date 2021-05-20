@@ -1,6 +1,7 @@
 import numpy as np
 from scipy import ndimage
-
+from scipy.ndimage.filters import gaussian_filter, maximum_filter
+from skimage.feature import match_template
 
 def image_cross_corr(image, reference, real_filter=1, k_filter=1):
     """ Calculate image cross-correlation. See imageCrossCorRealShift and other
@@ -237,3 +238,56 @@ def stack_align(stack, align_type='static', real_filter=1, k_filter=1, shift_fun
             jj = ii
 
     return aligned, shifts
+
+
+# prevent including the same hole multiple times
+def pointsExistWithinRadius(center, coords, radius):
+    radius_2 = radius ** 2
+    if len(coords) == 0:
+        return False
+    for pt in coords:
+        if np.linalg.norm(pt - center) < radius_2:
+            return True
+    return False
+
+def templateMatch(image, template, threshold, downSample: int = 1, blurImage=False, blurTemplate=False, sigma=10):
+    """Return a list of (x,y) pixel coordinates where cross-correlation between
+    the image and template surpass the threshold value.
+    To prevent double counting, the minimum distance between coordinates is
+    constrained to the length of the larger dimension of the template image.
+    Following SerialEM conventions, (0,0) is at the bottom-left corner,
+    with +x axis to the right and +y axis upwards.
+    Images can be downsampled for faster computation and noise reduction.
+    """
+
+    if len(image.shape) == 3:
+        image = image[:, :, 0]
+    if len(template.shape) == 3:
+        template = template[:, :, 0]
+    image = image[::downSample, ::downSample]
+    template = template[::downSample, ::downSample]
+    if blurImage:
+        image = gaussian_filter(image, sigma=sigma)
+    if blurTemplate:
+        template = gaussian_filter(template, sigma=sigma)
+
+    # flip both arrays upsidedown for coordinate conventions
+    image = np.flip(image, 0).copy()
+    template = np.flip(template, 0).copy()
+    h, w, *_ = template.shape
+    xcorrScores = match_template(image, template)
+    maxfilter = maximum_filter(xcorrScores, size=(template.shape[0] // 2, template.shape[1] // 2))
+    loc = zip(*np.where((xcorrScores >= threshold) & (xcorrScores == maxfilter)))
+
+    scoresIndex = [(x, y, xcorrScores[y][x]) for y, x in loc]
+    scoresIndex.sort(key=lambda a: a[2], reverse=True)
+
+    matches = []
+    for x, y, _ in scoresIndex:
+        pt = np.array([x, y]) + np.array([w, h]) / 2
+        if not pointsExistWithinRadius(pt, matches, radius=max(h, w)):
+            matches.append(pt)
+    # multiply back to get correct coordinates
+    matches = [downSample * pt for pt in matches]
+    return matches
+    
