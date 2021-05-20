@@ -7,7 +7,7 @@ from scipy import stats
 from skimage.registration import phase_cross_correlation
 
 from instamatic import config
-from instamatic.calibrate.fit import fit_affine_transformation
+from instamatic.utils.fit import fit_affine_transformation
 from instamatic.formats import read_tiff
 from instamatic.formats import write_tiff
 from instamatic.image_utils import rotate_image

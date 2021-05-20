@@ -4,7 +4,7 @@ import numpy as np
 from skimage.registration import phase_cross_correlation
 from tqdm.auto import tqdm
 
-from instamatic.calibrate.fit import fit_affine_transformation
+from instamatic.utils.fit import fit_affine_transformation
 logger = logging.getLogger(__name__)
 
 
