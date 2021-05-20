@@ -241,7 +241,7 @@ def stack_align(stack, align_type='static', real_filter=1, k_filter=1, shift_fun
 
 
 # prevent including the same hole multiple times
-def pointsExistWithinRadius(center, coords, radius):
+def points_exist_within_radius(center, coords, radius):
     radius_2 = radius ** 2
     if len(coords) == 0:
         return False
@@ -250,7 +250,7 @@ def pointsExistWithinRadius(center, coords, radius):
             return True
     return False
 
-def templateMatch(image, template, threshold, downSample: int = 1, blurImage=False, blurTemplate=False, sigma=10):
+def template_match(image, template, threshold, downSample: int = 1, blurImage=False, blurTemplate=False, sigma=10):
     """Return a list of (x,y) pixel coordinates where cross-correlation between
     the image and template surpass the threshold value.
     To prevent double counting, the minimum distance between coordinates is
@@ -285,9 +285,8 @@ def templateMatch(image, template, threshold, downSample: int = 1, blurImage=Fal
     matches = []
     for x, y, _ in scoresIndex:
         pt = np.array([x, y]) + np.array([w, h]) / 2
-        if not pointsExistWithinRadius(pt, matches, radius=max(h, w)):
+        if not points_exist_within_radius(pt, matches, radius=max(h, w)):
             matches.append(pt)
     # multiply back to get correct coordinates
     matches = [downSample * pt for pt in matches]
     return matches
-    

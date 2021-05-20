@@ -7,7 +7,7 @@ import numpy as np
 from skimage.registration import phase_cross_correlation
 
 from .filenames import *
-from .fit import fit_affine_transformation
+from instamatic.utils.fit import fit_affine_transformation
 from instamatic.formats import read_image
 from instamatic.image_utils import autoscale
 from instamatic.image_utils import imgscale

@@ -280,8 +280,8 @@ class CTFModel:
         k_first_zero_crossing = freqencies[self._low_idx + first_zero_crossing_idx]
         chi_first_zero_crossing = -0.5
         approximate_defocus = (chi_first_zero_crossing - 10 * 0.25 * self.spherical_abberation
-                            * self.electron_wavelength ** 3 * k_first_zero_crossing ** 4) 
-                            * (-2 / (100 * self.electron_wavelength * k_first_zero_crossing ** 2))
+                            * self.electron_wavelength ** 3 * k_first_zero_crossing ** 4 
+                            * (-2 / (100 * self.electron_wavelength * k_first_zero_crossing ** 2)))
         return approximate_defocus
 
     def _ctf_array(self, z1, z2, major_semiaxis_angle, phase_shift):

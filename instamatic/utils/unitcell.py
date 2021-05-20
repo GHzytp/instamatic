@@ -1,25 +1,8 @@
-#!/usr/bin/env python
-
-from __future__ import division
-from __future__ import print_function
-from __future__ import absolute_import
-from builtins import zip
-from builtins import str
-from builtins import map
-from past.utils import old_div
 import numpy as np
 from math import radians, cos, sin
 
 from .spacegroup import SpaceGroup
-
-try:
-    # raise ImportError
-    import tinyarray as ta
-except ImportError:
-    import numpy as ta
-    TINYARRAY = False
-else:
-    TINYARRAY = True
+import numpy as np
 
 
 def comp2dict(composition):
@@ -144,15 +127,15 @@ class UnitCell(SpaceGroup):
             m22 = (c*a*sin(be)/vol)**2
             m33 = (a*b*sin(ga)/vol)**2
 
-            m12 = a*b*(old_div(c,vol))**2 * (cos(al)*cos(be)-cos(ga))
-            m23 = b*c*(old_div(a,vol))**2 * (cos(be)*cos(ga)-cos(al))
-            m13 = a*c*(old_div(b,vol))**2 * (cos(ga)*cos(al)-cos(be))
+            m12 = a*b*(c / vol)**2 * (cos(al)*cos(be)-cos(ga))
+            m23 = b*c*(a / vol)**2 * (cos(be)*cos(ga)-cos(al))
+            m13 = a*c*(b / vol)**2 * (cos(ga)*cos(al)-cos(be))
 
-            mat = ta.array([[m11, m12, m13],
+            mat = np.array([[m11, m12, m13],
                              [m12, m22, m23],
                              [m13, m23, m33]])
         else:
-            mat = ta.array([[a*a,         a*b*cos(ga), a*c*cos(be)],
+            mat = np.array([[a*a,         a*b*cos(ga), a*c*cos(be)],
                             [a*b*cos(ga),         b*b, b*c*cos(al)],
                             [a*c*cos(be), b*c*cos(al),         c*c]])
 
@@ -173,15 +156,13 @@ class UnitCell(SpaceGroup):
         vol = self.volume
 
         if inverse:
-            mat = ta.array([[old_div(1,a), old_div((-1*cos(ga)), (a*sin(ga))), old_div((cos(ga) * cos(al) - cos(be)), (a*vol * sin(ga)))],
-                            [0,            old_div(1,
-                                (b*sin(ga))), old_div((cos(ga) * cos(be) - cos(al)), (b*vol * sin(ga)))],
-                            [0,                          0,                 old_div((a*b*sin(ga)), (vol))]])
+            mat = np.array([[1 / a, (-1*cos(ga)) / (a*sin(ga)), (cos(ga) * cos(al) - cos(be)) / (a*vol * sin(ga))],
+                            [    0,            1 / (b*sin(ga)), (cos(ga) * cos(be) - cos(al)) / (b*vol * sin(ga))],
+                            [    0,                          0,                                 a*b*sin(ga) / vol]])
         else:
-            mat = ta.array([[a, b*cos(ga),                           c*cos(be)],
-                            [0, b*sin(ga),
-                             c*(cos(al)-cos(be)*cos(ga))/sin(ga)],
-                            [0,         0,                   old_div(vol,(a*b*sin(ga)))]])
+            mat = np.array([[a, b*cos(ga),                           c*cos(be)],
+                            [0, b*sin(ga), c*(cos(al)-cos(be)*cos(ga))/sin(ga)],
+                            [0,         0,                 vol / (a*b*sin(ga))]])
 
         return mat
 
@@ -205,30 +186,29 @@ class UnitCell(SpaceGroup):
         l = idx[2]
 
         if kind == 'Cubic':
-            idsq = old_div((h**2 + k**2 + l**2), a**2)
+            idsq = (h**2 + k**2 + l**2) /  a**2
 
         elif kind == 'Tetragonal':
-            idsq = old_div((h**2 + k**2), a**2) + old_div(l**2, c**2)
+            idsq = (h**2 + k**2) / a**2 + l**2 / c**2
 
         elif kind == 'Orthorhombic':
-            idsq = old_div(h**2, a**2) + old_div(k**2, b**2) + old_div(l**2, c**2)
+            idsq = h**2 / a**2 + k**2 / b**2 + l**2 / c**2
 
         elif kind == "Trigonal":
             if self.setting == "R":
                 al = radians(al)
                 num = (h**2 + k**2 + l**2) * sin(al)**2 + 2*(h*k + k*l + h*l)*(cos(al)**2 - cos(al))
                 denom = a**2 * (1 - 3*cos(al)**2 + 2*cos(al)**3)
-                idsq = old_div(num, denom)
+                idsq = num / denom
             else:
-                idsq = (old_div(4.0,3.0)) * (h**2 + h*k + k**2) / (a**2) + old_div(l**2, c**2)
+                idsq = (4.0 / 3.0) * (h**2 + h*k + k**2) / (a**2) + l**2 / c**2
 
         elif kind == 'Hexagonal':
-            idsq = (old_div(4.0,3.0)) * (h**2 + h*k + k**2) / (a**2) + old_div(l**2, c**2)
+            idsq = (4.0 / 3.0) * (h**2 + h*k + k**2) / (a**2) + l**2 / c**2
 
         elif kind == 'Monoclinic':
             be = radians(be)
-            idsq = (old_div(1,sin(be)**2)) * (old_div(h**2,a**2) + k**2 * sin(be)**2 /
-                                     b**2 + old_div(l**2,c**2) - old_div((2*h*l*cos(be)), (a*c)))
+            idsq = (1 / sin(be)**2) * (h**2 / a**2 + k**2 * sin(be)**2 / b**2 + l**2 / c**2 - (2*h*l*cos(be)) / (a*c))
 
         elif kind == 'Triclinic':
             V = self.volume
@@ -237,13 +217,9 @@ class UnitCell(SpaceGroup):
             be = radians(be)
             ga = radians(ga)
 
-            idsq = (old_div(1,V**2)) * (
-                h**2 * b**2 * c**2 * sin(al)**2
-                + k**2 * a**2 * c**2 * sin(be)**2
-                + l**2 * a**2 * b**2 * sin(ga)**2
-                + 2*h*k*a*b*c**2 * (cos(al) * cos(be) - cos(ga))
-                + 2*k*l*b*c*a**2 * (cos(be) * cos(ga) - cos(al))
-                + 2*h*l*c*a*b**2 * (cos(al) * cos(ga) - cos(be))
+            idsq = (1 / V**2) * (h**2 * b**2 * c**2 * sin(al)**2 + k**2 * a**2 * c**2 * sin(be)**2
+                + l**2 * a**2 * b**2 * sin(ga)**2 + 2*h*k*a*b*c**2 * (cos(al) * cos(be) - cos(ga))
+                + 2*k*l*b*c*a**2 * (cos(be) * cos(ga) - cos(al)) + 2*h*l*c*a*b**2 * (cos(al) * cos(ga) - cos(be))
             )
         else:
             raise ValueError("Unknown crystal system {}, fallback to Triclinic".format(kind))
@@ -263,9 +239,7 @@ class UnitCell(SpaceGroup):
         al = radians(al)
         be = radians(be)
         ga = radians(ga)
-        vol = a*b*c * \
-            ((1+2*cos(al)*cos(be)*cos(ga)-cos(al)**2-cos(be)**2-cos(ga)**2)
-             ** .5)
+        vol = a*b*c * ((1+2*cos(al)*cos(be)*cos(ga)-cos(al)**2-cos(be)**2-cos(ga)**2)**0.5)
         self._volume = vol
         return vol
 

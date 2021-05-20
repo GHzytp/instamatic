@@ -11,9 +11,33 @@ from skimage import segmentation
 
 from instamatic.config import calibration
 from instamatic.image_utils import autoscale
+from instamatic.utils.denoise import anisodiff
 
 plt.rcParams['image.cmap'] = 'gray'
 
+
+def to_binary(img, lower, upper):
+    return ((lower < img) & (img < upper)).astype(np.uint8) * 255
+
+def find_segment_centers(labelled_img, num_features, maxPts):
+    results = []
+    segments = []
+    for label in range(1, num_features + 1):
+        segment = labelled_img == label
+        area = np.sum(segment)
+        segments.append((label, segment, area))
+    segments = sorted(segments, key=lambda x: x[2])[::-1][:maxPts]
+    for label, segment, _ in segments:
+        center = ndimage.measurements.center_of_mass(segment)
+        center = (int(center[0]), int(center[1]))
+        results.append(center)
+    return results
+
+def find_lacey_holes(img, maxPts, theshold_low, threshold_high):
+    binary_img = to_binary(anisodiff(img, niter=30, kappa=20), theshold_low, threshold_high)
+    img_erosion = morphology.erosion(binary_img, selem=np.ones((5, 5), np.uint8))
+    labelled_img, num_features = ndimage.measurements.label(img_erosion)
+    return find_segment_centers(labelled_img, num_features, maxPts)
 
 def plot_features(img, segmented):
     """Take image and plot segments on top of them."""

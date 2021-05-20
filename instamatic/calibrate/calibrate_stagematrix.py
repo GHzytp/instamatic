@@ -22,7 +22,6 @@ def stagematrix_to_pixelsize(stagematrix: np.array) -> float:
     """Calculate approximate pixelsize from the stagematrix. There will be some distortions in low mag"""
     return np.mean(np.linalg.norm(stagematrix, axis=1))
 
-
 def get_outlier_filter(data, threshold: float = 2.0) -> list:
     """Simple outlier filter based on zscore.
 
@@ -37,7 +36,6 @@ def get_outlier_filter(data, threshold: float = 2.0) -> list:
 
     return sel
 
-
 def cross_correlate_image_pairs(pairs: tuple) -> list:
     """Cross correlate image pairs."""
     translations = []
@@ -46,7 +44,6 @@ def cross_correlate_image_pairs(pairs: tuple) -> list:
         print(f'shift {translation} error {error:.4f} phasediff {phasediff:.4f}')
         translations.append(translation)
     return translations
-
 
 def calibrate_stage_from_file(drc: str, plot: bool = False):
     """Calibrate the stage from the saved log/tiff files. This is essentially
