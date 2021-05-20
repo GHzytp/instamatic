@@ -22,6 +22,11 @@ class ExperimentalcRED(LabelFrame):
         self.ctrl = TEMController.get_instance()
         self.image_stream = self.ctrl.image_stream
         self.stream_frame = [module for module in MODULES if module.name == 'stream'][0].frame
+        if self.ctrl.tem.interface == "fei":
+            try:
+                self.tia_frame = [module for module in MODULES if module.name == 'tia'][0].frame
+            except IndexError:
+                self.tia_frame = None
 
         sbwidth = 10
 
@@ -43,10 +48,12 @@ class ExperimentalcRED(LabelFrame):
         frame = Frame(self)
 
         Checkbutton(frame, text='Enable image interval', variable=self.var_enable_image_interval, command=self.toggle_interval_buttons).grid(row=5, column=2, sticky='W')
-        self.RelaxButton = Button(frame, text='Relax beam', command=self.relax_beam, state=DISABLED)
-        self.RelaxButton.grid(row=5, column=3, sticky='EW', padx=10)
+        if self.ctrl.tem.interface == "fei":
+            Checkbutton(frame, text='Enable STEM', variable=self.var_enable_stem_img, command=self.check_stem_img).grid(row=5, column=3, sticky='EW', padx=10)
         self.c_toggle_defocus = Checkbutton(frame, text='Toggle defocus', variable=self.var_toggle_diff_defocus, command=self.toggle_diff_defocus, state=DISABLED)
         self.c_toggle_defocus.grid(row=6, column=2, sticky='W')
+        self.RelaxButton = Button(frame, text='Relax beam', command=self.relax_beam, state=DISABLED)
+        self.RelaxButton.grid(row=6, column=3, sticky='EW', padx=10)
 
         Label(frame, text='Image interval:').grid(row=5, column=0, sticky='W')
         self.e_image_interval = Spinbox(frame, textvariable=self.var_image_interval, width=sbwidth, from_=1, to=9999, increment=1, state=DISABLED)
@@ -65,17 +72,17 @@ class ExperimentalcRED(LabelFrame):
 
         Label(frame, text='Defocus start angle (±):').grid(row=7, column=2, sticky='W')
         self.e_defocus_start_angle = Spinbox(frame, textvariable=self.var_defocus_start_angle, width=sbwidth, from_=-80.0, to=80.0, increment=1.0, state=DISABLED)
-        self.e_defocus_start_angle.grid(row=7, column=3, sticky='W', padx=10)
+        self.e_defocus_start_angle.grid(row=7, column=3, sticky='EW', padx=10)
 
-        Label(frame, text='Number of initial frames').grid(row=8, column=0, sticky='W')
+        Label(frame, text='Number of initials').grid(row=8, column=0, sticky='W')
         self.e_start_frames = Spinbox(frame, textvariable=self.var_start_frames, width=sbwidth, from_=0, to=10, increment=1, state=DISABLED)
         self.e_start_frames.grid(row=8, column=1, sticky='W', padx=10)
 
         Label(frame, text='Initial frames interval').grid(row=8, column=2, sticky='W')
         self.e_start_frames_interval = Spinbox(frame, textvariable=self.var_start_frames_interval, width=sbwidth, from_=2, to=10, increment=1, state=DISABLED)
-        self.e_start_frames_interval.grid(row=8, column=3, sticky='W', padx=10)
+        self.e_start_frames_interval.grid(row=8, column=3, sticky='EW', padx=10)
 
-        Label(frame, text='Low angle image interval').grid(row=9, column=0, sticky='W')
+        Label(frame, text='Low angle interval').grid(row=9, column=0, sticky='W')
         self.e_low_angle_interval = Spinbox(frame, textvariable=self.var_low_angle_image_interval, width=sbwidth, from_=0, to=100, increment=1, state=DISABLED)
         self.e_low_angle_interval.grid(row=9, column=1, sticky='W', padx=10)
 
@@ -174,6 +181,7 @@ class ExperimentalcRED(LabelFrame):
         self.var_footfree_rotate_to = DoubleVar(value=65.0)
         self.var_toggle_footfree = BooleanVar(value=False)
         self.var_rotation_speed = DoubleVar(value=0.1)
+        self.var_enable_stem_img = BooleanVar(value=False)
         self.mode = 'regular'
 
         self.var_save_tiff = BooleanVar(value=False)
@@ -194,6 +202,16 @@ class ExperimentalcRED(LabelFrame):
             self.var_exposure_time.set(decimal.Decimal(str(self.image_stream.frametime)) * int(n))
             #self.image_stream.exposure = self.var_exposure_time.get()
             self.image_stream.start_loop()
+
+    def check_stem_img(self):
+        if self.var_enable_stem_img.get():
+            if self.tia_frame is not None:
+                if not self.tia_frame.continue_event.is_set() or not self.tia_frame.start_event.is_set():
+                    print('TIA frame does not collecting images. Please check settings.')
+                    self.var_enable_stem_img.set(value=False)
+            else:
+                print('No TIA frame. Cannot collect STEM images.')
+                self.var_enable_stem_img.set(value=False)
 
     def toggle_screen(self):
         toggle = self.var_toggle_screen.get()
@@ -277,6 +295,7 @@ class ExperimentalcRED(LabelFrame):
                   'mode': self.mode,
                   'footfree_rotate_to': self.var_footfree_rotate_to.get(),
                   'rotation_speed': self.var_rotation_speed.get(),
+                  'enable_stem_img': self.var_enable_stem_img.get(),
                   'write_tiff': self.var_save_tiff.get(),
                   'write_xds': self.var_save_xds.get(),
                   'write_dials': self.var_save_dials.get(),

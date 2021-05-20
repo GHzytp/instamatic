@@ -8,6 +8,7 @@ import numpy as np
 import decimal
 
 import instamatic
+from instamatic.gui.modules import MODULES
 from instamatic import config
 from instamatic.formats import write_tiff
 
@@ -82,6 +83,7 @@ class Experiment:
                  defocus_start_angle: float = 0.0,
                  exposure_time_image: float = 0.01,
                  rotation_speed: float = 0.1,
+                 enable_stem_img: bool = False,
                  write_tiff: bool = True,
                  write_xds: bool = True,
                  write_dials: bool = True,
@@ -92,8 +94,7 @@ class Experiment:
                  stretch_azimuth: float = 0.0,
                  stretch_cent_x: float = 0.0,
                  stretch_cent_y: float = 0.0,
-                 stop_event=None,
-                 ):
+                 stop_event=None):
         super().__init__()
         self.ctrl = ctrl
         self.path = Path(path)
@@ -145,6 +146,12 @@ class Experiment:
         self.track_stage_position = config.settings.cred_track_stage_positions
         self.binsize = self.ctrl.cam.default_binsize
         self.stage_positions = []
+
+        self.enable_stem_img = enable_stem_img
+        if self.enable_stem_img:
+            self.tia_frame = [module for module in MODULES if module.name == 'tia'][0].frame
+            self.stem_image_buffer = []
+            self.stem_header = self.tia_frame.h
 
         if use_vm:
             self.s2 = socket.socket()
@@ -312,6 +319,8 @@ class Experiment:
 
         buffer = []
         image_buffer = []
+        if self.enable_stem_img:
+            stem_image_buffer = []
 
         if self.ctrl.tem.interface=="fei":
             if self.ctrl.mode not in ('D','LAD'):
@@ -378,6 +387,9 @@ class Experiment:
                 # print(f"{i} Image!")
                 buffer.append((i, img, h))
                 # print(f"Angle: {self.ctrl.stage.a}")
+                if self.enable_stem_img:
+                    stem_img = self.tia_frame.frame
+                    stem_image_buffer.append((i, stem_img, self.stem_header))
 
             if self.start_angle < self.footfree_rotate_to:
                 self.current_angle = self.current_angle + speed_table[self.rotation_speed] * self.exposure
@@ -453,6 +465,8 @@ class Experiment:
 
         self.write_data(buffer)
         self.write_image_data(image_buffer)
+        if self.enable_stem_img:
+            self.write_stem_image_data(stem_image_buffer)
 
         print('Data Collection and Conversion Done.')
 
@@ -522,6 +536,21 @@ class Experiment:
         """
         if buffer:
             drc = self.path / 'tiff_image'
+            drc.mkdir(exist_ok=True)
+            while len(buffer) != 0:
+                i, img, h = buffer.pop(0)
+                fn = drc / f'{i:05d}.tiff'
+                write_tiff(fn, img, header=h)
+
+    def write_stem_image_data(self, buffer: list):
+        """Write stem image data in the buffer.
+
+        The image buffer is passed as a list of tuples, where each tuple
+        contains the index (int), image data (2D numpy array),
+        metadata/header (dict).
+        """
+        if buffer:
+            drc = self.path / 'stem_image'
             drc.mkdir(exist_ok=True)
             while len(buffer) != 0:
                 i, img, h = buffer.pop(0)

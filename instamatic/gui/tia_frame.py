@@ -23,10 +23,13 @@ class TIAFrame(LabelFrame):
     def __init__(self, parent):
         LabelFrame.__init__(self, parent, text='Operations from TIA')
         self.parent = parent
+        self.frame = None
         self.frame_delay = 1000
         self.panel = None
         self.brightness = 1.0
         self.display_range = 65535
+        self.start_event = threading.Event()
+        self.start_event.clear()
         self.continue_event = threading.Event()
         self.continue_event.set()
         self.stop_event = threading.Event()
@@ -254,6 +257,7 @@ class TIAFrame(LabelFrame):
                 self.frame_stream = self.ctrl.sw.getImageArray(window_name, display_name, image_name)
 
     def start_stream(self):
+        self.start_event.set()
         self.stop_event.clear()
         self.continue_event.set()
         t = threading.Thread(target=self.stream, args=(), daemon=True)
@@ -303,6 +307,9 @@ class TIAFrame(LabelFrame):
         self.btn_pause.config(state=NORMAL)
 
     def stop_stream(self):
+        self.frame = None
+        self.start_event.clear()
+        self.continue_event.set()
         self.stop_event.set()
         self.btn_start.config(state=NORMAL)
         self.btn_continue.config(state=DISABLED)
@@ -316,3 +323,8 @@ class TIAFrame(LabelFrame):
 
 module = BaseModule(name='tia', display_name='TIA', tk_frame=TIAFrame, location='left')
 commands = {}
+
+if __name__ == '__main__':
+    root = Tk()
+    TIAFrame(root).pack(side='top', fill='both', expand=True)
+    root.mainloop()
