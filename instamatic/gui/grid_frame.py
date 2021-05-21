@@ -471,7 +471,7 @@ class GridFrame(LabelFrame):
                                         values=(existing_square_in_tv+index, stage_pos_df.loc[index,'pos_x'],stage_pos_df.loc[index,'pos_y'],z))
                         self.cryo_frame.df_square.loc[last_num_square+index, 'grid'] = grid_num
                         self.cryo_frame.df_square.loc[last_num_square+index, 'square'] = existing_num_square + index
-                        self.cryo_frame.df_square.loc[last_num_square+index, 'pos_z'] = z
+                        self.cryo_frame.df_square.loc[last_num_square+index, 'pos_z'] = np.round(z)
                     self.cryo_frame.square_dir = Path(path)
                     self.cryo_frame.grid_dir = Path(path).parent
                     print(self.cryo_frame.df_square)
@@ -499,7 +499,7 @@ class GridFrame(LabelFrame):
                         self.cryo_frame.df_target.loc[last_num_target+index, 'grid'] = grid_num
                         self.cryo_frame.df_target.loc[last_num_target+index, 'square'] = square_num
                         self.cryo_frame.df_target.loc[last_num_target+index, 'target'] = existing_num_targets+index
-                        self.cryo_frame.df_target.loc[last_num_target+index, 'pos_z'] = z
+                        self.cryo_frame.df_target.loc[last_num_target+index, 'pos_z'] = np.round(z)
                     self.cryo_frame.square_dir = Path(path).parent
                     self.cryo_frame.target_dir = Path(path)
                     print(self.cryo_frame.df_target)

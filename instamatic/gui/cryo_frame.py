@@ -698,6 +698,7 @@ class CryoEDFrame(LabelFrame):
             try:
                 selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
                 selected_df = self.df_grid[(self.df_grid['grid']==selected_grid)]
+                self.ctrl.stage.z = selected_df['pos_z'].values[0]
                 self.move_stage_xy(selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
             except IndexError:
                 raise RuntimeError('Please select a grid position')
