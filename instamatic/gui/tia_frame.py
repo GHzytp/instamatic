@@ -72,6 +72,7 @@ class TIAFrame(LabelFrame):
         self.var_display = StringVar(value="")
         self.var_image = StringVar(value="")
         self.var_signal = StringVar(value="")
+        self.var_move_beam = BooleanVar(value=False)
 
     def buttonbox(self, master):
         frame = Frame(master)
@@ -121,6 +122,7 @@ class TIAFrame(LabelFrame):
         self.o_display.config(width=lwidth)
         self.o_display.grid(row=1, column=4, sticky='EW')
         Button(frame, text='Update', command=self.get_display_name).grid(row=1, column=5, sticky='EW')
+        Checkbutton(frame, text='Move Beam', variable=self.var_move_beam, command=self.move_beam).grid(row=1, column=6, sticky='EW')
 
         Label(frame, width=8, text='Image:').grid(row=2, column=0)
         self.o_image = OptionMenu(frame, self.var_image, "", *self.image_options)
@@ -147,6 +149,20 @@ class TIAFrame(LabelFrame):
             self.panel = Canvas(master, width=dimension[1], height=dimension[0])
             self.image_on_panel = self.panel.create_image(0, 0, anchor=NW, image=image)
             self.panel.pack(side='left', padx=5, pady=5)
+
+    def move_beam(self):
+        if self.var_move_beam.get():
+            self.panel.bind("<Double-Button-1>", self._mouse_double_clicked)
+        else:
+            self.panel.unbind("<Double-Button-1>")
+
+    def _mouse_double_clicked(self, event):
+        x = event.x
+        y = event.y
+        center = np.array(self.dimension)[::-1] / 2
+        frac_x = (x - center[0]) / center[0]
+        frac_y = (center[1] - y) / center[1]
+        self.ctrl.sw.MoveBeam(frac_x, frac_y)
 
     def get_window_name(self, event=None):
         self.window_options = self.ctrl.sw.DisplayWindowNames()

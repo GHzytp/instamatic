@@ -24,8 +24,6 @@ from instamatic.utils.widgets import MultiListbox, Hoverbox, ShowMatplotlibFig
 
 from pyserialem.navigation import sort_nav_items_by_shortest_path
 
-DRAW = False
-
 class CryoEDFrame(LabelFrame):
     """GUI panel for Cryo electron diffraction data collection protocol."""
 
@@ -94,7 +92,6 @@ class CryoEDFrame(LabelFrame):
         self.DelSquareButton.grid(row=4, column=1, sticky='EW', padx=5)
         self.DelTargetButton = Button(frame, text='Del Target', width=11, command=self.del_target, state=NORMAL)
         self.DelTargetButton.grid(row=4, column=2, sticky='EW')
-        Checkbutton(frame, text='Bashlash', variable=self.var_backlash).grid(row=4, column=3, sticky='EW', padx=5)
         self.SaveGridButton = Button(frame, text='Change Grid', width=11, command=self.change_grid, state=NORMAL)
         self.SaveGridButton.grid(row=4, column=4, sticky='EW')
         self.SaveGridButton = Button(frame, text='Save Grid', width=11, command=self.save_grid, state=NORMAL)
@@ -126,11 +123,8 @@ class CryoEDFrame(LabelFrame):
         Hoverbox(self.e_defocus, 'Target defocus value')
         Checkbutton(frame, text='Mag shift', variable=self.var_mag_shift).grid(row=6, column=2, sticky='EW')
         Checkbutton(frame, text='Blank', variable=self.var_blank_beam).grid(row=6, column=3, sticky='EW', padx=5)
-        Checkbutton(frame, text='Auto height', variable=self.var_auto_height, command=self.auto_height).grid(row=6, column=4, sticky='EW')
-        self.UpdateZButton = Button(frame, text='Z Square', width=11, command=self.update_z_square, state=NORMAL)
-        self.UpdateZButton.grid(row=6, column=5, sticky='EW', padx=5)
-        self.UpdateZButton = Button(frame, text='Z Target', width=11, command=self.update_z_target, state=NORMAL)
-        self.UpdateZButton.grid(row=6, column=6, sticky='EW')
+        Checkbutton(frame, text='Bashlash', variable=self.var_backlash).grid(row=6, column=4, sticky='EW')
+        Checkbutton(frame, text='Draw', variable=self.var_draw).grid(row=6, column=5, sticky='EW', padx=5)
 
         Checkbutton(frame, text='Align', variable=self.var_align).grid(row=7, column=0, sticky='EW')
         Checkbutton(frame, text='Align ROI', variable=self.var_align_roi, command=self.align_roi).grid(row=7, column=1, sticky='EW', padx=5)
@@ -144,15 +138,26 @@ class CryoEDFrame(LabelFrame):
         self.e_y1.grid(row=7, column=5, sticky='EW', padx=5)
         self.UpdateROIButton = Button(frame, text='Update ROI', command=self.update_roi, state=DISABLED)
         self.UpdateROIButton.grid(row=7, column=6, sticky='EW')
+
+        Checkbutton(frame, text='Auto height', variable=self.var_auto_height, command=self.auto_height).grid(row=8, column=0, sticky='EW')
+        self.UpdateZButton = Button(frame, text='Z Square', width=11, command=self.update_z_square, state=NORMAL)
+        self.UpdateZButton.grid(row=8, column=1, sticky='EW', padx=5)
+        self.UpdateZButton = Button(frame, text='Z Target', width=11, command=self.update_z_target, state=NORMAL)
+        self.UpdateZButton.grid(row=8, column=2, sticky='EW')
         
-        self.FromGridButton = Button(frame, text='From Grid', width=11, command=self.from_grid, state=NORMAL)
-        self.FromGridButton.grid(row=8, column=0, sticky='EW')
-        self.FromSquareButton = Button(frame, text='From Square', width=11, command=self.from_square, state=NORMAL)
-        self.FromSquareButton.grid(row=8, column=1, sticky='EW', padx=5)
-        self.FromTargetButton = Button(frame, text='From Target', width=11, command=self.from_target, state=NORMAL)
-        self.FromTargetButton.grid(row=8, column=2, sticky='EW')
-        self.StopButton = Button(frame, text='Stop', width=11, command=self.stop_event.set, state=NORMAL)
-        self.StopButton.grid(row=8, column=3, sticky='EW')
+        Separator(frame, orient=HORIZONTAL).grid(row=9, columnspan=7, sticky='ew', pady=5)
+
+        frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
+
+        frame = Frame(self)
+        self.FromGridButton = Button(frame, text='From Grid', width=12, command=self.from_grid, state=NORMAL)
+        self.FromGridButton.grid(row=9, column=0, sticky='EW')
+        self.FromSquareButton = Button(frame, text='From Square', width=12, command=self.from_square, state=NORMAL)
+        self.FromSquareButton.grid(row=9, column=1, sticky='EW', padx=5)
+        self.FromTargetButton = Button(frame, text='From Target', width=12, command=self.from_target, state=NORMAL)
+        self.FromTargetButton.grid(row=9, column=2, sticky='EW')
+        self.StopButton = Button(frame, text='Stop Acq', width=12, command=self.stop_event.set, state=NORMAL)
+        self.StopButton.grid(row=9, column=3, sticky='EW', padx=5)
 
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
 
@@ -234,6 +239,7 @@ class CryoEDFrame(LabelFrame):
         self.var_mag_shift = BooleanVar(value=False)
         self.var_auto_height = BooleanVar(value=True)
         self.var_backlash = BooleanVar(value=False)
+        self.var_draw = BooleanVar(value=False)
 
     def set_trigger(self, trigger=None, q=None):
         self.triggerEvent = trigger
@@ -281,7 +287,7 @@ class CryoEDFrame(LabelFrame):
     def pred_z(self):
         try:
             self.z_interpolator = Rbf(self.df_grid['pos_x'], self.df_grid['pos_y'], self.df_grid['pos_z'])
-            if DRAW:
+            if self.var_draw.get():
                 x = np.linspace(min(self.df_grid['pos_x']), max(self.df_grid['pos_x']), 30)
                 y = np.linspace(min(self.df_grid['pos_y']), max(self.df_grid['pos_y']), 30)
                 xu, yu = np.meshgrid(x, y)
