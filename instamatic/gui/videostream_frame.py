@@ -216,6 +216,8 @@ class VideoStreamFrame(LabelFrame):
                 self.res_shell_panel = self.panel.create_oval(0, (dimension[0]-dimension[1])/2, dimension[1], (dimension[1]+dimension[0])/2, outline='red')
             else:
                 self.res_shell_panel = self.panel.create_oval((dimension[1]-dimension[0])/2, 0, (dimension[1]+dimension[0])/2, dimension[0], outline='red')
+            self.scale_bar = self.panel.create_line(dimension[1]-dimension[1]/5-20, dimension[0]-20, dimension[1]-20, dimension[0]-20, width=12, fill='white')
+            self.scale_text = self.panel.create_text(dimension[1]-dimension[1]/5/2-20, dimension[0]-40, fill="white", font="Times 20 bold")
             self.panel.pack(side='left', padx=5, pady=5)
 
     def click_and_go(self):
@@ -301,11 +303,15 @@ class VideoStreamFrame(LabelFrame):
             camera_length = self.ctrl.magnification.get()
             pixelsize = self.get_pixel_size(mode, camera_length)
             self.var_resolution.set(round(1 / (pixelsize * min(self.dimension) / 2), 2))
+            if self.panel is not None:
+                self.panel.itemconfigure(self.scale_text, text=f'{round(pixelsize*self.dimension[1]/5)} Å^-1')
         else:
             self.l_resolution.config(text='Resolution (nm)')
             mag = self.ctrl.magnification.get()
             pixelsize = self.get_pixel_size(mode, mag)
             self.var_resolution.set(round(pixelsize * min(self.dimension) / 2, 1))
+            if self.panel is not None:
+                self.panel.itemconfigure(self.scale_text, text=f'{round(pixelsize*self.dimension[1]/5)} nm')
 
     def pause_stream(self):
         self.image_stream.pause_streaming()

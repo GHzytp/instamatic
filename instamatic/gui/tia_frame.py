@@ -148,6 +148,8 @@ class TIAFrame(LabelFrame):
             self.image = image
             self.panel = Canvas(master, width=dimension[1], height=dimension[0])
             self.image_on_panel = self.panel.create_image(0, 0, anchor=NW, image=image)
+            self.scale_bar = self.panel.create_line(dimension[1]-dimension[1]/5-20, dimension[0]-20, dimension[1]-20, dimension[0]-20, width=12, fill='white')
+            self.scale_text = self.panel.create_text(dimension[1]-dimension[1]/5/2-20, dimension[0]-40, fill="white", font="Times 20 bold")
             self.panel.pack(side='left', padx=5, pady=5)
 
     def move_beam(self):
@@ -211,6 +213,7 @@ class TIAFrame(LabelFrame):
         self.image_info = self.ctrl.sw.getImageInfo(window_name, display_name, image_name)
         self.h['ImagePixelsize'] = self.image_info['Calibration']['DeltaX'] * 1e9
         self.h['ImageResolution'] = (self.image_info['PixelsX'], self.image_info['PixelsY'])
+        self.panel.itemconfigure(self.scale_text, text=f"{round(self.h['ImagePixelsize']*self.dimension[1]/5)} nm")
         timestamp = datetime.now().strftime('%H-%M-%S.%f')[:-3]  # cut last 3 digits for ms resolution
         outfile = self.drc / f'frame_{timestamp}.tiff'
         write_tiff(outfile, arr, header=self.h)
@@ -255,6 +258,7 @@ class TIAFrame(LabelFrame):
         self.image_info = self.ctrl.sw.getImageInfo(window_name, display_name, image_name)
         self.h['ImagePixelsize'] = self.image_info['Calibration']['DeltaX'] * 1e9
         self.h['ImageResolution'] = (self.image_info['PixelsX'], self.image_info['PixelsY'])
+        self.panel.itemconfigure(self.scale_text, text=f"{round(self.h['ImagePixelsize']*self.dimension[1]/5)} nm")
 
         if self.var_cam_acq_mode.get() == 'continuous':
             if self.ctrl.sw.CanStart:
