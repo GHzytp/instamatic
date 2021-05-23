@@ -138,7 +138,7 @@ class IOFrame(LabelFrame):
 
 
     def get_new_experiment_directory(self):
-        self.determine_experiment_directory()
+        # self.determine_experiment_directory()
         self.update_experiment_number()
         return self.get_experiment_directory()
 

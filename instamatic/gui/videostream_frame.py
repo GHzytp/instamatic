@@ -304,14 +304,14 @@ class VideoStreamFrame(LabelFrame):
             pixelsize = self.get_pixel_size(mode, camera_length)
             self.var_resolution.set(round(1 / (pixelsize * min(self.dimension) / 2), 2))
             if self.panel is not None:
-                self.panel.itemconfigure(self.scale_text, text=f'{round(pixelsize*self.dimension[1]/5)} Å^-1')
+                self.panel.itemconfigure(self.scale_text, text=f'{round(pixelsize*self.dimension[1]/5, 2)} Å^-1')
         else:
             self.l_resolution.config(text='Resolution (nm)')
             mag = self.ctrl.magnification.get()
             pixelsize = self.get_pixel_size(mode, mag)
             self.var_resolution.set(round(pixelsize * min(self.dimension) / 2, 1))
             if self.panel is not None:
-                self.panel.itemconfigure(self.scale_text, text=f'{round(pixelsize*self.dimension[1]/5)} nm')
+                self.panel.itemconfigure(self.scale_text, text=f'{round(pixelsize*self.dimension[1]/5, 2)} nm')
 
     def pause_stream(self):
         self.image_stream.pause_streaming()
