@@ -37,7 +37,6 @@ class Experiment:
         self.binsize = ctrl.cam.default_binsize
         self.software_binsize = config.settings.software_binsize
         self.beam_shift_matrix_C3 = np.array(config.calibration.beam_shift_matrix_C3).reshape(2, 2)
-        self.magnification_induced_pixelshift = np.array(config.calibration.relative_pixel_shift_square_target)
 
     def obtain_image(self, exposure_time, align, align_roi, roi):
         if align_roi:
@@ -115,7 +114,8 @@ class Experiment:
                 break
 
     def from_grid_square_list(self, whole_grid, grid_square, grid_dir, pred_z, stop_event, sample_name: str, blank_beam: bool,
-                        exposure_time: float, wait_interval: float,  align: bool, align_roi: bool, roi: list, defocus: int):
+                        exposure_time: float, wait_interval: float,  align: bool, align_roi: bool, roi: list, defocus: int,
+                        mag_shift: bool, mag_shift_x: int, mag_shift_y: int):
         # go to the position at target level, predict the eucentric height, take an image. Shift exists between different magnification. 
         stop_event.clear()
         mag = self.ctrl.magnification.get()
@@ -136,10 +136,14 @@ class Experiment:
 
             header = read_tiff_header(grid_dir/square_img)
             stage_matrix = np.array(header['stage_matrix'])
-            magnification_induced_stageshift = self.magnification_induced_pixelshift @ stage_matrix
+            mag_induced_stageshift = np.array([mag_shift_x, mag_shift_y]) @ stage_matrix
 
             for index2, point in no_target_img_df.iterrows(): 
-                self.ctrl.stage.set_xy_with_backlash_correction(x=point['pos_x']+magnification_induced_stageshift[0], y=point['pos_y']+magnification_induced_stageshift[1])
+                if mag_shift:
+                    self.ctrl.stage.set_xy_with_backlash_correction(x=point['pos_x']+mag_induced_stageshift[0], y=point['pos_y']+mag_induced_stageshift[1])
+                else:
+                    self.ctrl.stage.set_xy_with_backlash_correction(x=point['pos_x'], y=point['pos_y'])
+                    
                 if blank_beam:
                     self.ctrl.beam.unblank(wait_interval)
                 time.sleep(wait_interval)
@@ -154,6 +158,10 @@ class Experiment:
                 target_dir.mkdir(exist_ok=True, parents=True)
                 filepath = target_dir / f'target_{sample_name}.tiff'
                 write_tiff(filepath, arr, header=h)
+
+                if mag_shift:
+                    grid_square.loc[index2, 'pos_x'] = current_pos[0]
+                    grid_square.loc[index2, 'pos_y'] = current_pos[1]
                 if pred_z is None:
                     grid_square.loc[index2, 'pos_z'] = np.round(self.ctrl.stage.z)
                 else:

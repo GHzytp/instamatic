@@ -11,7 +11,7 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.interpolate import Rbf
+from scipy.interpolate import Rbf, interp2d
 
 from .base_module import BaseModule
 from .modules import MODULES
@@ -43,7 +43,6 @@ class CryoEDFrame(LabelFrame):
         self.stop_event = threading.Event()
         self.ctrl = TEMController.get_instance()
         self.dimension = self.ctrl.cam.dimension
-        self.magnification_induced_pixelshift = np.array(config.calibration.relative_pixel_shift_square_target)
         self.binsize = self.ctrl.cam.default_binsize
         self.software_binsize = config.settings.software_binsize
         self.indexing_frame = [module for module in MODULES if module.name == 'indexing'][0].frame
@@ -121,10 +120,12 @@ class CryoEDFrame(LabelFrame):
         self.e_defocus = Spinbox(frame, textvariable=self.var_defocus, width=8, from_=-20000, to=20000, increment=1)
         self.e_defocus.grid(row=6, column=1, sticky='EW', padx=5)
         Hoverbox(self.e_defocus, 'Target defocus value')
-        Checkbutton(frame, text='Mag shift', variable=self.var_mag_shift).grid(row=6, column=2, sticky='EW')
-        Checkbutton(frame, text='Blank', variable=self.var_blank_beam).grid(row=6, column=3, sticky='EW', padx=5)
-        Checkbutton(frame, text='Bashlash', variable=self.var_backlash).grid(row=6, column=4, sticky='EW')
-        Checkbutton(frame, text='Draw', variable=self.var_draw).grid(row=6, column=5, sticky='EW', padx=5)
+        Checkbutton(frame, text='Blank', variable=self.var_blank_beam).grid(row=6, column=2, sticky='EW')
+        Checkbutton(frame, text='Bashlash', variable=self.var_backlash).grid(row=6, column=3, sticky='EW', padx=5)
+        Checkbutton(frame, text='Draw', variable=self.var_draw).grid(row=6, column=4, sticky='EW')
+        self.o_interp_method = OptionMenu(frame, self.var_interp_method, "Rbf", "Linear", "Cubic", "Quintic",)
+        self.o_interp_method.config(width=7)
+        self.o_interp_method.grid(row=6, column=5, sticky='EW', padx=5)
 
         Checkbutton(frame, text='Align', variable=self.var_align).grid(row=7, column=0, sticky='EW')
         Checkbutton(frame, text='Align ROI', variable=self.var_align_roi, command=self.align_roi).grid(row=7, column=1, sticky='EW', padx=5)
@@ -144,6 +145,11 @@ class CryoEDFrame(LabelFrame):
         self.UpdateZButton.grid(row=8, column=1, sticky='EW', padx=5)
         self.UpdateZButton = Button(frame, text='Z Target', width=11, command=self.update_z_target, state=NORMAL)
         self.UpdateZButton.grid(row=8, column=2, sticky='EW')
+        Checkbutton(frame, text='Mag shift', variable=self.var_mag_shift).grid(row=8, column=3, sticky='EW', padx=5)
+        self.e_mag_shift_x = Spinbox(frame, textvariable=self.var_mag_shift_x, width=8, from_=-self.dimension[0], to=self.dimension[0], increment=1, state=NORMAL)
+        self.e_mag_shift_x.grid(row=8, column=4, sticky='EW')
+        self.e_mag_shift_y = Spinbox(frame, textvariable=self.var_mag_shift_y, width=8, from_=-self.dimension[1], to=self.dimension[1], increment=1, state=NORMAL)
+        self.e_mag_shift_y.grid(row=8, column=5, sticky='EW', padx=5)
         
         Separator(frame, orient=HORIZONTAL).grid(row=9, columnspan=7, sticky='ew', pady=5)
 
@@ -236,10 +242,13 @@ class CryoEDFrame(LabelFrame):
         self.var_x1 = IntVar(value=int(self.dimension[0]*0.75))
         self.var_y1 = IntVar(value=int(self.dimension[1]*0.75))
         self.var_blank_beam = BooleanVar(value=False)
-        self.var_mag_shift = BooleanVar(value=False)
+        self.var_mag_shift = BooleanVar(value=True)
         self.var_auto_height = BooleanVar(value=True)
         self.var_backlash = BooleanVar(value=False)
         self.var_draw = BooleanVar(value=False)
+        self.var_mag_shift_x = IntVar(value=config.calibration.relative_pixel_shift_square_target[0])
+        self.var_mag_shift_y = IntVar(value=config.calibration.relative_pixel_shift_square_target[1])
+        self.var_interp_method = StringVar(value="Rbf")
 
     def set_trigger(self, trigger=None, q=None):
         self.triggerEvent = trigger
@@ -286,7 +295,10 @@ class CryoEDFrame(LabelFrame):
 
     def pred_z(self):
         try:
-            self.z_interpolator = Rbf(self.df_grid['pos_x'], self.df_grid['pos_y'], self.df_grid['pos_z'])
+            if self.var_interp_method.get() == 'Rbf':
+                self.z_interpolator = Rbf(self.df_grid['pos_x'], self.df_grid['pos_y'], self.df_grid['pos_z'])
+            else:
+                self.z_interpolator = interp2d(self.df_grid['pos_x'], self.df_grid['pos_y'], self.df_grid['pos_z'], kind=self.var_interp_method.get().lower())
             if self.var_draw.get():
                 x = np.linspace(min(self.df_grid['pos_x']), max(self.df_grid['pos_x']), 30)
                 y = np.linspace(min(self.df_grid['pos_y']), max(self.df_grid['pos_y']), 30)
@@ -677,15 +689,7 @@ class CryoEDFrame(LabelFrame):
                 selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
                 selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
                 selected_df = self.df_square[(self.df_square['grid']==selected_grid) & (self.df_square['square']==selected_square)]
-                if self.var_mag_shift.get():
-                    selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
-                    map_path = str(self.grid_dir/self.df_grid.loc[self.df_grid['grid']==selected_grid, 'img_location'].values[0])
-                    header = read_tiff_header(map_path)
-                    stage_matrix = np.array(header['stage_matrix'])
-                    magnification_induced_stageshift = self.magnification_induced_pixelshift @ stage_matrix
-                    self.move_stage_xy(selected_df['pos_x'].values[0]+magnification_induced_stageshift[0], selected_df['pos_y'].values[0]+magnification_induced_stageshift[1])
-                else:
-                    self.move_stage_xy(selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
+                self.move_stage_xy(selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
             except IndexError:
                 raise RuntimeError('Please select a grid and a square position')
         elif level == 'Target':
@@ -694,7 +698,7 @@ class CryoEDFrame(LabelFrame):
                 selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
                 selected_target = self.tv_target.get_children().index(self.tv_target.selection()[0])
                 selected_df = self.df_target[(self.df_target['grid']==selected_grid) & (self.df_target['square']==selected_square) & (self.df_target['target']==selected_target)]
-                self.ctrl.stage.xy =  (selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
+                self.move_stage_xy(selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
             except IndexError:
                 raise RuntimeError('Please select a grid, a square and a target position')
 
@@ -704,7 +708,6 @@ class CryoEDFrame(LabelFrame):
             try:
                 selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
                 selected_df = self.df_grid[(self.df_grid['grid']==selected_grid)]
-                
                 self.ctrl.stage.z = selected_df['pos_z'].values[0]
                 self.move_stage_xy(selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
             except IndexError:
@@ -715,15 +718,7 @@ class CryoEDFrame(LabelFrame):
                 selected_square = self.tv_grid_square.get_children().index(self.tv_grid_square.selection()[0])
                 selected_df = self.df_square[(self.df_square['grid']==selected_grid) & (self.df_square['square']==selected_square)]
                 self.ctrl.stage.z = selected_df['pos_z'].values[0]
-                if self.var_mag_shift.get():
-                    selected_grid = self.tv_whole_grid.get_children().index(self.tv_whole_grid.selection()[0])
-                    map_path = str(self.grid_dir/self.df_grid.loc[self.df_grid['grid']==selected_grid, 'img_location'].values[0])
-                    header = read_tiff_header(map_path)
-                    stage_matrix = np.array(header['stage_matrix'])
-                    magnification_induced_stageshift = self.magnification_induced_pixelshift @ stage_matrix
-                    self.move_stage_xy(selected_df['pos_x'].values[0]+magnification_induced_stageshift[0], selected_df['pos_y'].values[0]+magnification_induced_stageshift[1])
-                else:
-                    self.move_stage_xy(selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
+                self.move_stage_xy(selected_df['pos_x'].values[0], selected_df['pos_y'].values[0])
             except IndexError:
                 raise RuntimeError('Please select a grid and a square position')
         elif level == 'Target':
@@ -883,6 +878,9 @@ class CryoEDFrame(LabelFrame):
                   'align_roi': self.var_align_roi.get(),
                   'roi': self.roi,
                   'blank_beam': self.var_blank_beam.get(),
+                  'mag_shift': self.var_mag_shift.get(),
+                  'mag_shift_x': self.var_mag_shift_x.get(),
+                  'mag_shift_y': self.var_mag_shift_y.get(),
                   'pred_z': self.z_interpolator,
                   'stop_event': self.stop_event}
         self.q.put(('from_grid_square_list', params))

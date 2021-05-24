@@ -123,12 +123,12 @@ def move_stage(x=None, y=None, z=None, a=None, b=None, speed=1):
         if a is not None:
             if a < a_limit[0] or a > a_limit[1]:
                 raise FEIValueError('a not within the limit range')
-            pos.A = round(a, 3) / 180 * pi
+            pos.A = round(a, 2) / 180 * pi
             axis += 8
         if b is not None:
             if b < b_limit[0] or b > b_limit[1]:
                 raise FEIValueError('b not within the limit range')
-            pos.B = round(b, 3) / 180 * pi
+            pos.B = round(b, 2) / 180 * pi
             axis += 16
         if axis != 0:
             if speed == 1:
@@ -166,12 +166,12 @@ def move_stage(x=None, y=None, z=None, a=None, b=None, speed=1):
         if a is not None:
             if a < a_limit[0] or a > a_limit[1]:
                 raise FEIValueError('a not within the limit range')
-            pos.A = round(a, 3) / 180 * pi
+            pos.A = round(a, 2) / 180 * pi
             axis += 8
         if b is not None:
             if b < b_limit[0] or b > b_limit[1]:
                 raise FEIValueError('b not within the limit range')
-            pos.B = round(b, 3) / 180 * pi
+            pos.B = round(b, 2) / 180 * pi
             axis += 16
         if axis != 0:
             if speed == 1:
@@ -443,12 +443,12 @@ class FEIMicroscope:
                     if a is not None:
                         if a < self.a_limit[0] or a > self.a_limit[1]:
                             raise FEIValueError('a not within the limit range')
-                        pos.A = round(a, 3) / 180 * pi
+                        pos.A = round(a, 2) / 180 * pi
                         axis += 8
                     if b is not None:
                         if b < self.b_limit[0] or b > self.b_limit[1]:
                             raise FEIValueError('b not within the limit range')
-                        pos.B = round(b, 3) / 180 * pi
+                        pos.B = round(b, 2) / 180 * pi
                         axis += 16
                     if axis != 0:
                         if speed == 1:
@@ -486,12 +486,12 @@ class FEIMicroscope:
                     if a is not None:
                         if a < self.a_limit[0] or a > self.a_limit[1]:
                             raise FEIValueError('a not within the limit range')
-                        pos.A = round(a, 3) / 180 * pi
+                        pos.A = round(a, 2) / 180 * pi
                         axis += 8
                     if b is not None:
                         if b < self.b_limit[0] or b > self.b_limit[1]:
                             raise FEIValueError('b not within the limit range')
-                        pos.B = round(b, 3) / 180 * pi
+                        pos.B = round(b, 2) / 180 * pi
                         axis += 16
                     if axis != 0:
                         if speed == 1:
