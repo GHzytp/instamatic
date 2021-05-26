@@ -334,8 +334,9 @@ class Experiment:
                     time.sleep(wait_interval)
                 # 3DED data collection
                 params = self.cred_frame.get_params()
-                cexp = cRED.Experiment(ctrl=self.ctrl, path=target_dir, flatfield=self.flatfield, log=self.logger, **params)
+                cexp = cRED.Experiment(ctrl=self.ctrl, path=target_dir/f'target_3DED_{sample_name}_{num}', flatfield=self.flatfield, log=self.logger, **params)
                 success = cexp.start_collection()
+                target.loc[index2, '3DED'] = Path(target_dir.parent.name) / Path(target_dir.name) / f'target_3DED_{sample_name}_{num}'
                 if blank_beam:
                     self.ctrl.beam.blank()
                 num += 1

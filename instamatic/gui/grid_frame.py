@@ -18,6 +18,7 @@ from instamatic import config
 from instamatic.formats import read_tiff, write_tiff
 from instamatic.utils.widgets import Hoverbox, Spinbox
 from instamatic.processing.find_holes import find_square
+from instamatic.utils.navigation import sort_nav_items_by_shortest_path
 
 class GridFrame(LabelFrame):
     """Load a GUi to show the grid map and label suitable crystals."""
@@ -238,9 +239,7 @@ class GridFrame(LabelFrame):
         selected_item = self.tv_positions.selection()[0]
         selected_position = self.saved_tv_items.index(selected_item)
         selected_cross = (self.point_list.loc[selected_position, 'cross_1'], self.point_list.loc[selected_position, 'cross_2'])
-        print(selected_position)
-        print(selected_cross)
-        print(self.last_selected_position)
+        
         if self.last_selected_position is None:
             self.last_selected_position = selected_position
             self.canvas.itemconfig(int(selected_cross[0]), fill='blue')
@@ -413,6 +412,9 @@ class GridFrame(LabelFrame):
         if self.map_info is not None:
             pixel_center = np.array(self.map_info['ImageResolution'][::-1])/2
             stage_pos = self.point_list[['pos_x', 'pos_y']].to_numpy() # pixel coordination (relative to (0,0))
+            route = sort_nav_items_by_shortest_path(stage_pos)
+            stage_pos = stage_pos[route]
+            self.point_list = self.point_list.reindex(route).reset_index().drop(['index'], axis=1)
             stage_pos -= pixel_center
             stage_matrix = np.array(self.map_info['stage_matrix'])
             # this is done because the x and y axis definition of numpy (Y,X) and tkinter canvas (X,Y) is different

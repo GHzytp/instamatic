@@ -22,8 +22,6 @@ from instamatic.utils import suppress_stderr
 from instamatic.gui.grid_window import GridWindow
 from instamatic.utils.widgets import MultiListbox, Hoverbox, ShowMatplotlibFig
 
-from pyserialem.navigation import sort_nav_items_by_shortest_path
-
 class CryoEDFrame(LabelFrame):
     """GUI panel for Cryo electron diffraction data collection protocol."""
 
