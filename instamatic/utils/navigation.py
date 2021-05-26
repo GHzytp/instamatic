@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import numpy as np
 
 
@@ -77,7 +76,7 @@ def two_opt(coords: list, threshold: float, verbose: bool = False) -> list:
     if verbose:
         diff = initial_distance - best_distance
         perc = diff / initial_distance
-        print(f'Optimized path for {len(coords)} items from {initial_distance/1000:.1f} to {best_distance/1000:.1f} μm (-{perc:.2%})')
+        print(f'Optimized path for {len(coords)} items from {initial_distance:.1f} to {best_distance:.1f} (-{perc:.2%})')
 
     return route
 
@@ -85,7 +84,6 @@ def two_opt(coords: list, threshold: float, verbose: bool = False) -> list:
 def sort_nav_items_by_shortest_path(items: list,
                                     first: int = 0,
                                     threshold: float = 0.1,
-                                    plot: bool = False,
                                     ) -> list:
     """Find shortest route based on stage coordinates (.stage_xy)
 
@@ -99,19 +97,13 @@ def sort_nav_items_by_shortest_path(items: list,
         the closest coordinate to start from.
     threshold : float
         Number between 0.0 and 1.0 that determines when convergence is reached. If the improvement is smaller than the threshold, the algorithm will accept convergence.
-    plot : bool
-        Plot the resulting Path
 
     Returns
     -------
         List of navigation items sorted to minimize total path distance
     """
-    try:
-        coords = np.array([item.stage_xy for item in items])
-        is_nav = True
-    except AttributeError:
-        coords = items
-        is_nav = False
+    coords = items
+    is_nav = False
 
     if not isinstance(first, int):  # assume it is a coordinate
         first = np.array(first)
@@ -123,20 +115,4 @@ def sort_nav_items_by_shortest_path(items: list,
 
     route = two_opt(coords, threshold, verbose=True)
 
-    if plot:
-        fig, (ax0, ax1) = plt.subplots(ncols=2, figsize=(12, 6))
-        new_coords = coords[route]
-        ax0.set_title(f'Before, total distance: {calc_total_dist(coords)/1000:.3g} μm')
-        ax0.plot(coords[:, 0] / 1000, coords[:, 1] / 1000, 'r--', marker='.', lw=1.0)
-        ax0.scatter(coords[0, 0] / 1000, coords[0, 1] / 1000, color='red', s=100)
-        ax0.axis('equal')
-        ax1.set_title(f'After, total distance: {calc_total_dist(new_coords)/1000:.3g} μm')
-        ax1.plot(new_coords[:, 0] / 1000, new_coords[:, 1] / 1000, 'r--', marker='.', lw=1.0)
-        ax1.scatter(new_coords[0, 0] / 1000, new_coords[0, 1] / 1000, color='red', s=50)
-        ax1.axis('equal')
-        plt.show()
-
-    if is_nav:
-        return [items[i] for i in route]
-    else:
-        return route
+    return route
