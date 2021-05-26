@@ -195,7 +195,7 @@ class TIAFrame(LabelFrame):
                 menu.add_command(label=string, command=tkinter._setit(self.var_image, string))
             self.var_image.set(self.image_options[0])
 
-    def acquire_image(self):
+    def acquire_image(self, save_file=None):
         if self.ctrl.sw.IsAcquiring():
             print('TIA is acquiring an image already.')
             return
@@ -214,9 +214,12 @@ class TIAFrame(LabelFrame):
         self.h['ImagePixelsize'] = self.image_info['Calibration']['DeltaX'] * 1e9
         self.h['ImageResolution'] = (self.image_info['PixelsX'], self.image_info['PixelsY'])
         self.panel.itemconfigure(self.scale_text, text=f"{round(self.h['ImagePixelsize']*self.dimension[1]/5)} nm")
-        timestamp = datetime.now().strftime('%H-%M-%S.%f')[:-3]  # cut last 3 digits for ms resolution
-        outfile = self.drc / f'frame_{timestamp}.tiff'
-        write_tiff(outfile, arr, header=self.h)
+        if save_file == None:
+            timestamp = datetime.now().strftime('%H-%M-%S.%f')[:-3]  # cut last 3 digits for ms resolution
+            outfile = self.drc / f'frame_{timestamp}.tiff'
+            write_tiff(outfile, arr, header=self.h)
+        else:
+            write_tiff(save_file, arr, header=self.h)
         self.frame = frame = arr
 
         if self.var_auto_contrast.get():
@@ -238,6 +241,7 @@ class TIAFrame(LabelFrame):
         image = ImageTk.PhotoImage(image=image)
         self.panel.itemconfig(self.image_on_panel, image=image)
         self.image = image
+        return arr, self.h
 
     def save_frame(self):
         """Dump the current frame to a file."""

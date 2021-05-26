@@ -11,7 +11,7 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.interpolate import Rbf, interp2d
+from scipy.interpolate import Rbf, interp2d, griddata
 
 from .base_module import BaseModule
 from .modules import MODULES
@@ -123,9 +123,12 @@ class CryoEDFrame(LabelFrame):
         Checkbutton(frame, text='Blank', variable=self.var_blank_beam).grid(row=6, column=2, sticky='EW')
         Checkbutton(frame, text='Bashlash', variable=self.var_backlash).grid(row=6, column=3, sticky='EW', padx=5)
         Checkbutton(frame, text='Draw', variable=self.var_draw).grid(row=6, column=4, sticky='EW')
-        self.o_interp_method = OptionMenu(frame, self.var_interp_method, "Rbf", "Linear", "Cubic", "Quintic",)
+        self.o_interp_method = OptionMenu(frame, self.var_interp_method, "Rbf", "Rbf", "Nearest", "Linear", "Cubic",)
         self.o_interp_method.config(width=7)
         self.o_interp_method.grid(row=6, column=5, sticky='EW', padx=5)
+        self.o_target_mode = OptionMenu(frame, self.var_target_mode, "TEM", "TEM", "STEM", "STEM&HAADF")
+        self.o_target_mode.config(width=7)
+        self.o_target_mode.grid(row=6, column=6, sticky='EW')
 
         Checkbutton(frame, text='Align', variable=self.var_align).grid(row=7, column=0, sticky='EW')
         Checkbutton(frame, text='Align ROI', variable=self.var_align_roi, command=self.align_roi).grid(row=7, column=1, sticky='EW', padx=5)
@@ -249,6 +252,7 @@ class CryoEDFrame(LabelFrame):
         self.var_mag_shift_x = IntVar(value=config.calibration.relative_pixel_shift_square_target[0])
         self.var_mag_shift_y = IntVar(value=config.calibration.relative_pixel_shift_square_target[1])
         self.var_interp_method = StringVar(value="Rbf")
+        self.var_target_mode = StringVar(value='TEM')
 
     def set_trigger(self, trigger=None, q=None):
         self.triggerEvent = trigger
@@ -293,27 +297,33 @@ class CryoEDFrame(LabelFrame):
         else:
             self.stream_frame.panel.coords(self.stream_frame.roi, self.roi[0][1], self.roi[0][0], self.roi[1][1], self.roi[1][0])
 
+    def grid_data(self, xu, yu, method):
+        points = np.array([self.df_grid['pos_x'].values, self.df_grid['pos_y'].values]).transpose()
+        pred = griddata(points, self.df_grid['pos_z'].values, (xu, yu), method=method)
+        return pred
+
     def pred_z(self):
-        try:
+        if self.var_interp_method.get() == 'Rbf':
+            self.z_interpolator = Rbf(self.df_grid['pos_x'].values, self.df_grid['pos_y'].values, self.df_grid['pos_z'].values)
+        else:
+            self.z_interpolator = self.grid_data
+        if self.var_draw.get():
+            x = np.linspace(min(self.df_grid['pos_x']), max(self.df_grid['pos_x']), 30)
+            y = np.linspace(min(self.df_grid['pos_y']), max(self.df_grid['pos_y']), 30)
+            xu, yu = np.meshgrid(x, y)
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d')
             if self.var_interp_method.get() == 'Rbf':
-                self.z_interpolator = Rbf(self.df_grid['pos_x'], self.df_grid['pos_y'], self.df_grid['pos_z'])
-            else:
-                self.z_interpolator = interp2d(self.df_grid['pos_x'], self.df_grid['pos_y'], self.df_grid['pos_z'], kind=self.var_interp_method.get().lower())
-            if self.var_draw.get():
-                x = np.linspace(min(self.df_grid['pos_x']), max(self.df_grid['pos_x']), 30)
-                y = np.linspace(min(self.df_grid['pos_y']), max(self.df_grid['pos_y']), 30)
-                xu, yu = np.meshgrid(x, y)
                 z_pred = self.z_interpolator(xu, yu)
-                fig = plt.figure()
-                ax = fig.add_subplot(111, projection='3d')
                 ax.scatter(xu, yu, z_pred, c='r', marker='o')
-                ax.set_xlabel('X Label')
-                ax.set_ylabel('Y Label')
-                ax.set_zlabel('Z Label')
-                ShowMatplotlibFig(self, fig, title='predict eucentric height')
-            print('Interpolation done.')
-        except ValueError:
-            print('Interpolated data series cannot contain nan or inf values.')
+            else:
+                z_pred = self.z_interpolator(xu, yu, method=self.var_interp_method.get().lower())
+                ax.scatter(xu, yu, z_pred, c='r', marker='o')
+            ax.set_xlabel('X Label')
+            ax.set_ylabel('Y Label')
+            ax.set_zlabel('Z Label')
+            ShowMatplotlibFig(self, fig, title='predict eucentric height')
+        print('Interpolation done.')
 
     def show_grid_montage(self):
         self.grid_frame.map_path = str(self.grid_montage_path)
@@ -898,6 +908,7 @@ class CryoEDFrame(LabelFrame):
                   'align_roi': self.var_align_roi.get(),
                   'roi': self.roi,
                   'blank_beam': self.var_blank_beam.get(),
+                  'target_mode': self.var_target_mode.get(),
                   'stop_event': self.stop_event}
         self.q.put(('from_target_list', params))
         self.triggerEvent.set()

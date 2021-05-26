@@ -69,6 +69,38 @@ def imgscale(img: np.ndarray, scale: float) -> np.ndarray:
         return img
     return ndimage.zoom(img, scale, order=1)
 
+def imgscale_same_size(img: np.ndarray, scale: float) -> np.ndarray:
+    if scale == 1:
+        return img
+    org_size = img.shape
+    arr = ndimage.zoom(img, scale, order=1)
+    curr_size = arr.shape
+    if scale > 1:
+        img = arr[(curr_size[0]//2-org_size[0]//2):(curr_size[0]//2+org_size[0]//2), (curr_size[1]//2-org_size[1]//2):(curr_size[1]//2+org_size[1]//2)]
+    elif scale < 1:
+        avg = np.mean(arr)
+        img = np.ones(org_size) * avg
+        img[(org_size[0]//2-curr_size[0]//2):(org_size[0]//2+curr_size[0]//2), (org_size[1]//2-curr_size[1]//2):(org_size[1]//2+curr_size[1]//2)] = arr
+    return img
+
+def imgscale_target_shape(img: np.ndarray, scale: float, shape: tuple) -> np.ndarray:
+    arr = ndimage.zoom(img, scale, order=1)
+    curr_size = arr.shape
+    if curr_size[0] >= shape[0] and curr_size[1] >= shape[1]:
+        img = arr[(curr_size[0]//2-shape[0]//2):(curr_size[0]//2+shape[0]//2), (curr_size[1]//2-shape[1]//2):(curr_size[1]//2+shape[1]//2)]
+    elif curr_size[0] < shape[0] and curr_size[1] < shape[1]:
+        avg = np.mean(arr)
+        img = np.ones(shape) * avg
+        img[(shape[0]//2-curr_size[0]//2):(shape[0]//2+curr_size[0]//2), (shape[1]//2-curr_size[1]//2):(shape[1]//2+curr_size[1]//2)] = arr
+    elif curr_size[0] >= shape[0] and curr_size[1] < shape[1]:
+        avg = np.mean(arr)
+        img = np.ones(shape) * avg
+        img[:, (shape[1]//2-curr_size[1]//2):(shape[1]//2+curr_size[1]//2)] = arr[(curr_size[0]//2-shape[0]//2):(curr_size[0]//2+shape[0]//2), :]
+    elif curr_size[0] < shape[0] and curr_size[1] >= shape[1]:
+        avg = np.mean(arr)
+        img = np.ones(shape) * avg
+        img[(shape[0]//2-curr_size[0]//2):(shape[0]//2+curr_size[0]//2), :] = arr[:, (curr_size[1]//2-shape[1]//2):(curr_size[1]//2+shape[1]//2)]
+    return img
 
 def rotate_image(arr, mode: str, mag: int) -> np.array:
     """Rotate and flip image according to the configuration for that mode/mag.
