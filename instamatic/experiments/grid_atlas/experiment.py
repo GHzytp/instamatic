@@ -11,7 +11,7 @@ from skimage.registration import phase_cross_correlation
 from instamatic.gui.modules import MODULES
 from instamatic import config
 from instamatic.formats import write_tiff, read_tiff_header, read_tiff
-from instamatic.experiments import TOMO
+from instamatic.experiments import TOMO, cRED
 from instamatic.image_utils import imgscale_target_shape
 
 class Experiment:
@@ -44,6 +44,10 @@ class Experiment:
             self.tia_frame = [module for module in MODULES if module.name == 'tia'][0].frame
         except IndexError:
             self.tia_frame = None
+        try:
+            self.cred_frame = [module for module in MODULES if module.name == 'cred'][0].frame
+        except IndexError:
+            self.cred_frame = None
 
     def obtain_image(self, exposure_time, align, align_roi, roi):
         if align_roi:
@@ -185,11 +189,12 @@ class Experiment:
                         wait_interval: float, target_mode: str, align: bool, align_roi: bool, roi: list):
         # In diffraction mode, use beam shift to each crystal location and collection diffraction pattern.
         stop_event.clear()
-        self.ctrl.beamshift.xy = (0, 0)
         if target_mode == 'TEM':
+            self.ctrl.beamshift.xy = (0, 0)
             if not messagebox.askokcancel("Continue", f"Please make sure the beam was in probe mode or C3 aperture was inserted. The default position of the probe is located at the center of the image."):
                 return
         else:
+            self.ctrl.sw.MoveBeam(0, 0)
             if not messagebox.askokcancel("Continue", f"Please make sure the microscope is in STEM mode and the beam is quasi-parallel. Please make sure the STEM image has the same dimension as target image."):
                 return
             if self.tia_frame is None:
@@ -263,3 +268,85 @@ class Experiment:
 
     def design_acqusition_scheme(self):
         pass
+
+    def from_target_list_3DED(self, grid_square, target, grid_dir, stop_event, sample_name: str, blank_beam: bool, 
+                                wait_interval: float, target_mode: str, align: bool, align_roi: bool, roi: list):
+        # In diffraction mode, use beam shift to each crystal location and collection diffraction pattern.
+        stop_event.clear()
+        if target_mode == 'TEM':
+            self.ctrl.beamshift.xy = (0, 0)
+            if not messagebox.askokcancel("Continue", f"Please make sure the beam was in probe mode or C3 aperture was inserted. The default position of the probe is located at the center of the image."):
+                return
+        else:
+            self.ctrl.sw.MoveBeam(0, 0)
+            if not messagebox.askokcancel("Continue", f"Please make sure the microscope is in STEM mode and the beam is quasi-parallel. Please make sure the STEM image has the same dimension as target image."):
+                return
+            if self.tia_frame is None:
+                print('TIA frame must present for auto acquisition at target level in STEM mode.')
+                return
+        state = self.ctrl.mode.state
+        if state not in ('D', 'diff'):
+            print(f'Please switch to diffraction mode.')
+        #    return 
+        cam_len = self.ctrl.magnification.get()
+        target_img_df = grid_square[grid_square['img_location'].notna()]
+
+        for index1, square in target_img_df.iterrows():
+            grid_num = square['grid']
+            square_num = square['square']
+            target_img = square['img_location']
+            target_dir = (grid_dir/target_img).parent
+            header = read_tiff_header(grid_dir/target_img)
+            target_img_shape = np.array(header['ImageResolution'])
+            target_img_pixelsize = header['ImagePixelsize']
+            target_pixel_center = target_img_shape / 2 # default position of the probe is the center of the image
+            no_diff_targets = target[(target['grid']==grid_num) & (target['square']==square_num) & (target['3DED'].isna())]
+            num = len(target[(target['grid']==grid_num) & (target['square']==square_num)]) - len(no_diff_targets)
+            drift = np.array([0, 0])
+            if target_mode == 'STEM&HAADF':
+                target_stem_img_arr, h_stem = self.tia_frame.acquire_image(save_file=target_dir/f'target_stem_{sample_name}.tiff')
+                target_stem_img_arr = np.invert(target_stem_img_arr)
+                target_img_arr, h = read_tiff(target_img)
+                print(f"STEM: {h_stem['ImagePixelsize']}, TEM: {h['ImagePixelsize']}.")
+                print(f"STEM size: {target_stem_img_arr.shape}, TEM size: {target_img_arr.shape}.")
+                tem_stem_scale = h['ImagePixelsize'] / h_stem['ImagePixelsize']
+                target_img_arr = imgscale_target_shape(target_img_arr, tem_stem_scale, target_stem_img_arr.shape)
+                drift = phase_cross_correlation(target_stem_img_arr, target_img_arr) # numpy coordinate
+            for index2, point in no_diff_targets.iterrows(): 
+                # beam shift
+                if target_mode == 'TEM':
+                    beam_shift = target_img_pixelsize * (target_pixel_center - np.array((point['y'], point['x']))) @ self.beam_shift_matrix_C3
+                    self.ctrl.beamshift.xy = beam_shift
+                else:
+                    target_coord =  np.array((point['y'], point['x'])) # numpy coordinate
+                    target_coord = (target_coord - target_pixel_center) * tem_stem_scale + drift # numpy coordinate
+                    target_coord[0] = - target_coord[0] # tia coordinate x left y up
+                    target_coord_frac = target_coord / target_stem_img_arr.shape * 2  # tia coordinate x left y up
+                    if abs(target_coord_frac[0]) <= 1 and  abs(target_coord_frac[1]) <= 1:
+                        self.ctrl.sw.MoveBeam(target_coord_frac[1], target_coord_frac[0])
+                    else:
+                        print(f"Point {index2} {target_coord} skipped due to boundary limitation of the STEM image.")
+                        continue
+                self.ctrl.stage.z = point['pos_z'] # Move to the eucentric z height for each particle
+                if blank_beam:
+                    self.ctrl.beam.unblank(wait_interval)
+                else:
+                    time.sleep(wait_interval)
+                # 3DED data collection
+                params = self.cred_frame.get_params()
+                cexp = cRED.Experiment(ctrl=self.ctrl, path=target_dir, flatfield=self.flatfield, log=self.logger, **params)
+                success = cexp.start_collection()
+                if blank_beam:
+                    self.ctrl.beam.blank()
+                num += 1
+                if stop_event.is_set():
+                    stop_event.clear()
+                    if target_mode == 'TEM':
+                        self.ctrl.beamshift.xy = (0, 0)
+                    else:
+                        self.ctrl.sw.MoveBeam(0, 0)
+                    return
+            if target_mode == 'TEM':
+                self.ctrl.beamshift.xy = (0, 0)
+            else:
+                self.ctrl.sw.MoveBeam(0, 0) 

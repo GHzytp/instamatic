@@ -31,7 +31,7 @@ class CryoEDFrame(LabelFrame):
         LabelFrame.__init__(self, parent, text='Cryo electron diffraction protocol')
         self.parent = parent
         self.df_grid = pd.DataFrame(columns=['grid', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'img_location'])
-        self.df_square = pd.DataFrame(columns=['grid', 'square', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'img_location', '3DED'])
+        self.df_square = pd.DataFrame(columns=['grid', 'square', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'img_location'])
         self.df_target = pd.DataFrame(columns=['grid', 'square', 'target', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'diff_location', '3DED'])
         self.roi = None
         self.grid_dir = None
@@ -165,8 +165,10 @@ class CryoEDFrame(LabelFrame):
         self.FromSquareButton.grid(row=9, column=1, sticky='EW', padx=5)
         self.FromTargetButton = Button(frame, text='From Target', width=12, command=self.from_target, state=NORMAL)
         self.FromTargetButton.grid(row=9, column=2, sticky='EW')
+        self.Target3DEDButton = Button(frame, text='Target 3DED', width=12, command=self.from_target_3DED, state=NORMAL)
+        self.Target3DEDButton.grid(row=9, column=3, sticky='EW', padx=5)
         self.StopButton = Button(frame, text='Stop Acq', width=12, command=self.stop_event.set, state=NORMAL)
-        self.StopButton.grid(row=9, column=3, sticky='EW', padx=5)
+        self.StopButton.grid(row=9, column=4, sticky='EW')
 
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
 
@@ -913,6 +915,21 @@ class CryoEDFrame(LabelFrame):
         self.q.put(('from_target_list', params))
         self.triggerEvent.set()
 
+    def from_target_3DED(self):
+        params = {'grid_square': self.df_square,
+                  'target': self.df_target,
+                  'grid_dir': self.grid_dir,
+                  'sample_name': self.var_name.get(),
+                  'wait_interval': self.var_wait_interval.get(),
+                  'align': self.var_align.get(),
+                  'align_roi': self.var_align_roi.get(),
+                  'roi': self.roi,
+                  'blank_beam': self.var_blank_beam.get(),
+                  'target_mode': self.var_target_mode.get(),
+                  'stop_event': self.stop_event}
+        self.q.put(('from_target_list_3DED', params))
+        self.triggerEvent.set()
+
 def auto_eucentric_height(controller, **kwargs):
     from instamatic.experiments import TOMO
     
@@ -962,10 +979,21 @@ def from_target_list(controller, **kwargs):
    
     controller.log.info('Finish obtaining target images from target list.')
 
+def from_target_list_3DED(controller, **kwargs):
+    controller.log.info('Start acquiring 3DED datasets from target list.')
+    from instamatic.experiments import Atlas
+
+    flatfield = controller.module_io.get_flatfield()
+
+    atlas_exp = Atlas.Experiment(ctrl=controller.ctrl, log=controller.log, flatfield=flatfield)
+    success = atlas_exp.from_target_list_3DED(**kwargs)
+   
+    controller.log.info('Finish obtaining 3DED datasets from target list.')
+
 
 module = BaseModule(name='cryo', display_name='CryoED', tk_frame=CryoEDFrame, location='bottom')
 commands = {'auto_height': auto_eucentric_height, 'from_whole_grid_list': from_whole_grid_list, 'from_grid_square_list':from_grid_square_list,
-            'from_target_list': from_target_list, 'collect_montage': collect_montage}
+            'from_target_list': from_target_list, 'from_target_list_3DED': from_target_list_3DED, 'collect_montage': collect_montage}
 
 if __name__ == '__main__':
     root = Tk()
