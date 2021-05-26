@@ -8,7 +8,7 @@ from tqdm.auto import tqdm
 from tkinter import messagebox
 from skimage.registration import phase_cross_correlation
 
-from .modules import MODULES
+from instamatic.gui.modules import MODULES
 from instamatic import config
 from instamatic.formats import write_tiff, read_tiff_header, read_tiff
 from instamatic.experiments import TOMO
@@ -220,20 +220,23 @@ class Experiment:
                 target_img_arr, h = read_tiff(target_img)
                 print(f"STEM: {h_stem['ImagePixelsize']}, TEM: {h['ImagePixelsize']}.")
                 print(f"STEM size: {target_stem_img_arr.shape}, TEM size: {target_img_arr.shape}.")
-                tem_stem_scale = h['ImagePixelsize']/h_stem['ImagePixelsize']
+                tem_stem_scale = h['ImagePixelsize'] / h_stem['ImagePixelsize']
                 target_img_arr = imgscale_target_shape(target_img_arr, tem_stem_scale, target_stem_img_arr.shape)
-                drift = phase_cross_correlation(target_stem_img_arr, target_img_arr)
+                drift = phase_cross_correlation(target_stem_img_arr, target_img_arr) # numpy coordinate
             for index2, point in no_diff_targets.iterrows(): 
                 # beam shift
                 if target_mode == 'TEM':
                     beam_shift = target_img_pixelsize * (target_pixel_center - np.array((point['y'], point['x']))) @ self.beam_shift_matrix_C3
                     self.ctrl.beamshift.xy = beam_shift
                 else:
-                    target_coord =  np.array((point['y'], point['x']))
-                    target_coord_frac = (target_coord + drift - target_pixel_center) * tem_stem_scale / target_stem_img_arr.shape * 2
+                    target_coord =  np.array((point['y'], point['x'])) # numpy coordinate
+                    target_coord = (target_coord - target_pixel_center) * tem_stem_scale + drift # numpy coordinate
+                    target_coord[0] = - target_coord[0] # tia coordinate x left y up
+                    target_coord_frac = target_coord / target_stem_img_arr.shape * 2  # tia coordinate x left y up
                     if abs(target_coord_frac[0]) <= 1 and  abs(target_coord_frac[1]) <= 1:
                         self.ctrl.sw.MoveBeam(*target_coord_frac)
                     else:
+                        print(f"Point {index2} {target_coord} skipped due to boundary limitation of the STEM image.")
                         continue
                 if blank_beam:
                     self.ctrl.beam.unblank(wait_interval)
