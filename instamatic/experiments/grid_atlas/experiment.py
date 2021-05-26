@@ -234,7 +234,7 @@ class Experiment:
                     target_coord[0] = - target_coord[0] # tia coordinate x left y up
                     target_coord_frac = target_coord / target_stem_img_arr.shape * 2  # tia coordinate x left y up
                     if abs(target_coord_frac[0]) <= 1 and  abs(target_coord_frac[1]) <= 1:
-                        self.ctrl.sw.MoveBeam(*target_coord_frac)
+                        self.ctrl.sw.MoveBeam(target_coord_frac[1], target_coord_frac[0])
                     else:
                         print(f"Point {index2} {target_coord} skipped due to boundary limitation of the STEM image.")
                         continue

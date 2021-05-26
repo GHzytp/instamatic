@@ -331,7 +331,7 @@ class TIAFrame(LabelFrame):
         self.btn_pause.config(state=NORMAL)
 
     def stop_stream(self):
-        if self.var_cam_acq_mode == 'continuous':
+        if self.var_cam_acq_mode.get() == 'continuous':
             if self.ctrl.sw.CanStop:
                 self.ctrl.sw.Stop()
         self.frame = None
