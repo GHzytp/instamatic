@@ -171,12 +171,16 @@ class Experiment:
                 write_tiff(filepath, arr, header=h)
 
                 if mag_shift:
-                    grid_square.loc[index2, 'pos_x'] = current_pos[0]
-                    grid_square.loc[index2, 'pos_y'] = current_pos[1]
+                    grid_square.loc[index2, 'pos_x'] = np.round(current_pos[0])
+                    grid_square.loc[index2, 'pos_y'] = np.round(current_pos[1])
                 if pred_z is None:
                     grid_square.loc[index2, 'pos_z'] = np.round(self.ctrl.stage.z)
                 else:
-                    grid_square.loc[index2, 'pos_z'] = np.round(pred_z(*current_pos))
+                    z_height = pred_z(*current_pos)
+                    if np.isnan(z_height):
+                        grid_square.loc[index2, 'pos_z'] = np.round(self.ctrl.stage.z)
+                    else:
+                        grid_square.loc[index2, 'pos_z'] = np.round(z_height)
                 grid_square.loc[index2, 'img_location'] = Path(target_dir.parent.name) / Path(target_dir.name) / f'target_{sample_name}.tiff'
                 num += 1
                 if stop_event.is_set():
@@ -185,7 +189,7 @@ class Experiment:
                     return
         self.ctrl.objfocus.value = current_defocus
 
-    def from_target_list(self, grid_square, target, grid_dir, stop_event, sample_name: str, blank_beam: bool, exposure_time: float, 
+    def from_target_list(self, grid_square, target, grid_dir, pred_z, stop_event, sample_name: str, blank_beam: bool, exposure_time: float, 
                         wait_interval: float, target_mode: str, align: bool, align_roi: bool, roi: list):
         # In diffraction mode, use beam shift to each crystal location and collection diffraction pattern.
         stop_event.clear()
@@ -219,15 +223,15 @@ class Experiment:
             no_diff_targets = target[(target['grid']==grid_num) & (target['square']==square_num) & (target['diff_location'].isna())]
             num = len(target[(target['grid']==grid_num) & (target['square']==square_num)]) - len(no_diff_targets)
             drift = np.array([0, 0])
-            if target_mode == 'STEM&HAADF':
+            if target_mode == 'STEM&HAADF' and len(no_diff_targets) != 0:
                 target_stem_img_arr, h_stem = self.tia_frame.acquire_image(save_file=target_dir/f'target_stem_{sample_name}.tiff')
                 target_stem_img_arr = np.invert(target_stem_img_arr)
-                target_img_arr, h = read_tiff(target_img)
+                target_img_arr, h = read_tiff(grid_dir/target_img)
                 print(f"STEM: {h_stem['ImagePixelsize']}, TEM: {h['ImagePixelsize']}.")
                 print(f"STEM size: {target_stem_img_arr.shape}, TEM size: {target_img_arr.shape}.")
                 tem_stem_scale = h['ImagePixelsize'] / h_stem['ImagePixelsize']
                 target_img_arr = imgscale_target_shape(target_img_arr, tem_stem_scale, target_stem_img_arr.shape)
-                drift = phase_cross_correlation(target_stem_img_arr, target_img_arr) # numpy coordinate
+                drift, error, phase = phase_cross_correlation(target_stem_img_arr, target_img_arr) # numpy coordinate
             for index2, point in no_diff_targets.iterrows(): 
                 # beam shift
                 if target_mode == 'TEM':
@@ -252,6 +256,14 @@ class Experiment:
                     self.ctrl.beam.blank()
                 filepath = target_dir / f'target_diff_{sample_name}_{num}.tiff'
                 write_tiff(filepath, arr, header=h)
+                if pred_z is None:
+                    target.loc[index2, 'pos_z'] = np.round(self.ctrl.stage.z)
+                else:
+                    z_height = pred_z(point['pos_x'], point['pos_y'])
+                    if np.isnan(z_height):
+                        target.loc[index2, 'pos_z'] = np.round(self.ctrl.stage.z)
+                    else:
+                        target.loc[index2, 'pos_z'] = np.round(z_height)
                 target.loc[index2, 'diff_location'] = Path(target_dir.parent.name) / Path(target_dir.name) / f'target_diff_{sample_name}_{num}.tiff'
                 num += 1
                 if stop_event.is_set():
@@ -306,12 +318,12 @@ class Experiment:
             if target_mode == 'STEM&HAADF':
                 target_stem_img_arr, h_stem = self.tia_frame.acquire_image(save_file=target_dir/f'target_stem_{sample_name}.tiff')
                 target_stem_img_arr = np.invert(target_stem_img_arr)
-                target_img_arr, h = read_tiff(target_img)
+                target_img_arr, h = read_tiff(grid_dir/target_img)
                 print(f"STEM: {h_stem['ImagePixelsize']}, TEM: {h['ImagePixelsize']}.")
                 print(f"STEM size: {target_stem_img_arr.shape}, TEM size: {target_img_arr.shape}.")
                 tem_stem_scale = h['ImagePixelsize'] / h_stem['ImagePixelsize']
                 target_img_arr = imgscale_target_shape(target_img_arr, tem_stem_scale, target_stem_img_arr.shape)
-                drift = phase_cross_correlation(target_stem_img_arr, target_img_arr) # numpy coordinate
+                drift, error, phase = phase_cross_correlation(target_stem_img_arr, target_img_arr) # numpy coordinate
             for index2, point in no_diff_targets.iterrows(): 
                 # beam shift
                 if target_mode == 'TEM':

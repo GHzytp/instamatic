@@ -28,9 +28,12 @@ class CryoEDFrame(LabelFrame):
     def __init__(self, parent):
         LabelFrame.__init__(self, parent, text='Cryo electron diffraction protocol')
         self.parent = parent
-        self.df_grid = pd.DataFrame(columns=['grid', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'img_location'])
-        self.df_square = pd.DataFrame(columns=['grid', 'square', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'img_location'])
-        self.df_target = pd.DataFrame(columns=['grid', 'square', 'target', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'diff_location', '3DED'])
+        self.df_grid = pd.DataFrame({'grid': pd.Series([], dtype='int'), 'x': pd.Series([], dtype='float'), 'y': pd.Series([], dtype='float'), 'pos_x': pd.Series([], dtype='float'),
+                                     'pos_y': pd.Series([], dtype='float'), 'pos_z': pd.Series([], dtype='float'), 'img_location': pd.Series([], dtype='str')})
+        self.df_square = pd.DataFrame({'grid': pd.Series([], dtype='int'), 'square': pd.Series([], dtype='int'), 'x': pd.Series([], dtype='float'), 'y': pd.Series([], dtype='float'), 
+                                     'pos_x': pd.Series([], dtype='float'), 'pos_y': pd.Series([], dtype='float'), 'pos_z': pd.Series([], dtype='float'), 'img_location': pd.Series([], dtype='str')})
+        self.df_target = pd.DataFrame({'grid': pd.Series([], dtype='int'), 'square': pd.Series([], dtype='int'), 'target': pd.Series([], dtype='int'), 'x': pd.Series([], dtype='float'), 'y': pd.Series([], dtype='float'), 
+                                     'pos_x': pd.Series([], dtype='float'), 'pos_y': pd.Series([], dtype='float'), 'pos_z': pd.Series([], dtype='float'), 'diff_location': pd.Series([], dtype='str'), '3DED_location': pd.Series([], dtype='str')})
         self.roi = None
         self.grid_dir = None
         self.square_dir = None
@@ -121,10 +124,10 @@ class CryoEDFrame(LabelFrame):
         Checkbutton(frame, text='Blank', variable=self.var_blank_beam).grid(row=6, column=2, sticky='EW')
         Checkbutton(frame, text='Bashlash', variable=self.var_backlash).grid(row=6, column=3, sticky='EW', padx=5)
         Checkbutton(frame, text='Draw', variable=self.var_draw).grid(row=6, column=4, sticky='EW')
-        self.o_interp_method = OptionMenu(frame, self.var_interp_method, "Rbf", "Rbf", "Nearest", "Linear", "Cubic",)
+        self.o_interp_method = OptionMenu(frame, self.var_interp_method, "Cubic", "Rbf", "Nearest", "Linear", "Cubic",)
         self.o_interp_method.config(width=7)
         self.o_interp_method.grid(row=6, column=5, sticky='EW', padx=5)
-        self.o_target_mode = OptionMenu(frame, self.var_target_mode, "TEM", "TEM", "STEM", "STEM&HAADF")
+        self.o_target_mode = OptionMenu(frame, self.var_target_mode, "STEM&HAADF", "TEM", "STEM", "STEM&HAADF")
         self.o_target_mode.config(width=7)
         self.o_target_mode.grid(row=6, column=6, sticky='EW')
 
@@ -248,7 +251,7 @@ class CryoEDFrame(LabelFrame):
         self.var_mag_shift = BooleanVar(value=True)
         self.var_auto_height = BooleanVar(value=True)
         self.var_backlash = BooleanVar(value=False)
-        self.var_draw = BooleanVar(value=False)
+        self.var_draw = BooleanVar(value=True)
         self.var_mag_shift_x = IntVar(value=config.calibration.relative_pixel_shift_square_target[0])
         self.var_mag_shift_y = IntVar(value=config.calibration.relative_pixel_shift_square_target[1])
         self.var_interp_method = StringVar(value="Rbf")
@@ -297,13 +300,16 @@ class CryoEDFrame(LabelFrame):
         else:
             self.stream_frame.panel.coords(self.stream_frame.roi, self.roi[0][1], self.roi[0][0], self.roi[1][1], self.roi[1][0])
 
-    def grid_data(self, xu, yu, method):
+    def grid_data(self, xu, yu):
         points = np.array([self.df_grid['pos_x'].values, self.df_grid['pos_y'].values]).transpose()
-        pred = griddata(points, self.df_grid['pos_z'].values, (xu, yu), method=method)
+        pred = griddata(points, self.df_grid['pos_z'].values, (xu, yu), method=self.var_interp_method.get().lower())
         return pred
 
     def pred_z(self):
         if self.var_interp_method.get() == 'Rbf':
+            print(self.df_grid.dtypes)
+            print(self.df_grid.describe())
+            print(self.df_grid.info())
             self.z_interpolator = Rbf(self.df_grid['pos_x'].values, self.df_grid['pos_y'].values, self.df_grid['pos_z'].values)
         else:
             self.z_interpolator = self.grid_data
@@ -317,7 +323,7 @@ class CryoEDFrame(LabelFrame):
                 z_pred = self.z_interpolator(xu, yu)
                 ax.scatter(xu, yu, z_pred, c='r', marker='o')
             else:
-                z_pred = self.z_interpolator(xu, yu, method=self.var_interp_method.get().lower())
+                z_pred = self.z_interpolator(xu, yu)
                 ax.scatter(xu, yu, z_pred, c='r', marker='o')
             ax.set_xlabel('X Label')
             ax.set_ylabel('Y Label')
@@ -598,9 +604,12 @@ class CryoEDFrame(LabelFrame):
                     print(self.df_target)
 
     def change_grid(self):
-        self.df_grid = pd.DataFrame(columns=['grid', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'img_location'])
-        self.df_square = pd.DataFrame(columns=['grid', 'square', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'img_location', '3DED'])
-        self.df_target = pd.DataFrame(columns=['grid', 'square', 'target', 'x', 'y', 'pos_x', 'pos_y', 'pos_z', 'diff_location', '3DED'])
+        self.df_grid = pd.DataFrame({'grid': pd.Series([], dtype='int'), 'x': pd.Series([], dtype='float'), 'y': pd.Series([], dtype='float'), 'pos_x': pd.Series([], dtype='float'),
+                                     'pos_y': pd.Series([], dtype='float'), 'pos_z': pd.Series([], dtype='float'), 'img_location': pd.Series([], dtype='str')})
+        self.df_square = pd.DataFrame({'grid': pd.Series([], dtype='int'), 'square': pd.Series([], dtype='int'), 'x': pd.Series([], dtype='float'), 'y': pd.Series([], dtype='float'), 
+                                     'pos_x': pd.Series([], dtype='float'), 'pos_y': pd.Series([], dtype='float'), 'pos_z': pd.Series([], dtype='float'), 'img_location': pd.Series([], dtype='str')})
+        self.df_target = pd.DataFrame({'grid': pd.Series([], dtype='int'), 'square': pd.Series([], dtype='int'), 'target': pd.Series([], dtype='int'), 'x': pd.Series([], dtype='float'), 'y': pd.Series([], dtype='float'), 
+                                     'pos_x': pd.Series([], dtype='float'), 'pos_y': pd.Series([], dtype='float'), 'pos_z': pd.Series([], dtype='float'), 'diff_location': pd.Series([], dtype='str'), '3DED_location': pd.Series([], dtype='str')})
         self.tv_whole_grid.delete(*self.tv_whole_grid.get_children())
         self.tv_grid_square.delete(*self.tv_grid_square.get_children())
         self.tv_target.delete(*self.tv_target.get_children())
@@ -909,6 +918,7 @@ class CryoEDFrame(LabelFrame):
                   'roi': self.roi,
                   'blank_beam': self.var_blank_beam.get(),
                   'target_mode': self.var_target_mode.get(),
+                  'pred_z': self.z_interpolator,
                   'stop_event': self.stop_event}
         self.q.put(('from_target_list', params))
         self.triggerEvent.set()
