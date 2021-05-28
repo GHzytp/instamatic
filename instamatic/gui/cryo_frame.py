@@ -562,6 +562,7 @@ class CryoEDFrame(LabelFrame):
                     self.tv_whole_grid.insert("",'end', text="Item_"+str(last_num_grid+index), 
                                         values=(last_num_grid+index, self.position_list.loc[index,'pos_x'],self.position_list.loc[index,'pos_y']))
                     self.df_grid.loc[last_num_grid+index, 'grid'] = last_num_grid + index
+                    self.df_grid.loc[last_num_grid+index, 'pos_z'] = z
                 self.grid_dir = Path(path)
                 print(self.df_grid)
             elif level == 'Square':

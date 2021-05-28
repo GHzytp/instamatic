@@ -227,6 +227,10 @@ class Experiment:
             no_diff_targets = target[(target['grid']==grid_num) & (target['square']==square_num) & (target['diff_location'].isna())]
             if len(no_diff_targets) != 0:
                 self.ctrl.stage.set_xy_with_backlash_correction(x=square['pos_x'], y=square['pos_y'])
+                if blank_beam:
+                    self.ctrl.beam.unblank(wait_interval)
+                else:
+                    time.sleep(wait_interval)
                 num = len(target[(target['grid']==grid_num) & (target['square']==square_num)]) - len(no_diff_targets)
                 drift = np.array([0, 0])
                 if target_mode == 'STEM&HAADF':
@@ -253,13 +257,10 @@ class Experiment:
                     else:
                         print(f"Point {index2} {target_coord} skipped due to boundary limitation of the STEM image.")
                         continue
-                if blank_beam:
-                    self.ctrl.beam.unblank(wait_interval)
-                else:
-                    time.sleep(wait_interval)
+                time.sleep(0.2)
+
                 arr, h = self.obtain_image(exposure_time, align, align_roi, roi)
-                if blank_beam:
-                    self.ctrl.beam.blank()
+                
                 filepath = target_dir / f'target_diff_{sample_name}_{num}.tiff'
                 write_tiff(filepath, arr, header=h)
                 if pred_z is None:
@@ -279,10 +280,12 @@ class Experiment:
                     else:
                         self.ctrl.sw.MoveBeam(0, 0)
                     return
-            if target_mode == 'TEM':
-                self.ctrl.beamshift.xy = (0, 0)
-            else:
-                self.ctrl.sw.MoveBeam(0, 0)
+            if blank_beam:
+                self.ctrl.beam.blank()
+        if target_mode == 'TEM':
+            self.ctrl.beamshift.xy = (0, 0)
+        else:
+            self.ctrl.sw.MoveBeam(0, 0)
 
     def design_acqusition_scheme(self):
         pass
@@ -328,11 +331,16 @@ class Experiment:
                 scaley = 1 - np.abs(self.stage_matrix_angle[0, 0]) * (1 - np.cos(start_deg/180*np.pi))
                 tform = AffineTransform(scale=(scalex, scaley), translation=(target_pixel_center[1]*(1-scalex), target_pixel_center[0]*(1-scaley)))
                 # Move the stage to the target image position
+                self.ctrl.stage.z = square['pos_z']
                 self.ctrl.stage.set_xy_with_backlash_correction(x=square['pos_x'], y=square['pos_y'])
 
             for index2, point in no_3DED_targets.iterrows(): 
                 self.ctrl.stage.a = start_deg
                 self.ctrl.stage.eliminate_backlash_a(target_angle=end_deg)
+                if blank_beam:
+                    self.ctrl.beam.unblank(wait_interval)
+                else:
+                    time.sleep(wait_interval)
                 if target_mode == 'STEM&HAADF':
                     time.sleep(wait_interval)
                     target_stem_img_arr, h_stem = self.tia_frame.acquire_image(save_file=target_dir/f'target_stem_{sample_name}.tiff')
@@ -369,10 +377,7 @@ class Experiment:
                         print(f"Point {index2} {target_coord} skipped due to boundary limitation of the STEM image.")
                         continue
                 self.ctrl.stage.z = point['pos_z'] # Move to the eucentric z height for each particle
-                if blank_beam:
-                    self.ctrl.beam.unblank(wait_interval)
-                else:
-                    time.sleep(wait_interval)
+                time.sleep(wait_interval)
                 # 3DED data collection
                 params = self.cred_frame.get_params()
                 cexp = cRED.Experiment(ctrl=self.ctrl, path=target_dir/f'target_3DED_{sample_name}_{num}', flatfield=self.flatfield, log=self.logger, **params)
@@ -388,7 +393,7 @@ class Experiment:
                     else:
                         self.ctrl.sw.MoveBeam(0, 0)
                     return
-            if target_mode == 'TEM':
-                self.ctrl.beamshift.xy = (0, 0)
-            else:
-                self.ctrl.sw.MoveBeam(0, 0) 
+        if target_mode == 'TEM':
+            self.ctrl.beamshift.xy = (0, 0)
+        else:
+            self.ctrl.sw.MoveBeam(0, 0) 
