@@ -5,7 +5,7 @@ import numpy as np
 from scipy import fft, interpolate, ndimage, optimize, signal
 
 
-FitResult = namedtuple('FitResult', 'r t angle sx sy tx ty k1 k2 params'.split())
+FitResult = namedtuple('FitResult', 'r t angle sx sy tx ty k params'.split())
 
 
 def fit_affine_transformation(a, b,
@@ -31,10 +31,10 @@ def fit_affine_transformation(a, b,
     translation : bool
         Fit a translation component (tx, ty).
     shear : bool
-        Fit a shear component (k1, k2).
+        Fit a shear component (k).
     x0 : int/float
         Any specified values are used to set the default parameters for
-        the different components: angle/sx/sy/tx/ty/k1/k2
+        the different components: angle/sx/sy/tx/ty/k
 
     Returns
     -------
@@ -49,8 +49,7 @@ def fit_affine_transformation(a, b,
     params.add('sy', value=x0.get('sy', 1), vary=scaling)
     params.add('tx', value=x0.get('tx', 0), vary=translation)
     params.add('ty', value=x0.get('ty', 0), vary=translation)
-    params.add('k1', value=x0.get('k1', 1), vary=shear)
-    params.add('k2', value=x0.get('k2', 1), vary=shear)
+    params.add('k', value=x0.get('k', 0), vary=shear, min=-np.pi, max=np.pi)
 
     def objective_func(params, arr1, arr2):
         angle = params['angle'].value
@@ -58,15 +57,16 @@ def fit_affine_transformation(a, b,
         sy = params['sy'].value
         tx = params['tx'].value
         ty = params['ty'].value
-        k1 = params['k1'].value
-        k2 = params['k2'].value
+        k = params['k'].value
 
         sin = np.sin(angle)
         cos = np.cos(angle)
+        sin_shear = np.sin(angle + k)
+        cos_shear = np.cos(angle + k)
 
         r = np.array([
-            [sx * cos, -sy * k1 * sin],
-            [sx * k2 * sin, sy * cos]])
+            [sx * cos, -sy * sin_shear],
+            [sx * sin, sy * cos_shear]])
         t = np.array([tx, ty])
 
         fit = np.dot(arr1, r) + t
@@ -86,18 +86,19 @@ def fit_affine_transformation(a, b,
     sy = res.params['sy'].value
     tx = res.params['tx'].value
     ty = res.params['ty'].value
-    k1 = res.params['k1'].value
-    k2 = res.params['k2'].value
+    k = res.params['k'].value
 
     sin = np.sin(angle)
     cos = np.cos(angle)
+    sin_shear = np.sin(angle + k)
+    cos_shear = np.cos(angle + k)
 
     r = np.array([
-        [sx * cos, -sy * k1 * sin],
-        [sx * k2 * sin, sy * cos]])
+        [sx * cos, -sy * sin_shear],
+        [sx * sin, sy * cos_shear]])
     t = np.array([tx, ty])
 
-    return FitResult(r, t, angle, sx, sy, tx, ty, k1, k2, params)
+    return FitResult(r, t, angle, sx, sy, tx, ty, k, params)
 
 
 def movement_to_pixelcoord(movement, transform_r, transform_t, reference_movement, reference_pixel):

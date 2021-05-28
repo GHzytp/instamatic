@@ -7,6 +7,7 @@ import numpy as np
 from tqdm.auto import tqdm
 from tkinter import messagebox
 from skimage.registration import phase_cross_correlation
+from skimage.transform import warp, AffineTransform
 
 from instamatic.gui.modules import MODULES
 from instamatic import config
@@ -40,6 +41,7 @@ class Experiment:
         self.binsize = ctrl.cam.default_binsize
         self.software_binsize = config.settings.software_binsize
         self.beam_shift_matrix_C3 = np.array(config.calibration.beam_shift_matrix_C3).reshape(2, 2)
+        self.stage_matrix_angle = np.array(config.calibration.stage_matrix_angle).reshape(2, 2)
         try:
             self.tia_frame = [module for module in MODULES if module.name == 'tia'][0].frame
         except IndexError:
@@ -72,7 +74,9 @@ class Experiment:
         m = gm.to_montage()
         m.calculate_montage_coords()
         #m.optimize_montage_coords()
-        stitched = m.stitch()
+        stitched = m.stitch() # float32
+        stitched[stitched < 0] = 0
+        stitched = stitched.astype(np.uint16)
         h = {}
         h['is_montage'] = True
         h['center_pos'] = current_pos
@@ -281,8 +285,8 @@ class Experiment:
     def design_acqusition_scheme(self):
         pass
 
-    def from_target_list_3DED(self, grid_square, target, grid_dir, stop_event, sample_name: str, blank_beam: bool, 
-                                wait_interval: float, target_mode: str, align: bool, align_roi: bool, roi: list):
+    def from_target_list_3DED(self, grid_square, target, grid_dir, stop_event, sample_name: str, blank_beam: bool, wait_interval: float, 
+                            start_deg: float, end_deg: float, target_mode: str, align: bool, align_roi: bool, roi: list):
         # In diffraction mode, use beam shift to each crystal location and collection diffraction pattern.
         stop_event.clear()
         if target_mode == 'TEM':
@@ -302,6 +306,7 @@ class Experiment:
         #    return 
         cam_len = self.ctrl.magnification.get()
         target_img_df = grid_square[grid_square['img_location'].notna()]
+        self.cred_frame.var_footfree_rotate_to.set(end_deg)
 
         for index1, square in target_img_df.iterrows():
             grid_num = square['grid']
@@ -313,25 +318,44 @@ class Experiment:
             target_img_pixelsize = header['ImagePixelsize']
             target_pixel_center = target_img_shape / 2 # default position of the probe is the center of the image
             no_diff_targets = target[(target['grid']==grid_num) & (target['square']==square_num) & (target['3DED'].isna())]
-            num = len(target[(target['grid']==grid_num) & (target['square']==square_num)]) - len(no_diff_targets)
+            num = num_first = len(target[(target['grid']==grid_num) & (target['square']==square_num)]) - len(no_diff_targets)
             drift = np.array([0, 0])
-            if target_mode == 'STEM&HAADF':
-                target_stem_img_arr, h_stem = self.tia_frame.acquire_image(save_file=target_dir/f'target_stem_{sample_name}.tiff')
-                target_stem_img_arr = np.invert(target_stem_img_arr)
-                target_img_arr, h = read_tiff(grid_dir/target_img)
-                print(f"STEM: {h_stem['ImagePixelsize']}, TEM: {h['ImagePixelsize']}.")
-                print(f"STEM size: {target_stem_img_arr.shape}, TEM size: {target_img_arr.shape}.")
-                tem_stem_scale = h['ImagePixelsize'] / h_stem['ImagePixelsize']
-                target_img_arr = imgscale_target_shape(target_img_arr, tem_stem_scale, target_stem_img_arr.shape)
-                drift, error, phase = phase_cross_correlation(target_stem_img_arr, target_img_arr) # numpy coordinate
+            target_img_arr, h = read_tiff(grid_dir/target_img)
+            scalex = 1 - np.abs(self.stage_matrix_angle[0, 1]) * (1 - np.cos(start_deg/180*np.pi))
+            scaley = 1 - np.abs(self.stage_matrix_angle[0, 0]) * (1 - np.cos(start_deg/180*np.pi))
+            tform = AffineTransform(scale=(scalex, scaley), translation=(target_pixel_center[1]*(1-scalex), target_pixel_center[0]*(1-scaley)))
+
             for index2, point in no_diff_targets.iterrows(): 
+                self.ctrl.stage.a = start_deg
+                self.ctrl.stage.eliminate_backlash_a(target_angle=end_deg)
+                if target_mode == 'STEM&HAADF':
+                    time.sleep(wait_interval)
+                    target_stem_img_arr, h_stem = self.tia_frame.acquire_image(save_file=target_dir/f'target_stem_{sample_name}.tiff')
+                    target_stem_img_arr = np.invert(target_stem_img_arr)
+                    
+                    print(f"STEM: {h_stem['ImagePixelsize']}, TEM: {h['ImagePixelsize']}.")
+                    print(f"STEM size: {target_stem_img_arr.shape}, TEM size: {target_img_arr.shape}.")
+                    tem_stem_scale = h['ImagePixelsize'] / h_stem['ImagePixelsize']
+                    if num == num_first:
+                        target_img_arr = imgscale_target_shape(target_img_arr, tem_stem_scale, target_stem_img_arr.shape)
+                        # compare with target image after stretch
+                        if target_img_arr.dtype == np.uint16:
+                            target_img_arr = warp(target_img_arr, tform.inverse, cval=np.mean(target_img_arr)/65535) * 65535
+                            target_img_arr = target_img_arr.astype(np.uint16)
+                            filepath = target_dir / f'target_img_warp_{sample_name}.tiff'
+                            write_tiff(filepath, arr, header=h_stem)
+                        else:
+                            print(f'Target image should be unsigned int 16.')
+                            return
+                    drift, error, phase = phase_cross_correlation(target_stem_img_arr, target_img_arr) # numpy coordinate
                 # beam shift
                 if target_mode == 'TEM':
                     beam_shift = target_img_pixelsize * (target_pixel_center - np.array((point['y'], point['x']))) @ self.beam_shift_matrix_C3
                     self.ctrl.beamshift.xy = beam_shift
                 else:
+                    # coordinates also needs stretch
                     target_coord =  np.array((point['y'], point['x'])) # numpy coordinate
-                    target_coord = (target_coord - target_pixel_center) * tem_stem_scale + drift # numpy coordinate
+                    target_coord = (target_coord - target_pixel_center) * tem_stem_scale * np.array((scaley, scalex)) + drift # numpy coordinate
                     target_coord[0] = - target_coord[0] # tia coordinate x left y up
                     target_coord_frac = target_coord / target_stem_img_arr.shape * 2  # tia coordinate x left y up
                     if abs(target_coord_frac[0]) <= 1 and  abs(target_coord_frac[1]) <= 1:

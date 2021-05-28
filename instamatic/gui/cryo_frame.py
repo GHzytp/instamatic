@@ -154,8 +154,15 @@ class CryoEDFrame(LabelFrame):
         self.e_mag_shift_x.grid(row=8, column=4, sticky='EW')
         self.e_mag_shift_y = Spinbox(frame, textvariable=self.var_mag_shift_y, width=8, from_=-self.dimension[1], to=self.dimension[1], increment=1, state=NORMAL)
         self.e_mag_shift_y.grid(row=8, column=5, sticky='EW', padx=5)
+
+        Label(frame, text='Start Deg', anchor="center").grid(row=9, column=0, sticky='EW')
+        self.e_start_deg = Spinbox(frame, textvariable=self.var_start_deg, width=8, from_=-60.0, to=60.0, increment=0.1, state=NORMAL)
+        self.e_start_deg.grid(row=9, column=1, sticky='EW', padx=5)
+        Label(frame, text='End Deg', anchor="center").grid(row=9, column=2, sticky='EW')
+        self.e_end_deg = Spinbox(frame, textvariable=self.var_end_deg, width=8, from_=-60.0, to=60.0, increment=0.1, state=NORMAL)
+        self.e_end_deg.grid(row=9, column=3, sticky='EW', padx=5)
         
-        Separator(frame, orient=HORIZONTAL).grid(row=9, columnspan=7, sticky='ew', pady=5)
+        Separator(frame, orient=HORIZONTAL).grid(row=10, columnspan=7, sticky='ew', pady=5)
 
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
 
@@ -256,6 +263,8 @@ class CryoEDFrame(LabelFrame):
         self.var_mag_shift_y = IntVar(value=config.calibration.relative_pixel_shift_square_target[1])
         self.var_interp_method = StringVar(value="Rbf")
         self.var_target_mode = StringVar(value='TEM')
+        self.var_start_deg = DoubleVar(value=-30.0)
+        self.var_end_deg = DoubleVar(value=30.0)
 
     def set_trigger(self, trigger=None, q=None):
         self.triggerEvent = trigger
@@ -924,6 +933,9 @@ class CryoEDFrame(LabelFrame):
         self.triggerEvent.set()
 
     def from_target_3DED(self):
+        if self.var_start_deg.get() > self.var_end_deg.get():
+            print('Start angle must smaller than the end angle.')
+            return
         params = {'grid_square': self.df_square,
                   'target': self.df_target,
                   'grid_dir': self.grid_dir,
@@ -934,6 +946,8 @@ class CryoEDFrame(LabelFrame):
                   'roi': self.roi,
                   'blank_beam': self.var_blank_beam.get(),
                   'target_mode': self.var_target_mode.get(),
+                  'start_deg': self.var_start_deg.get(),
+                  'end_deg': self.var_end_deg.get(),
                   'stop_event': self.stop_event}
         self.q.put(('from_target_list_3DED', params))
         self.triggerEvent.set()
