@@ -225,17 +225,19 @@ class Experiment:
             target_img_pixelsize = header['ImagePixelsize']
             target_pixel_center = target_img_shape / 2 # default position of the probe is the center of the image
             no_diff_targets = target[(target['grid']==grid_num) & (target['square']==square_num) & (target['diff_location'].isna())]
-            num = len(target[(target['grid']==grid_num) & (target['square']==square_num)]) - len(no_diff_targets)
-            drift = np.array([0, 0])
-            if target_mode == 'STEM&HAADF' and len(no_diff_targets) != 0:
-                target_stem_img_arr, h_stem = self.tia_frame.acquire_image(save_file=target_dir/f'target_stem_{sample_name}.tiff')
-                target_stem_img_arr = np.invert(target_stem_img_arr)
-                target_img_arr, h = read_tiff(grid_dir/target_img)
-                print(f"STEM: {h_stem['ImagePixelsize']}, TEM: {h['ImagePixelsize']}.")
-                print(f"STEM size: {target_stem_img_arr.shape}, TEM size: {target_img_arr.shape}.")
-                tem_stem_scale = h['ImagePixelsize'] / h_stem['ImagePixelsize']
-                target_img_arr = imgscale_target_shape(target_img_arr, tem_stem_scale, target_stem_img_arr.shape)
-                drift, error, phase = phase_cross_correlation(target_stem_img_arr, target_img_arr) # numpy coordinate
+            if len(no_diff_targets) != 0:
+                self.ctrl.stage.set_xy_with_backlash_correction(x=square['pos_x'], y=square['pos_y'])
+                num = len(target[(target['grid']==grid_num) & (target['square']==square_num)]) - len(no_diff_targets)
+                drift = np.array([0, 0])
+                if target_mode == 'STEM&HAADF':
+                    target_stem_img_arr, h_stem = self.tia_frame.acquire_image(save_file=target_dir/f'target_stem_{sample_name}.tiff')
+                    target_stem_img_arr = np.invert(target_stem_img_arr)
+                    target_img_arr, h = read_tiff(grid_dir/target_img)
+                    print(f"STEM: {h_stem['ImagePixelsize']}, TEM: {h['ImagePixelsize']}.")
+                    print(f"STEM size: {target_stem_img_arr.shape}, TEM size: {target_img_arr.shape}.")
+                    tem_stem_scale = h['ImagePixelsize'] / h_stem['ImagePixelsize']
+                    target_img_arr = imgscale_target_shape(target_img_arr, tem_stem_scale, target_stem_img_arr.shape)
+                    drift, error, phase = phase_cross_correlation(target_stem_img_arr, target_img_arr) # numpy coordinate
             for index2, point in no_diff_targets.iterrows(): 
                 # beam shift
                 if target_mode == 'TEM':
@@ -317,15 +319,18 @@ class Experiment:
             target_img_shape = np.array(header['ImageResolution'])
             target_img_pixelsize = header['ImagePixelsize']
             target_pixel_center = target_img_shape / 2 # default position of the probe is the center of the image
-            no_diff_targets = target[(target['grid']==grid_num) & (target['square']==square_num) & (target['3DED'].isna())]
-            num = num_first = len(target[(target['grid']==grid_num) & (target['square']==square_num)]) - len(no_diff_targets)
-            drift = np.array([0, 0])
-            target_img_arr, h = read_tiff(grid_dir/target_img)
-            scalex = 1 - np.abs(self.stage_matrix_angle[0, 1]) * (1 - np.cos(start_deg/180*np.pi))
-            scaley = 1 - np.abs(self.stage_matrix_angle[0, 0]) * (1 - np.cos(start_deg/180*np.pi))
-            tform = AffineTransform(scale=(scalex, scaley), translation=(target_pixel_center[1]*(1-scalex), target_pixel_center[0]*(1-scaley)))
+            no_3DED_targets = target[(target['grid']==grid_num) & (target['square']==square_num) & (target['3DED'].isna())]
+            if len(no_3DED_targets) != 0:
+                num = num_first = len(target[(target['grid']==grid_num) & (target['square']==square_num)]) - len(no_3DED_targets)
+                drift = np.array([0, 0])
+                target_img_arr, h = read_tiff(grid_dir/target_img)
+                scalex = 1 - np.abs(self.stage_matrix_angle[0, 1]) * (1 - np.cos(start_deg/180*np.pi))
+                scaley = 1 - np.abs(self.stage_matrix_angle[0, 0]) * (1 - np.cos(start_deg/180*np.pi))
+                tform = AffineTransform(scale=(scalex, scaley), translation=(target_pixel_center[1]*(1-scalex), target_pixel_center[0]*(1-scaley)))
+                # Move the stage to the target image position
+                self.ctrl.stage.set_xy_with_backlash_correction(x=square['pos_x'], y=square['pos_y'])
 
-            for index2, point in no_diff_targets.iterrows(): 
+            for index2, point in no_3DED_targets.iterrows(): 
                 self.ctrl.stage.a = start_deg
                 self.ctrl.stage.eliminate_backlash_a(target_angle=end_deg)
                 if target_mode == 'STEM&HAADF':
