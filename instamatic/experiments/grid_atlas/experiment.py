@@ -226,6 +226,7 @@ class Experiment:
             target_pixel_center = target_img_shape / 2 # default position of the probe is the center of the image
             no_diff_targets = target[(target['grid']==grid_num) & (target['square']==square_num) & (target['diff_location'].isna())]
             if len(no_diff_targets) != 0:
+                self.ctrl.stage.z = square['pos_z']
                 self.ctrl.stage.set_xy_with_backlash_correction(x=square['pos_x'], y=square['pos_y'])
                 if blank_beam:
                     self.ctrl.beam.unblank(wait_interval)

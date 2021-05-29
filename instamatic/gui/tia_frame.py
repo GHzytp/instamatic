@@ -39,6 +39,7 @@ class TIAFrame(LabelFrame):
         self.dimension = (np.array(self.stream_frame.dimension)*0.9).astype(np.uint16)
         self.drc = config.locations['work']
         self.h = {}
+        self.right_click_cnt = 0
         if self.ctrl.sw is None:
             self.window_options = []
             self.display_options = []
@@ -73,6 +74,7 @@ class TIAFrame(LabelFrame):
         self.var_image = StringVar(value="")
         self.var_signal = StringVar(value="")
         self.var_move_beam = BooleanVar(value=False)
+        self.var_measure = BooleanVar(value=False)
 
     def buttonbox(self, master):
         frame = Frame(master)
@@ -123,6 +125,7 @@ class TIAFrame(LabelFrame):
         self.o_display.grid(row=1, column=4, sticky='EW')
         Button(frame, text='Update', command=self.get_display_name).grid(row=1, column=5, sticky='EW')
         Checkbutton(frame, text='Move Beam', variable=self.var_move_beam, command=self.move_beam).grid(row=1, column=6, sticky='EW')
+        Checkbutton(frame, text='Measure', variable=self.var_measure, command=self.activate_measure).grid(row=1, column=6, sticky='EW')
 
         Label(frame, width=8, text='Image:').grid(row=2, column=0)
         self.o_image = OptionMenu(frame, self.var_image, "", *self.image_options)
@@ -165,6 +168,28 @@ class TIAFrame(LabelFrame):
         frac_x = (x - center[0]) / center[0]
         frac_y = (center[1] - y) / center[1]
         self.ctrl.sw.MoveBeam(frac_x, frac_y)
+
+    def activate_measure(self):
+        if self.var_measure.get():
+            self.panel.bind("<ButtonPress-3>", self._mouse_right_clicked)
+        else:
+            self.panel.unbind("<ButtonPress-3>")
+
+    def _mouse_right_clicked(self, event):
+        if not self.h:
+            print('Must have an image in the frame.')
+            self.right_click_cnt = 0
+            self.var_measure.set(value=False)
+            self.panel.unbind("<ButtonPress-3>")
+            return
+        if self.right_click_cnt == 0:
+            self.start_pos = np.array((event.x, event.y))
+            self.right_click_cnt += 1
+        elif self.right_click_cnt == 1:
+            pixelsize = self.h['ImagePixelsize']
+            self.end_pos = np.array((event.x, event.y))
+            self.right_click_cnt = 0
+            print(f'Start position: {self.start_pos}; End position: {self.end_pos};\nMeasured length: {np.linalg.norm(self.end_pos - self.start_pos) * pixelsize}nm')
 
     def get_window_name(self, event=None):
         self.window_options = self.ctrl.sw.DisplayWindowNames()
