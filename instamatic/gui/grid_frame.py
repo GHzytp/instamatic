@@ -20,6 +20,8 @@ from instamatic.utils.widgets import Hoverbox, Spinbox
 from instamatic.processing.find_holes import find_square
 from instamatic.utils.navigation import sort_nav_items_by_shortest_path
 
+DEFAULT_ZOOM = 0.5
+
 class GridFrame(LabelFrame):
     """Load a GUi to show the grid map and label suitable crystals."""
 
@@ -33,7 +35,7 @@ class GridFrame(LabelFrame):
         self.map_path = None
         self.image = None
         self.image_scaled = None
-        self.last_scale = 1
+        self.last_scale = DEFAULT_ZOOM
         self.counter = 0
         self.select_flag = 0
         self._drag_data = {"x": 0, "y": 0}
@@ -64,7 +66,7 @@ class GridFrame(LabelFrame):
         self.ClearAllButton = Button(frame, text='Clear All', width=12, command=self.clear_all, state=NORMAL)
         self.ClearAllButton.grid(row=1, column=4, sticky='EW')
 
-        self.e_tolerance = Spinbox(frame, width=8, textvariable=self.var_tolerance, from_=0.01, to=2, increment=0.01)
+        self.e_tolerance = Spinbox(frame, width=8, textvariable=self.var_tolerance, from_=0.1, to=2, increment=0.1)
         self.e_tolerance.grid(row=2, column=0, stick='EW')
         self.FindSquareButton = Button(frame, text='Find Squares', width=12, command=self.find_squares, state=NORMAL)
         self.FindSquareButton.grid(row=2, column=1, sticky='EW', padx=5)
@@ -118,7 +120,7 @@ class GridFrame(LabelFrame):
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
         
     def init_vars(self):
-        self.var_zoom = DoubleVar(value=1.0)
+        self.var_zoom = DoubleVar(value=DEFAULT_ZOOM)
         self.var_tolerance = DoubleVar(value=0.1)
         self.var_measure = BooleanVar(value=False)
 
@@ -130,10 +132,10 @@ class GridFrame(LabelFrame):
         self.map_info = None
         self.image = None
         self.image_scaled = None
-        self.last_scale = 1
+        self.last_scale = DEFAULT_ZOOM
         self.counter = 0
         self.saved_tv_items = None
-        self.var_zoom.set(1.0)
+        self.var_zoom.set(DEFAULT_ZOOM)
         self.lbl_open_map.config(text="")
         self.map_on_canvas = None
         self.select_flag = 0
@@ -416,6 +418,8 @@ class GridFrame(LabelFrame):
             stage_pos = stage_pos[route]
             self.point_list = self.point_list.reindex(route).reset_index().drop(['index'], axis=1)
             stage_pos -= pixel_center
+            # if self.cryo_frame.var_mag_shift.get():
+            #     stage_pos += np.array((self.cryo_frame.var_mag_shift_x.get(), self.cryo_frame.var_mag_shift_y.get()))
             stage_matrix = np.array(self.map_info['stage_matrix'])
             # this is done because the x and y axis definition of numpy (Y,X) and tkinter canvas (X,Y) is different
             stage_matrix = stage_matrix[::-1] 
