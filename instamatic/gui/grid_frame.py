@@ -20,7 +20,7 @@ from instamatic.utils.widgets import Hoverbox, Spinbox
 from instamatic.processing.find_holes import find_square
 from instamatic.utils.navigation import sort_nav_items_by_shortest_path
 
-DEFAULT_ZOOM = 0.5
+DEFAULT_ZOOM = 1
 
 class GridFrame(LabelFrame):
     """Load a GUi to show the grid map and label suitable crystals."""

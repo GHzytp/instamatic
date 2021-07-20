@@ -150,24 +150,31 @@ class CryoEDFrame(LabelFrame):
         self.UpdateZButton = Button(frame, text='Z Target', width=11, command=self.update_z_target, state=NORMAL)
         self.UpdateZButton.grid(row=8, column=2, sticky='EW')
         Checkbutton(frame, text='Mag shift', variable=self.var_mag_shift).grid(row=8, column=3, sticky='EW', padx=5)
-        self.e_mag_shift_x = Spinbox(frame, textvariable=self.var_mag_shift_x, width=8, from_=-self.dimension[0], to=self.dimension[0], increment=1, state=NORMAL)
-        self.e_mag_shift_x.grid(row=8, column=4, sticky='EW')
-        self.e_mag_shift_y = Spinbox(frame, textvariable=self.var_mag_shift_y, width=8, from_=-self.dimension[1], to=self.dimension[1], increment=1, state=NORMAL)
-        self.e_mag_shift_y.grid(row=8, column=5, sticky='EW', padx=5)
+        Label(frame, text='Low mag').grid(row=8, column=4, sticky='EW')
+        self.e_low_mag_shift_x = Spinbox(frame, textvariable=self.var_low_mag_shift_x, width=8, from_=-self.dimension[0], to=self.dimension[0], increment=1, state=NORMAL)
+        self.e_low_mag_shift_x.grid(row=8, column=5, sticky='EW', padx=5)
+        self.e_low_mag_shift_y = Spinbox(frame, textvariable=self.var_low_mag_shift_y, width=8, from_=-self.dimension[1], to=self.dimension[1], increment=1, state=NORMAL)
+        self.e_low_mag_shift_y.grid(row=8, column=6, sticky='EW')
 
-        Label(frame, text='Beam Drift', anchor="center").grid(row=9, column=0, sticky='EW')
+        Label(frame, text='High mag').grid(row=9, column=4, sticky='EW')
+        self.e_high_mag_shift_x = Spinbox(frame, textvariable=self.var_high_mag_shift_x, width=8, from_=-self.dimension[0], to=self.dimension[0], increment=1, state=NORMAL)
+        self.e_high_mag_shift_x.grid(row=9, column=5, sticky='EW', padx=5)
+        self.e_high_mag_shift_y = Spinbox(frame, textvariable=self.var_high_mag_shift_y, width=8, from_=-self.dimension[1], to=self.dimension[1], increment=1, state=NORMAL)
+        self.e_high_mag_shift_y.grid(row=9, column=6, sticky='EW')
+
+        Label(frame, text='Beam Drift', anchor="center").grid(row=10, column=0, sticky='EW')
         self.e_beam_drift_x = Spinbox(frame, textvariable=self.var_beam_drift_x, width=8, from_=-500, to=500, increment=1, state=NORMAL)
-        self.e_beam_drift_x.grid(row=9, column=1, sticky='EW', padx=5)
+        self.e_beam_drift_x.grid(row=10, column=1, sticky='EW', padx=5)
         self.e_beam_drift_y = Spinbox(frame, textvariable=self.var_beam_drift_y, width=8, from_=-500, to=500, increment=1, state=NORMAL)
-        self.e_beam_drift_y.grid(row=9, column=2, sticky='EW')
-        Label(frame, text='Start Deg', anchor="center").grid(row=9, column=3, sticky='EW', padx=5)
+        self.e_beam_drift_y.grid(row=10, column=2, sticky='EW')
+        Label(frame, text='Start Deg', anchor="center").grid(row=10, column=3, sticky='EW', padx=5)
         self.e_start_deg = Spinbox(frame, textvariable=self.var_start_deg, width=8, from_=-60.0, to=60.0, increment=0.1, state=NORMAL)
-        self.e_start_deg.grid(row=9, column=4, sticky='EW')
-        Label(frame, text='End Deg', anchor="center").grid(row=9, column=5, sticky='EW', padx=5)
+        self.e_start_deg.grid(row=10, column=4, sticky='EW')
+        Label(frame, text='End Deg', anchor="center").grid(row=10, column=5, sticky='EW', padx=5)
         self.e_end_deg = Spinbox(frame, textvariable=self.var_end_deg, width=8, from_=-60.0, to=60.0, increment=0.1, state=NORMAL)
-        self.e_end_deg.grid(row=9, column=6, sticky='EW')
+        self.e_end_deg.grid(row=10, column=6, sticky='EW')
         
-        Separator(frame, orient=HORIZONTAL).grid(row=10, columnspan=7, sticky='ew', pady=5)
+        Separator(frame, orient=HORIZONTAL).grid(row=11, columnspan=7, sticky='ew', pady=5)
 
         frame.pack(side='top', fill='x', expand=False, padx=5, pady=5)
 
@@ -264,8 +271,10 @@ class CryoEDFrame(LabelFrame):
         self.var_auto_height = BooleanVar(value=True)
         self.var_backlash = BooleanVar(value=False)
         self.var_draw = BooleanVar(value=True)
-        self.var_mag_shift_x = IntVar(value=config.calibration.relative_pixel_shift_square_target[0])
-        self.var_mag_shift_y = IntVar(value=config.calibration.relative_pixel_shift_square_target[1])
+        self.var_low_mag_shift_x = IntVar(value=config.calibration.relative_pixel_shift_grid_square[0])
+        self.var_low_mag_shift_y = IntVar(value=config.calibration.relative_pixel_shift_grid_square[1])
+        self.var_high_mag_shift_x = IntVar(value=config.calibration.relative_pixel_shift_square_target[0])
+        self.var_high_mag_shift_y = IntVar(value=config.calibration.relative_pixel_shift_square_target[1])
         self.var_interp_method = StringVar(value="Rbf")
         self.var_target_mode = StringVar(value='TEM')
         self.var_beam_drift_x = IntVar(value=0)
@@ -895,6 +904,9 @@ class CryoEDFrame(LabelFrame):
                   'align_roi': self.var_align_roi.get(),
                   'roi': self.roi,
                   'blank_beam': self.var_blank_beam.get(),
+                  'mag_shift': self.var_mag_shift.get(),
+                  'mag_shift_x': self.var_low_mag_shift_x.get(),
+                  'mag_shift_y': self.var_low_mag_shift_y.get(),
                   'num_img': self.var_num.get(),
                   'auto_height': self.var_auto_height.get(),
                   'stop_event': self.stop_event}
@@ -915,8 +927,8 @@ class CryoEDFrame(LabelFrame):
                   'roi': self.roi,
                   'blank_beam': self.var_blank_beam.get(),
                   'mag_shift': self.var_mag_shift.get(),
-                  'mag_shift_x': self.var_mag_shift_x.get(),
-                  'mag_shift_y': self.var_mag_shift_y.get(),
+                  'mag_shift_x': self.var_high_mag_shift_x.get(),
+                  'mag_shift_y': self.var_high_mag_shift_y.get(),
                   'pred_z': self.z_interpolator,
                   'stop_event': self.stop_event}
         self.q.put(('from_grid_square_list', params))
