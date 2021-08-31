@@ -88,7 +88,7 @@ class Experiment:
         self.ctrl.stage.xy = current_pos
 
     def from_whole_grid_list(self, whole_grid, grid_dir, stop_event, sample_name: str, exposure_time: float, wait_interval: float, auto_height: bool,
-                        blank_beam: bool, num_img: int, align: bool, align_roi: bool, roi: list, defocus: int, stage_tilt: float):
+                        blank_beam: bool, num_img: int, align: bool, align_roi: bool, roi: list, defocus: int, stage_tilt: float, mag_shift: bool, mag_shift_x: int, mag_shift_y: int):
         # go to the position at grid square level, find the eucentric height, take a montage
         stop_event.clear()
         mag = self.ctrl.magnification.get()
@@ -109,8 +109,15 @@ class Experiment:
         else:
             image_scale = config.calibration[state]['pixelsize'][mag] * self.binsize * self.software_binsize
 
+        header = read_tiff_header(grid_dir/f'grid_{sample_name}.tiff')
+        stage_matrix = np.array(header['stage_matrix'])
+        mag_induced_stageshift = np.array([mag_shift_x, mag_shift_y]) @ stage_matrix
+
         for index, point in no_square_img_df.iterrows():
-            self.ctrl.stage.xy = point['pos_x'], point['pos_y']
+            if mag_shift:
+                self.ctrl.stage.xy = (point['pos_x']+mag_induced_stageshift[0], point['pos_y']+mag_induced_stageshift[1])
+            else:
+                self.ctrl.stage.xy = (point['pos_x'], point['pos_y'])
             if auto_height:
                 tomo_exp = TOMO.Experiment(ctrl=self.ctrl, log=self.logger, flatfield=self.flatfield)
                 tomo_exp.start_auto_eucentric_height(exposure_time=exposure_time, wait_interval=wait_interval, align=align, 
@@ -123,6 +130,10 @@ class Experiment:
                 self.ctrl.stage.eliminate_backlash_xy()
             self.collect_montage(exposure_time, align, align_roi, roi, blank_beam, num_img, filepath, mag, image_scale, save_origin=False)
             whole_grid.loc[index, 'img_location'] = Path(square_dir.name) / f'square_{sample_name}.tiff'
+            if mag_shift:
+                current_pos = self.ctrl.stage.xy
+                whole_grid.loc[index, 'pos_x'] = np.round(current_pos[0])
+                whole_grid.loc[index, 'pos_y'] = np.round(current_pos[1])
             num += 1
             if stop_event.is_set():
                 stop_event.clear()
