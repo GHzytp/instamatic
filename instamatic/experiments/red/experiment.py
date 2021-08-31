@@ -107,6 +107,9 @@ class Experiment:
 
         if self.current_angle is None:
             self.start_angle = start_angle = ctrl.stage.a
+            ctrl.stage.eliminate_backlash_a(target_angle=start_angle+tilt_range)
+            if not messagebox.askokcancel("Continue", "Check crystal position and continue"):
+                return
         else:
             start_angle = self.current_angle + stepsize
         tilt_positions = np.arange(start_angle, start_angle + tilt_range, stepsize)

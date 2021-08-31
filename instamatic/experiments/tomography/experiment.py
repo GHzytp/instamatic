@@ -104,14 +104,14 @@ class Experiment:
         else:
             start_angle = self.current_angle + stepsize
 
-        tilt_positions = np.arange(start_angle + stepsize, start_angle + tilt_range + stepsize, stepsize)
+        tilt_positions = np.arange(start_angle, start_angle + tilt_range, stepsize)
         print(f'\nStart_angle: {start_angle:.3f}')
 
         for i, angle in enumerate(tqdm(tilt_positions)):
+            ctrl.stage.a = angle
             time.sleep(wait_interval)
             j = i + self.offset
             img, h = self.obtain_image(exposure_time, align, align_roi, roi)
-            ctrl.stage.a = angle
             self.buffer.append((j, img, h))
 
         self.offset += len(tilt_positions)
