@@ -44,7 +44,7 @@ def read_image(fname: str) -> (np.array, dict):
 def read_emd(fname: str):
     try:
         with fileEMDVelox(fname) as emd:
-            im0, metadata0 = emd.get_dataset(0)
+            im0, metadata0 = emd.get_dataset(0) # could be a number other than 0
             return im0, metadata0
     except KeyError:
         with fileEMD(fname, readonly = True) as emd:
